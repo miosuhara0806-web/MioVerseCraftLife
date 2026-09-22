@@ -91,3 +91,45 @@ assert.equal(G.restore({ day: -1, gathersLeft: 4 }).gathersLeft, 3);
 assert.equal(G.restore({ day: 5, gathersLeft: 0 }).gathersLeft, 0);
 console.log('PASS: no day penalty or day cap, validation and zero gathers restoration');
 
+const allFixedIds = G.requests.map(request => request.id);
+const oldCompleteSave = { inventory: { cloth: 7 }, completed: allFixedIds, day: 8, gathersLeft: 1 };
+const daily = G.restore(oldCompleteSave, () => 0);
+assert.equal(G.dailyUnlocked(daily), true);
+assert.equal(daily.dailyRequests.length, 3, '9件達成済みの旧セーブに初回3件を生成');
+assert.equal(new Set(G.currentDailyRequests(daily).map(request => request.id)).size, 3, '同日に依頼IDを重複させない');
+assert.equal(new Set(G.currentDailyRequests(daily).map(request => request.resident)).size, 3, '3人に1枠ずつ生成');
+assert.equal(daily.inventory.cloth, 7);
+assert.equal(daily.day, 8);
+assert.deepEqual(G.restore(JSON.parse(JSON.stringify(daily))), daily, '日常依頼と履歴を再読み込みで維持');
+
+const firstDay = G.currentDailyRequests(daily);
+const delivered = firstDay[0];
+daily.inventory[delivered.item] = delivered.quantity;
+assert.equal(G.deliverDaily(daily, delivered.id), true);
+assert.equal(daily.inventory[delivered.item], 0, '日常依頼の必要数だけ在庫を消費');
+assert.equal(G.deliverDaily(daily, delivered.id), false, '同じ日常依頼を二重納品できない');
+const carriedIds = G.currentDailyRequests(daily).filter(request => !request.completed).map(request => request.id);
+G.rest(daily, () => 0);
+const secondDay = G.currentDailyRequests(daily);
+assert.equal(daily.day, 9);
+assert.ok(carriedIds.every(id => secondDay.some(request => request.id === id)), '未達成枠を翌日に持ち越す');
+assert.ok(!secondDay.some(request => request.id === delivered.id), '直前に達成した依頼を同じ枠へ出さない');
+assert.equal(secondDay.every(request => !request.completed), true, '交換後は3枠とも未達成');
+
+const unchangedIds = secondDay.map(request => request.id);
+G.rest(daily, () => 0.7);
+assert.deepEqual(G.currentDailyRequests(daily).map(request => request.id), unchangedIds, '3件すべて未達成なら翌日も維持');
+for (const request of G.currentDailyRequests(daily)) {
+  daily.inventory[request.item] = Math.max(daily.inventory[request.item], request.quantity);
+  assert.equal(G.deliverDaily(daily, request.id), true);
+}
+const completedIds = G.currentDailyRequests(daily).map(request => request.id);
+G.rest(daily, () => 0.3);
+const refreshed = G.currentDailyRequests(daily);
+assert.equal(refreshed.length, 3);
+assert.equal(new Set(refreshed.map(request => request.id)).size, 3);
+assert.ok(refreshed.every(request => !completedIds.includes(request.id)), '3件達成後は翌日に3件とも更新');
+assert.equal(G.dailyRequestPool.length, 15);
+assert.ok(G.dailyRequestPool.every(request => G.recipes.some(recipe => recipe.id === request.item)), '日常依頼は既存レシピだけを要求');
+console.log('PASS: daily request migration, unique generation, manual delivery, carryover, next-day replacement, history and save round trip');
+
