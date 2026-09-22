@@ -22,7 +22,9 @@ function launch() {
     click(action, id) { handlers.click({ target: { closest: () => ({ dataset: { action, id }, disabled: false }) } }); },
     page(id) { context.location.hash = '#' + id; handlers.hashchange(); return node('main').innerHTML; },
     state() { return saved.has('mioverse-craft-v1') ? JSON.parse(saved.get('mioverse-craft-v1')) : G.fresh(); },
-    dialogOpen() { return node('rest-dialog').open; }
+    dialogOpen() { return node('rest-dialog').open; },
+    recipeDialogOpen() { return node('recipe-dialog').open; },
+    recipeDialogHtml() { return node('recipe-dialog-content').innerHTML; }
   };
 }
 let app = launch();
@@ -219,17 +221,34 @@ assert.deepEqual(app.state().completed, oldSave.completed);
 assert.equal(app.state().unlockedStage, 3);
 console.log('PASS: daily cap, disabled UI, unlimited crafting/delivery, rest confirmation/cancel, early rest, day 5 reload and old save migration');
 
-// 全9件の未達成依頼から、対応する完成品レシピへ移動して強調できる。
+// 全9件の未達成依頼で作り方を確認し、対応する完成品レシピへ移動して強調できる。
 for (const request of G.requests) {
   const stage = request.stage || 1;
   const progress = G.fresh();
+  const recipe = G.recipes.find(r => r.id === request.item);
   progress.completed = G.requests.filter(r => (r.stage || 1) < stage).map(r => r.id);
   progress.unlockedStage = stage;
+  G.ingredients(recipe).forEach((input, index) => { progress.inventory[input.id] = input.cost + index; });
   saved.set('mioverse-craft-v1', JSON.stringify(progress));
   app = launch();
   const requestsHtml = app.page('requests');
   assert.ok(requestsHtml.includes(`data-action="view-recipe" data-id="${request.id}"`), `${request.id} に作り方ボタンを表示`);
   app.click('view-recipe', request.id);
+  assert.equal(app.recipeDialogOpen(), true, `${request.id} の作り方ポップアップを開く`);
+  assert.equal(app.page('requests').includes(request.message), true, '依頼画面を維持');
+  const dialogHtml = app.recipeDialogHtml();
+  assert.ok(dialogHtml.includes(`id="recipe-dialog-title">${G.items.find(i => i.id === request.item).name}</h2>`), '完成品名を表示');
+  for (const input of G.ingredients(recipe)) {
+    const inputName = G.items.find(i => i.id === input.id).name;
+    assert.ok(dialogHtml.includes(`<span>${inputName}</span><strong>× ${input.cost}</strong>`), `${inputName} の必要数を表示`);
+    assert.ok(dialogHtml.includes(`<span>${inputName}</span><strong>${progress.inventory[input.id]} / ${input.cost}</strong>`), `${inputName} の現在庫を表示`);
+  }
+  app.click('recipe-close');
+  assert.equal(app.recipeDialogOpen(), false, '閉じるでポップアップだけ閉じる');
+  assert.ok(app.page('requests').includes(request.message), '閉じた後も依頼画面を維持');
+  app.click('view-recipe', request.id);
+  app.click('recipe-go-craft');
+  assert.equal(app.recipeDialogOpen(), false, '加工画面へ移動する前にポップアップを閉じる');
   const craftHtml = app.page('craft');
   assert.ok(craftHtml.includes(`class="recipe recipe-highlight" data-recipe-id="${request.item}"`), `${request.id} から ${request.item} を強調`);
   assert.equal((craftHtml.match(/recipe-highlight/g) || []).length, 1, '対象レシピだけを強調');
@@ -240,5 +259,5 @@ for (const request of G.requests) {
   app = launch();
   assert.ok(!app.page('requests').includes(`data-action="view-recipe" data-id="${request.id}"`), `${request.id} 達成後は作り方ボタンを非表示`);
 }
-console.log('PASS: all 9 request recipe links, exact recipe highlighting, and completed-button hiding');
+console.log('PASS: all 9 recipe dialogs, ingredient/stock display, close behavior, exact recipe highlighting, and completed-button hiding');
 
