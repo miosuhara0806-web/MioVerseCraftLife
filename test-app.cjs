@@ -158,7 +158,7 @@ for (const id of ['nakaWreath', 'ritsuCushion', 'towaLinedBox']) {
   assert.match(app.page('requests'), new RegExp(`data-action="deliver" data-id="${id}" disabled>達成しました</button>`));
 }
 assert.equal(app.state().completed.length, 9);
-assert.ok(app.page('home').includes('すべての依頼を届けました'));
+assert.ok(app.page('home').includes('日常のお願いが届いています'));
 console.log('PASS: stage 3 unlock, branching production from gathering, all 3 manual deliveries, stock display/consumption and reload');
 
 // 日付機能は独立した保存領域で、採集上限を迂回せず検証する。
@@ -260,4 +260,43 @@ for (const request of G.requests) {
   assert.ok(!app.page('requests').includes(`data-action="view-recipe" data-id="${request.id}"`), `${request.id} 達成後は作り方ボタンを非表示`);
 }
 console.log('PASS: all 9 recipe dialogs, ingredient/stock display, close behavior, exact recipe highlighting, and completed-button hiding');
+
+// 9件達成済みの旧セーブから日常依頼を初期化し、画面・モーダル・納品・翌日更新・再読込を検証。
+const dailySave = G.restore({ inventory: {}, completed: G.requests.map(request => request.id), day: 12, gathersLeft: 2 }, () => 0);
+const initialDaily = G.currentDailyRequests(dailySave);
+for (const request of initialDaily) dailySave.inventory[request.item] = request.quantity;
+saved.set('mioverse-craft-v1', JSON.stringify(dailySave));
+app = launch();
+let dailyHtml = app.page('requests');
+assert.ok(dailyHtml.includes('日常のお願い'));
+assert.ok(dailyHtml.includes('今日の依頼 3件'));
+assert.equal((dailyHtml.match(/class="request-card daily-request/g) || []).length, 3);
+const dailyTarget = G.currentDailyRequests(app.state())[0];
+assert.ok(dailyHtml.includes(`data-action="view-recipe" data-id="${dailyTarget.id}"`));
+app.click('view-recipe', dailyTarget.id);
+assert.equal(app.recipeDialogOpen(), true);
+assert.ok(app.recipeDialogHtml().includes(`id="recipe-dialog-title">${G.items.find(item => item.id === dailyTarget.item).name}</h2>`));
+for (const input of G.ingredients(G.recipes.find(recipe => recipe.id === dailyTarget.item))) {
+  assert.ok(app.recipeDialogHtml().includes(`<strong>× ${input.cost * dailyTarget.quantity}</strong>`), '依頼数を掛けた必要素材を表示');
+}
+app.click('recipe-go-craft');
+assert.ok(app.page('craft').includes(`class="recipe recipe-highlight" data-recipe-id="${dailyTarget.item}"`));
+app.page('requests');
+const inventoryBeforeDailyDelivery = app.state().inventory[dailyTarget.item];
+app.click('deliver-daily', dailyTarget.id);
+assert.equal(app.state().inventory[dailyTarget.item], inventoryBeforeDailyDelivery - dailyTarget.quantity);
+assert.equal(G.currentDailyRequests(app.state()).find(request => request.id === dailyTarget.id).completed, true);
+assert.ok(app.page('requests').includes('本日は納品済み'));
+assert.ok(!app.page('requests').includes(`data-action="view-recipe" data-id="${dailyTarget.id}"`));
+const carriedDaily = G.currentDailyRequests(app.state()).filter(request => !request.completed).map(request => request.id);
+app = launch();
+assert.equal(G.currentDailyRequests(app.state()).find(request => request.id === dailyTarget.id).completed, true, '再読み込み後も納品状態を復元');
+app.page('home'); app.click('rest'); app.click('rest-confirm');
+const nextDaily = G.currentDailyRequests(app.state());
+assert.equal(app.state().day, 13);
+assert.ok(carriedDaily.every(id => nextDaily.some(request => request.id === id)), '未達成依頼を画面操作でも持ち越す');
+assert.ok(!nextDaily.some(request => request.id === dailyTarget.id), '納品済み枠だけ翌日に交換');
+app = launch();
+assert.deepEqual(G.currentDailyRequests(app.state()).map(request => request.id), nextDaily.map(request => request.id), '更新後の3件をlocalStorageから復元');
+console.log('PASS: daily request UI, recipe dialog, craft highlight, manual delivery, carryover, next-day replacement and localStorage reload');
 
