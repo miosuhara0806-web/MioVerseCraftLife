@@ -19,6 +19,9 @@ const recipeDialog = document.getElementById('recipe-dialog');
 const dayStatus = () => `<section class="day-status" aria-label="今日の状態"><div><strong>${state.day}日目</strong><span>今日の採集（残り） ${state.gathersLeft} / ${G.DAILY_GATHERS}</span></div>${currentPage === 'home' ? '<button data-action="rest">今日は休む</button>' : ''}</section>`;
 const count = id => state.inventory[id];
 const requestTotal = () => G.visibleRequests(state).length;
+const dailyRequests = () => G.dailyUnlocked(state) ? G.currentDailyRequests(state) : [];
+const findRequest = id => G.requests.find(request => request.id === id) || dailyRequests().find(request => request.id === id);
+const requestCompleted = request => request.id.startsWith('daily-') ? request.completed : state.completed.includes(request.id);
 const recipeHints = {
   wreath: 'ツル草 × 2 ＋ 乾燥花 × 2 ＋ 糸 × 1 → 花のリース',
   linedBox: '小箱 × 1 ＋ 染め布 × 1 → 布張り小箱',
@@ -49,7 +52,7 @@ function home() {
   return `${dayStatus()}<section class="hero"><p class="eyebrow">A LITTLE WORKSHOP IN THE WOODS</p><h1>森の恵みで、<br>暮らしをひとつ。</h1><p>小径で集めて、工房でつくる。<br>あなたの手仕事を、住人たちが待っています。</p>${link('gather', '森の小径へ')}<span class="hero-stamp" aria-hidden="true">森<br>と<br>暮らす</span></section>
     <div class="stats"><div><span>在庫の合計</span><strong>${total()} <small>個</small></strong></div><div><span>住人へのお届け</span><strong>${done} <small>/ ${requestTotal()} 件</small></strong></div><div><span>今日のペース</span><strong class="slow">のんびり</strong></div></div>
     <section><div class="section-title"><h2>工房での過ごし方</h2><span>急がず、ひとつずつ</span></div><div class="steps"><a href="#gather"><span class="step-number">01 / GATHER</span><h3>森で集める</h3><p>枝、ツル草、野花。<br>好きな素材を選んで採集。</p><span class="text-link">採集へ →</span></a><a href="#craft"><span class="step-number">02 / CRAFT</span><h3>手を動かす</h3><p>素材を少しずつ加工して、<br>暮らしの道具をつくる。</p><span class="text-link">加工へ →</span></a><a href="#requests"><span class="step-number">03 / GIVE</span><h3>住人へ届ける</h3><p>できあがった品物で、<br>小さなお願いを叶える。</p><span class="text-link">依頼へ →</span></a></div></section>
-    <section class="note"><span class="note-icon" aria-hidden="true">✳</span><div><h3>${done === G.requests.length ? 'すべての依頼を届けました' : G.stageTwoUnlocked(state) ? '新しい3件のお願いが届いています' : 'はじめのひと品に、布袋はいかが？'}</h3><p>${done === G.requests.length ? 'おつかれさまでした。ここからも自由に採集・加工を楽しめます。住人からのお礼は依頼画面で読み返せます。' : G.stageTwoUnlocked(state) ? (state.unlockedStage === 3 ? '乾燥花はリースに、小箱は布張りに。素材の使い道を選びながら、新しい品物をつくってみましょう。' : '布と染料、そして木材。素材を組み合わせて、窓辺や壁を彩る品物をつくってみましょう。') : 'ツル草を1回採集 → 植物繊維を2個 → 糸を2個 → 布を1個 → 布袋を1個。ナカちゃんに届けてみましょう。'}</p></div></section>`;
+    <section class="note"><span class="note-icon" aria-hidden="true">✳</span><div><h3>${done === G.requests.length ? '日常のお願いが届いています' : G.stageTwoUnlocked(state) ? '新しい3件のお願いが届いています' : 'はじめのひと品に、布袋はいかが？'}</h3><p>${done === G.requests.length ? '固定依頼のあとは、3人から日常のお願いが届きます。お届け済みの枠は「今日は休む」と翌日に入れ替わります。' : G.stageTwoUnlocked(state) ? (state.unlockedStage === 3 ? '乾燥花はリースに、小箱は布張りに。素材の使い道を選びながら、新しい品物をつくってみましょう。' : '布と染料、そして木材。素材を組み合わせて、窓辺や壁を彩る品物をつくってみましょう。') : 'ツル草を1回採集 → 植物繊維を2個 → 糸を2個 → 布を1個 → 布袋を1個。ナカちゃんに届けてみましょう。'}</p></div></section>`;
 }
 function gatherPage() {
   const descriptions = { branch: '木漏れ日の下に落ちた、手になじむ枝。', vine: '道ばたに伸びる、しなやかなツル草。', flower: '小径を彩る、やさしい色の野花。' };
@@ -70,23 +73,31 @@ function inventoryPage() {
   return heading('STOCK / 03', '工房の棚', `採集素材から完成品まで、いま持っているもの。合計 ${total()} 個。`) + ['採集素材', '中間素材', '完成品'].map(category => `<section class="inventory-section"><h2>${category}</h2><div class="inventory-grid">${G.items.filter(i => i.category === category).map(i => `<div class="inventory-item ${count(i.id) === 0 ? 'empty' : ''}"><span class="small-mark" aria-hidden="true">${i.mark}</span><span>${i.name}</span><strong>${count(i.id)} <small>個</small></strong></div>`).join('')}</div></section>`).join('') + `<p class="muted">在庫の上限はありません。加工・納品に使った素材はここから減ります。</p>`;
 }
 function requestsPageBase() {
-  return heading('REQUESTS / 04', '暮らしのお願い', 'ひと品に、気持ちを添えて。期限はありません。') + `<div class="request-progress"><span>お届けした依頼</span><strong>${state.completed.length} / ${requestTotal()}</strong><progress max="${requestTotal()}" value="${state.completed.length}" aria-label="依頼の達成状況"></progress></div><p class="muted">${G.stageTwoUnlocked(state) ? (state.unlockedStage === 3 ? '第3段階の依頼が解放されました。これまでのお礼も読み返せます。' : '第2段階の依頼が解放されました。合計6件をすべて届けると、第3段階の3件が解放されます。') : '最初の3件をすべて届けると、次の3件が解放されます。'}</p><div class="requests-list">${G.visibleRequests(state).map(r => { const done = state.completed.includes(r.id); const ready = count(r.item) >= 1; return `<article class="request-card ${done ? 'completed' : ''}"><div class="resident"><span class="avatar" aria-hidden="true">${r.initial}</span><div><span class="eyebrow">${done ? 'DELIVERED' : 'FROM YOUR NEIGHBOR'}</span><h2>${r.name}</h2></div><span class="badge">${done ? '✓ お届け済み' : '受付中'}</span></div><h3>${r.title}</h3><p class="quote">「${done ? r.thanks : r.message}」</p><div class="delivery"><div><span>お届けするもの</span><strong>${names[r.item]} × 1</strong><small>${done ? '納品済み' : `在庫 ${count(r.item)}個 / 納品時に1個消費`}</small></div><button data-action="deliver" data-id="${r.id}" ${done || !ready ? 'disabled' : ''}>${done ? '達成しました' : ready ? '1個届ける' : '完成品が必要'}</button></div>${!done ? `<p class="request-hint">${recipeHints[r.item]}</p>` : ''}</article>`; }).join('')}</div><div class="bottom-note"><p>各依頼は1回ずつ達成できます。</p>${link('craft', '工房でつくる', 'text-link')}</div>`;
+  return heading('REQUESTS / 04', '暮らしのお願い', 'ひと品に、気持ちを添えて。期限はありません。') + `<div class="request-progress"><span>${G.dailyUnlocked(state) ? '固定依頼' : 'お届けした依頼'}</span><strong>${state.completed.length} / ${requestTotal()}${G.dailyUnlocked(state) ? ' 完了' : ''}</strong><progress max="${requestTotal()}" value="${state.completed.length}" aria-label="依頼の達成状況"></progress></div><p class="muted">${G.dailyUnlocked(state) ? '最初の9件をすべてお届けしました。これまでのお礼も読み返せます。' : G.stageTwoUnlocked(state) ? (state.unlockedStage === 3 ? '第3段階の依頼が解放されました。これまでのお礼も読み返せます。' : '第2段階の依頼が解放されました。合計6件をすべて届けると、第3段階の3件が解放されます。') : '最初の3件をすべて届けると、次の3件が解放されます。'}</p><div class="requests-list">${G.visibleRequests(state).map(r => { const done = state.completed.includes(r.id); const ready = count(r.item) >= 1; return `<article class="request-card ${done ? 'completed' : ''}"><div class="resident"><span class="avatar" aria-hidden="true">${r.initial}</span><div><span class="eyebrow">${done ? 'DELIVERED' : 'FROM YOUR NEIGHBOR'}</span><h2>${r.name}</h2></div><span class="badge">${done ? '✓ お届け済み' : '受付中'}</span></div><h3>${r.title}</h3><p class="quote">「${done ? r.thanks : r.message}」</p><div class="delivery"><div><span>お届けするもの</span><strong>${names[r.item]} × 1</strong><small>${done ? '納品済み' : `在庫 ${count(r.item)}個 / 納品時に1個消費`}</small></div><button data-action="deliver" data-id="${r.id}" ${done || !ready ? 'disabled' : ''}>${done ? '達成しました' : ready ? '1個届ける' : '完成品が必要'}</button></div>${!done ? `<p class="request-hint">${recipeHints[r.item]}</p>` : ''}</article>`; }).join('')}</div><div class="bottom-note"><p>各依頼は1回ずつ達成できます。</p>${link('craft', '工房でつくる', 'text-link')}</div>`;
+}
+function dailyRequestsSection() {
+  if (!G.dailyUnlocked(state)) return '';
+  const requests = dailyRequests();
+  return `<section class="daily-requests" aria-labelledby="daily-requests-title"><div class="daily-heading"><div><p class="eyebrow">DAILY REQUESTS</p><h2 id="daily-requests-title">日常のお願い</h2></div><span>今日の依頼 ${requests.length}件</span></div><p class="muted">未達成のお願いは翌日も持ち越します。お届け済みの枠だけ、「今日は休む」と新しいお願いに入れ替わります。</p><div class="requests-list">${requests.map(request => { const done = request.completed; const ready = count(request.item) >= request.quantity; return `<article class="request-card daily-request ${done ? 'completed' : ''}"><div class="resident"><span class="avatar" aria-hidden="true">${request.initial}</span><div><span class="eyebrow">${done ? 'DELIVERED TODAY' : 'TODAY’S REQUEST'}</span><h2>${request.name}</h2></div><span class="badge">${done ? '✓ お届け済み' : '受付中'}</span></div><h3>${request.title}</h3><p class="quote">「${done ? request.thanks : request.message}」</p><div class="delivery"><div><span>お届けするもの</span><strong>${names[request.item]} × ${request.quantity}</strong><small>${done ? '本日は納品済み' : `在庫 ${count(request.item)}個 / 納品時に${request.quantity}個消費`}</small></div>${!done ? `<button class="secondary view-recipe" data-action="view-recipe" data-id="${request.id}">作り方を見る</button>` : ''}<button data-action="deliver-daily" data-id="${request.id}" ${done || !ready ? 'disabled' : ''}>${done ? 'お届け済み' : ready ? `${request.quantity}個届ける` : '完成品が必要'}</button></div></article>`; }).join('')}</div></section>`;
 }
 function requestsPage() {
   const visible = G.visibleRequests(state);
   let requestIndex = 0;
-  return requestsPageBase().replace(/<button data-action="deliver"/g, match => {
+  const fixed = requestsPageBase().replace(/<button data-action="deliver"/g, match => {
     const request = visible[requestIndex++];
     if (state.completed.includes(request.id)) return match;
     return `<button class="secondary view-recipe" data-action="view-recipe" data-id="${request.id}">作り方を見る</button>${match}`;
   });
+  if (!G.dailyUnlocked(state)) return fixed;
+  return fixed.replace('<div class="requests-list">', `${dailyRequestsSection()}<div class="fixed-history-heading"><span>固定依頼のお礼</span><small>9件</small></div><div class="requests-list">`);
 }
 function openRecipeDialog(request) {
   const recipe = G.recipes.find(r => r.id === request.item);
   if (!recipe) return;
-  const inputs = G.ingredients(recipe);
+  const quantity = request.quantity || 1;
+  const inputs = G.ingredients(recipe).map(input => ({ ...input, required: input.cost * quantity }));
   activeRecipeRequestId = request.id;
-  document.getElementById('recipe-dialog-content').innerHTML = `<p class="eyebrow">RECIPE / 作り方</p><h2 id="recipe-dialog-title">${names[request.item]}</h2><div class="recipe-dialog-section"><h3>必要素材</h3><ul>${inputs.map(input => `<li><span>${names[input.id]}</span><strong>× ${input.cost}</strong></li>`).join('')}</ul></div><div class="recipe-dialog-section stock"><h3>現在の在庫</h3><ul>${inputs.map(input => `<li><span>${names[input.id]}</span><strong>${count(input.id)} / ${input.cost}</strong></li>`).join('')}</ul></div>`;
+  document.getElementById('recipe-dialog-content').innerHTML = `<p class="eyebrow">RECIPE / 作り方</p><h2 id="recipe-dialog-title">${names[request.item]}</h2>${quantity > 1 ? `<p class="recipe-request-quantity">依頼数 × ${quantity}</p>` : ''}<div class="recipe-dialog-section"><h3>必要素材</h3><ul>${inputs.map(input => `<li><span>${names[input.id]}</span><strong>× ${input.required}</strong></li>`).join('')}</ul></div><div class="recipe-dialog-section stock"><h3>現在の在庫</h3><ul>${inputs.map(input => `<li><span>${names[input.id]}</span><strong>${count(input.id)} / ${input.required}</strong></li>`).join('')}</ul></div>`;
   recipeDialog.showModal();
 }
 function revealRecipe() {
@@ -131,8 +142,8 @@ document.addEventListener('click', event => {
     return;
   }
   if (action === 'view-recipe') {
-    const request = G.requests.find(r => r.id === id);
-    if (!request || state.completed.includes(id) || !G.recipes.some(r => r.id === request.item)) return;
+    const request = findRequest(id);
+    if (!request || requestCompleted(request) || !G.recipes.some(r => r.id === request.item)) return;
     openRecipeDialog(request);
     return;
   }
@@ -142,8 +153,8 @@ document.addEventListener('click', event => {
     return;
   }
   if (action === 'recipe-go-craft') {
-    const request = G.requests.find(r => r.id === activeRecipeRequestId);
-    if (!request || state.completed.includes(request.id) || !G.recipes.some(r => r.id === request.item)) return;
+    const request = findRequest(activeRecipeRequestId);
+    if (!request || requestCompleted(request) || !G.recipes.some(r => r.id === request.item)) return;
     recipeDialog.close();
     activeRecipeRequestId = null;
     highlightedRecipeId = request.item;
@@ -159,6 +170,10 @@ document.addEventListener('click', event => {
   }
   if (action === 'deliver' && G.deliver(state, id)) {
     const request = G.requests.find(r => r.id === id);
+    message = `${request.name}「${request.thanks}」`;
+  }
+  if (action === 'deliver-daily' && G.deliverDaily(state, id)) {
+    const request = findRequest(id);
     message = `${request.name}「${request.thanks}」`;
   }
   if (message) { save(); render(); notify(message); }
