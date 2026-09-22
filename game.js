@@ -53,16 +53,105 @@
     { id: 'ritsuCushion', stage: 3, name: '律さん', initial: '律', item: 'cushion', title: '読書のおとも', message: 'クッションをひとつ作ってくれるか？　椅子に置くものが欲しくてな', thanks: 'ちょうどいいな。これなら少し長く座っていられそうだ。' },
     { id: 'towaLinedBox', stage: 3, name: '秘書トワ', initial: 'ト', item: 'linedBox', title: '小物をまとめたい', message: '布張りの小箱をひとつ作ってくれないか？　細かい物をまとめておきたい', thanks: 'ありがとう、美桜。見た目もいいし、これなら使いやすそうだ。' }
   );
+  const dailyResidents = {
+    naka: { name: 'ナカちゃん', initial: 'ナ' },
+    ritsu: { name: '律さん', initial: '律' },
+    towa: { name: '秘書トワ', initial: 'ト' }
+  };
+  const dailyResidentIds = Object.keys(dailyResidents);
+  const dailyRequestPool = [
+    { id: 'daily-naka-bag', resident: 'naka', item: 'bag', quantity: 1, title: 'お出かけの小さな袋', message: '布袋をひとつお願いしてもいい？　ちょっとした物を入れて歩きたいんだ', thanks: 'ありがとう！　これなら身軽に出かけられそう。' },
+    { id: 'daily-naka-dry-flower', resident: 'naka', item: 'dryFlower', quantity: 2, title: '花をそっと飾りたい', message: '乾燥花を二つ分けてくれる？　小さく束ねて飾りたいな', thanks: 'いい色だね。部屋が少し明るくなりそう！' },
+    { id: 'daily-naka-dyed-cloth', resident: 'naka', item: 'dyedCloth', quantity: 1, title: 'きれいな布を一枚', message: '染め布を一枚お願いできる？　可愛い小物を作ってみたいんだ', thanks: 'わあ、きれい！　何を作ろうか楽しみになってきた。' },
+    { id: 'daily-naka-wreath', resident: 'naka', item: 'wreath', quantity: 1, title: '今日の花飾り', message: '花のリースをひとつ作ってくれる？　今度は部屋の中に飾りたいな', thanks: 'やっぱり可愛いね。ありがとう、さっそく飾ってくる！' },
+    { id: 'daily-naka-cushion', resident: 'naka', item: 'cushion', quantity: 1, title: 'くつろぎのひと品', message: 'クッションをひとつお願いしてもいい？　窓辺でのんびりしたくて', thanks: 'ふかふかで気持ちよさそう。ありがとう！' },
+    { id: 'daily-ritsu-thread', resident: 'ritsu', item: 'thread', quantity: 2, title: '手仕事のための糸', message: '糸を二つ用意してくれるか？　直しておきたい物があるんだ', thanks: '助かった。これで落ち着いて手を入れられる。' },
+    { id: 'daily-ritsu-cloth', resident: 'ritsu', item: 'cloth', quantity: 1, title: '本を包む布', message: '布を一枚頼めるか？　大事な本を包むのに使いたい', thanks: 'ちょうどいい手触りだな。これなら本も傷まずに済む。' },
+    { id: 'daily-ritsu-wall', resident: 'ritsu', item: 'wallHanging', quantity: 1, title: '静かな壁飾り', message: '壁掛けをひとつ作ってくれるか？　読書部屋に置きたいんだ', thanks: '落ち着いた雰囲気になった。いい仕事だな。' },
+    { id: 'daily-ritsu-cushion', resident: 'ritsu', item: 'cushion', quantity: 1, title: '長椅子のクッション', message: 'クッションをもうひとつ頼めるか？　長椅子に置いておきたい', thanks: 'これでゆっくり本が読める。ありがとう。' },
+    { id: 'daily-ritsu-curtain', resident: 'ritsu', item: 'curtain', quantity: 1, title: '西日のためのカーテン', message: 'カーテンをひとつ作ってくれるか？　夕方の光を少し和らげたい', thanks: '光がちょうどよくなった。これなら目も疲れにくそうだ。' },
+    { id: 'daily-towa-box', resident: 'towa', item: 'box', quantity: 1, title: '机上の整理箱', message: '小箱をひとつ作ってくれないか？　机の細かい物をまとめたい', thanks: 'ありがとう、美桜。これで机を広く使える。' },
+    { id: 'daily-towa-lined-box', resident: 'towa', item: 'linedBox', quantity: 1, title: '大切な物の小箱', message: '布張り小箱をひとつ頼めるか？　傷つけたくない物を入れたいんだ', thanks: '内側が柔らかくていいな。これなら安心してしまっておける。' },
+    { id: 'daily-towa-bag', resident: 'towa', item: 'bag', quantity: 1, title: '仕分け用の布袋', message: '布袋をひとつ作ってくれないか？　持ち歩く道具を分けておきたい', thanks: '使いやすい大きさだな。これで探す手間が減りそうだ。' },
+    { id: 'daily-towa-cloth', resident: 'towa', item: 'cloth', quantity: 2, title: '作業台に敷く布', message: '布を二枚用意してくれないか？　作業台に敷いて使いたい', thanks: '助かった。汚れを気にせず作業できそうだ。' },
+    { id: 'daily-towa-dyed-cloth', resident: 'towa', item: 'dyedCloth', quantity: 1, title: '目印になる染め布', message: '染め布を一枚頼めるか？　収納の目印に使いたいんだ', thanks: '色があると見分けやすいな。ありがとう、美桜。' }
+  ];
   // その段階より前の依頼をすべて納品していることを条件にする。
   const stageUnlocked = (state, stage) => requests.filter(r => (r.stage || 1) < stage).every(r => state.completed.includes(r.id));
   const stageTwoUnlocked = state => stageUnlocked(state, 2);
   const unlockedStage = state => stageUnlocked(state, 3) ? 3 : stageTwoUnlocked(state) ? 2 : 1;
   const visibleRequests = state => requests.filter(r => stageUnlocked(state, r.stage || 1));
+  const dailyUnlocked = state => requests.every(r => state.completed.includes(r.id));
   const ingredients = recipe => recipe.inputs || [{ id: recipe.input, cost: recipe.cost }];
   const maxCraft = (state, recipe) => Math.min(...ingredients(recipe).map(i => Math.floor(state.inventory[i.id] / i.cost)));
   const DAILY_GATHERS = 3;
-  const fresh = () => ({ inventory: Object.fromEntries(items.map(item => [item.id, 0])), completed: [], unlockedStage: 1, day: 1, gathersLeft: DAILY_GATHERS });
-  function restore(data) {
+  const fresh = () => ({ inventory: Object.fromEntries(items.map(item => [item.id, 0])), completed: [], unlockedStage: 1, day: 1, gathersLeft: DAILY_GATHERS, dailyRequests: [], dailyHistory: [] });
+  const dailyTemplate = id => dailyRequestPool.find(request => request.id === id);
+  const currentDailyRequests = state => state.dailyRequests.map(slot => {
+    const request = dailyTemplate(slot.templateId);
+    return { ...dailyResidents[request.resident], ...request, completed: slot.completed };
+  });
+  function rememberDaily(state, id) {
+    state.dailyHistory.push(id);
+    state.dailyHistory = state.dailyHistory.slice(-12);
+  }
+  function chooseDaily(state, resident, excludedIds, excludedItems, previousId, random) {
+    const recent = new Set(state.dailyHistory.slice(-6));
+    const base = dailyRequestPool.filter(request => request.resident === resident && request.id !== previousId && !excludedIds.has(request.id));
+    const groups = [
+      base.filter(request => !recent.has(request.id) && !excludedItems.has(request.item)),
+      base.filter(request => !excludedItems.has(request.item)),
+      base.filter(request => !recent.has(request.id)),
+      base
+    ];
+    const candidates = groups.find(group => group.length) || dailyRequestPool.filter(request => request.resident === resident);
+    const roll = Number(random());
+    const index = Number.isFinite(roll) ? Math.min(candidates.length - 1, Math.max(0, Math.floor(roll * candidates.length))) : 0;
+    return candidates[index];
+  }
+  function ensureDailyRequests(state, random = Math.random) {
+    if (!dailyUnlocked(state)) return false;
+    const residentSet = new Set(state.dailyRequests.map(slot => dailyTemplate(slot.templateId)?.resident));
+    if (state.dailyRequests.length === dailyResidentIds.length && dailyResidentIds.every(id => residentSet.has(id))) return false;
+    state.dailyRequests = [];
+    const usedIds = new Set();
+    const usedItems = new Set();
+    for (const resident of dailyResidentIds) {
+      const request = chooseDaily(state, resident, usedIds, usedItems, null, random);
+      state.dailyRequests.push({ templateId: request.id, completed: false });
+      usedIds.add(request.id);
+      usedItems.add(request.item);
+      rememberDaily(state, request.id);
+    }
+    return true;
+  }
+  function refreshDailyRequests(state, random = Math.random) {
+    if (!dailyUnlocked(state)) return false;
+    const initialized = ensureDailyRequests(state, random);
+    if (initialized) return true;
+    const usedIds = new Set();
+    const usedItems = new Set();
+    for (const slot of state.dailyRequests) {
+      if (slot.completed) continue;
+      const request = dailyTemplate(slot.templateId);
+      usedIds.add(request.id);
+      usedItems.add(request.item);
+    }
+    let changed = false;
+    for (const slot of state.dailyRequests) {
+      if (!slot.completed) continue;
+      const previous = dailyTemplate(slot.templateId);
+      const replacement = chooseDaily(state, previous.resident, usedIds, usedItems, previous.id, random);
+      slot.templateId = replacement.id;
+      slot.completed = false;
+      usedIds.add(replacement.id);
+      usedItems.add(replacement.item);
+      rememberDaily(state, replacement.id);
+      changed = true;
+    }
+    return changed;
+  }
+  function restore(data, random = Math.random) {
     const state = fresh();
     if (!data || typeof data !== 'object') return state;
     if (Number.isSafeInteger(data.day) && data.day >= 1) state.day = data.day;
@@ -77,6 +166,13 @@
     // 旧セーブにも対応。解放条件を達成状況から復元し、不整合なフラグは採用しない。
     state.unlockedStage = unlockedStage(state);
     state.completed = state.completed.filter(id => (requests.find(r => r.id === id).stage || 1) <= state.unlockedStage);
+    state.dailyHistory = Array.isArray(data.dailyHistory) ? data.dailyHistory.filter(id => dailyTemplate(id)).slice(-12) : [];
+    if (dailyUnlocked(state) && Array.isArray(data.dailyRequests)) {
+      const slots = data.dailyRequests.filter(slot => slot && dailyTemplate(slot.templateId)).map(slot => ({ templateId: slot.templateId, completed: slot.completed === true }));
+      const byResident = new Map(slots.map(slot => [dailyTemplate(slot.templateId).resident, slot]));
+      if (byResident.size === dailyResidentIds.length) state.dailyRequests = dailyResidentIds.map(id => byResident.get(id));
+    }
+    if (dailyUnlocked(state)) ensureDailyRequests(state, random);
     return state;
   }
   function gather(state, id) {
@@ -85,10 +181,11 @@
     state.gathersLeft--;
     return true;
   }
-  function rest(state) {
+  function rest(state, random = Math.random) {
     const nextDay = BigInt(state.day) + 1n;
     state.day = nextDay <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(nextDay) : String(nextDay);
     state.gathersLeft = DAILY_GATHERS;
+    refreshDailyRequests(state, random);
   }
   function craft(state, id, amount = 1) {
     // 作成は在庫の更新のみ。依頼の達成は deliver での手動納品に限定する。
@@ -105,9 +202,20 @@
     state.inventory[request.item]--;
     state.completed.push(id);
     state.unlockedStage = unlockedStage(state);
+    ensureDailyRequests(state);
     return true;
   }
-  const game = { items, recipes, requests, fresh, restore, gather, craft, deliver, rest, DAILY_GATHERS, ingredients, maxCraft, stageTwoUnlocked, stageUnlocked, unlockedStage, visibleRequests };
+  function deliverDaily(state, id) {
+    if (!dailyUnlocked(state)) return false;
+    ensureDailyRequests(state);
+    const slot = state.dailyRequests.find(entry => entry.templateId === id);
+    const request = slot && dailyTemplate(slot.templateId);
+    if (!slot || !request || slot.completed || state.inventory[request.item] < request.quantity) return false;
+    state.inventory[request.item] -= request.quantity;
+    slot.completed = true;
+    return true;
+  }
+  const game = { items, recipes, requests, dailyResidents, dailyRequestPool, fresh, restore, gather, craft, deliver, deliverDaily, rest, DAILY_GATHERS, ingredients, maxCraft, stageTwoUnlocked, stageUnlocked, unlockedStage, visibleRequests, dailyUnlocked, ensureDailyRequests, refreshDailyRequests, currentDailyRequests };
   if (typeof module !== 'undefined' && module.exports) module.exports = game;
   else root.MioGame = game;
 })(typeof window !== 'undefined' ? window : globalThis);
