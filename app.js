@@ -13,7 +13,9 @@ let currentPage = 'home';
 let toastTimer;
 let highlightedRecipeId = null;
 let recipeHighlightTimer;
+let activeRecipeRequestId = null;
 const restDialog = document.getElementById('rest-dialog');
+const recipeDialog = document.getElementById('recipe-dialog');
 const dayStatus = () => `<section class="day-status" aria-label="今日の状態"><div><strong>${state.day}日目</strong><span>今日の採集（残り） ${state.gathersLeft} / ${G.DAILY_GATHERS}</span></div>${currentPage === 'home' ? '<button data-action="rest">今日は休む</button>' : ''}</section>`;
 const count = id => state.inventory[id];
 const requestTotal = () => G.visibleRequests(state).length;
@@ -79,6 +81,14 @@ function requestsPage() {
     return `<button class="secondary view-recipe" data-action="view-recipe" data-id="${request.id}">作り方を見る</button>${match}`;
   });
 }
+function openRecipeDialog(request) {
+  const recipe = G.recipes.find(r => r.id === request.item);
+  if (!recipe) return;
+  const inputs = G.ingredients(recipe);
+  activeRecipeRequestId = request.id;
+  document.getElementById('recipe-dialog-content').innerHTML = `<p class="eyebrow">RECIPE / 作り方</p><h2 id="recipe-dialog-title">${names[request.item]}</h2><div class="recipe-dialog-section"><h3>必要素材</h3><ul>${inputs.map(input => `<li><span>${names[input.id]}</span><strong>× ${input.cost}</strong></li>`).join('')}</ul></div><div class="recipe-dialog-section stock"><h3>現在の在庫</h3><ul>${inputs.map(input => `<li><span>${names[input.id]}</span><strong>${count(input.id)} / ${input.cost}</strong></li>`).join('')}</ul></div>`;
+  recipeDialog.showModal();
+}
 function revealRecipe() {
   if (!highlightedRecipeId || currentPage !== 'craft') return;
   const recipe = document.querySelector?.(`[data-recipe-id="${highlightedRecipeId}"]`);
@@ -123,6 +133,19 @@ document.addEventListener('click', event => {
   if (action === 'view-recipe') {
     const request = G.requests.find(r => r.id === id);
     if (!request || state.completed.includes(id) || !G.recipes.some(r => r.id === request.item)) return;
+    openRecipeDialog(request);
+    return;
+  }
+  if (action === 'recipe-close') {
+    if (recipeDialog.open) recipeDialog.close();
+    activeRecipeRequestId = null;
+    return;
+  }
+  if (action === 'recipe-go-craft') {
+    const request = G.requests.find(r => r.id === activeRecipeRequestId);
+    if (!request || state.completed.includes(request.id) || !G.recipes.some(r => r.id === request.item)) return;
+    recipeDialog.close();
+    activeRecipeRequestId = null;
     highlightedRecipeId = request.item;
     location.hash = '#craft';
     return;
