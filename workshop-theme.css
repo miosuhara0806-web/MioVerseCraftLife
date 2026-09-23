@@ -206,6 +206,15 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
 }
 .request-card::before { top: 8px; left: 8px; transform: rotate(22deg); }
 .request-card::after { bottom: 8px; right: 8px; transform: rotate(202deg); }
+.request-card > h3::after {
+  content: "";
+  display: block;
+  width: min(100%, 220px);
+  height: 30px;
+  margin: 7px auto 0;
+  background: center / contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 260 30' fill='none' stroke='%23829d75' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M128 15c-16-1-23-11-38-11-10 0-15 13-24 13-5 0-8-6-4-9 3-2 6 1 4 3M56 15H18M112 15c-7 0-12 6-17 8'/%3E%3Cpath d='M84 9c-7-8-13-4-13 1 4 1 9 1 13-1ZM101 19c-2 4-6 5-9 5 0-4 4-6 9-5Z' fill='%23adc09e' stroke='none'/%3E%3Cg transform='translate(260 0) scale(-1 1)'%3E%3Cpath d='M128 15c-16-1-23-11-38-11-10 0-15 13-24 13-5 0-8-6-4-9 3-2 6 1 4 3M56 15H18M112 15c-7 0-12 6-17 8'/%3E%3Cpath d='M84 9c-7-8-13-4-13 1 4 1 9 1 13-1ZM101 19c-2 4-6 5-9 5 0-4 4-6 9-5Z' fill='%23adc09e' stroke='none'/%3E%3C/g%3E%3Cpath d='M130 9c4 4 4 8 0 12-4-4-4-8 0-12Z' fill='%239cb28f' stroke='none'/%3E%3C/svg%3E");
+  pointer-events: none;
+}
 .daily-requests { border-top-style: dashed; border-bottom: 0; padding-bottom: 0; }
 .daily-heading > span { padding: 4px 11px; border: 1px solid var(--line); border-radius: 20px; background: var(--paper); }
 .fixed-history { border-radius: 17px; background: #f0f1e6; }
