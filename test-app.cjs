@@ -21,6 +21,7 @@ function launch() {
   return {
     click(action, id) { handlers.click({ target: { closest: () => ({ dataset: { action, id }, disabled: false }) } }); },
     page(id) { context.location.hash = '#' + id; handlers.hashchange(); return node('main').innerHTML; },
+    navigation() { return node('navigation').innerHTML; },
     state() { return saved.has('mioverse-craft-v1') ? JSON.parse(saved.get('mioverse-craft-v1')) : G.fresh(); },
     dialogOpen() { return node('rest-dialog').open; },
     recipeDialogOpen() { return node('recipe-dialog').open; },
@@ -492,3 +493,34 @@ app.page('home'); app.click('rest'); app.click('rest-confirm');
 assert.ok(!G.currentDailyRequests(app.state()).some(request => request.id === lastAoiDoctor.id));
 assert.ok(aoiDoctorUnfinished.every(id => G.currentDailyRequests(app.state()).some(request => request.id === id)));
 console.log('PASS: all 5 Aoi Doctor cards, recipe dialogs/highlights, manual delivery, dialogue, localStorage reload and next-day replacement');
+
+saved.set('mioverse-craft-v1', JSON.stringify(G.fresh()));
+app = launch();
+assert.ok(app.navigation().includes('href="#encyclopedia"'));
+let encyclopedia = app.page('encyclopedia');
+assert.ok(encyclopedia.includes('0 / 18'));
+assert.equal((encyclopedia.match(/class="encyclopedia-card undiscovered"/g) || []).length, 18);
+assert.ok(['採集素材', '加工素材', '完成品'].every(category => encyclopedia.includes(`<h2>${category}</h2>`)));
+assert.ok(!encyclopedia.includes('<h3>枝</h3>') && !encyclopedia.includes('森の小径で採集'), '未発見の名前と詳細は表示しない');
+app.click('gather', 'branch');
+encyclopedia = app.page('encyclopedia');
+assert.ok(encyclopedia.includes('1 / 18') && encyclopedia.includes('<h3>枝</h3>'));
+assert.ok(encyclopedia.includes('森の小径で採集'));
+assert.ok(encyclopedia.includes('現在の在庫：<strong>2 個</strong>'));
+app.click('craft', 'wood');
+encyclopedia = app.page('encyclopedia');
+assert.ok(encyclopedia.includes('2 / 18') && encyclopedia.includes('<h3>木材</h3>'));
+assert.ok(encyclopedia.includes('<li>枝 × 2</li>'));
+assert.ok(encyclopedia.includes('現在の在庫：<strong>0 個</strong>'), '在庫0でも枝を表示');
+app = launch();
+assert.ok(app.page('encyclopedia').includes('2 / 18'), '図鑑の発見状態を再読み込み後も維持');
+const migratedEncyclopedia = G.restore({ completed: G.requests.map(request => request.id), day: 27, inventory: { dye: 1 } }, () => 0);
+saved.set('mioverse-craft-v1', JSON.stringify(migratedEncyclopedia));
+app = launch();
+encyclopedia = app.page('encyclopedia');
+assert.ok(encyclopedia.includes('18 / 18'));
+assert.equal((encyclopedia.match(/class="encyclopedia-card undiscovered"/g) || []).length, 0);
+assert.ok(encyclopedia.split('<h2>加工素材</h2>')[1].split('<h2>完成品</h2>')[0].includes('<h3>染料</h3>'), '染料を図鑑では加工素材に分類');
+assert.ok(encyclopedia.includes('<li>布 × 1</li>') && encyclopedia.includes('<li>染料 × 1</li>'), '複数素材レシピを表示');
+assert.ok(app.page('requests').includes('<details class="fixed-history">'), '固定依頼の折りたたみを維持');
+console.log('PASS: encyclopedia navigation, hidden entries, categories, stock and recipe display, reload, full legacy migration');
