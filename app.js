@@ -3,6 +3,15 @@ const G = window.MioGame;
 const SAVE_KEY = 'mioverse-craft-v1';
 const names = Object.fromEntries(G.items.map(i => [i.id, i.name]));
 const pages = [['home', '工房', '01'], ['gather', '採集', '02'], ['craft', '加工', '03'], ['inventory', '在庫', '04'], ['requests', '依頼', '05'], ['encyclopedia', '図鑑', '06']];
+const navIcons = {
+  home: '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 21v-7h6v7"/>',
+  gather: '<path d="M20 4c-8 0-15 3-15 11a5 5 0 0 0 5 5c8 0 11-7 10-16Z"/><path d="M4 21c3-5 7-8 12-11"/>',
+  craft: '<path d="M6 3h12l-2 4v10l2 4H6l2-4V7z"/><path d="M8 9c2 1.5 6 1.5 8 0M8 15c2-1.5 6-1.5 8 0"/>',
+  inventory: '<path d="M3 8.5 12 4l9 4.5v10L12 23l-9-4.5z"/><path d="M3 8.5 12 13l9-4.5M12 13v10"/>',
+  requests: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 7 9-7"/>',
+  encyclopedia: '<path d="M12 6c-2.5-1.8-5.7-2-9-1v14c3.3-1 6.5-.8 9 1 2.5-1.8 5.7-2 9-1V5c-3.3-1-6.5-.8-9 1Z"/><path d="M12 6v14"/>'
+};
+const navIcon = id => `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${navIcons[id]}</svg>`;
 let state = G.fresh();
 let saveMessage = '自動保存が有効です';
 try {
@@ -131,7 +140,7 @@ function render() {
   const focus = document.activeElement;
   const focusAction = focus?.dataset.action;
   const focusId = focus?.dataset.id;
-  document.getElementById('navigation').innerHTML = pages.map(([id, name, number]) => `<a href="#${id}" ${id === currentPage ? 'aria-current="page"' : ''}><span class="nav-number">${number}</span>${name}${id === 'requests' ? `<span class="nav-count">${state.completed.length}/${requestTotal()}</span>` : ''}</a>`).join('');
+  document.getElementById('navigation').innerHTML = pages.map(([id, name, number]) => `<a href="#${id}" ${id === currentPage ? 'aria-current="page"' : ''}><span class="nav-number">${number}</span>${navIcon(id)}<span class="nav-label">${name}</span>${id === 'requests' ? `<span class="nav-count">${state.completed.length}/${requestTotal()}</span>` : ''}</a>`).join('');
   document.getElementById('main').innerHTML = ({ home, gather: gatherPage, craft: craftPage, inventory: inventoryPage, requests: requestsPage, encyclopedia: encyclopediaPage })[currentPage]();
   document.getElementById('gather-limit-note').textContent = G.gatherLimit(state);
   document.getElementById('rest-description').textContent = `翌日になり、採集回数が${G.gatherLimit(state)}回に戻ります。残り回数は持ち越されません。依頼に期限はありません。`;
