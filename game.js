@@ -19,7 +19,10 @@
     { id: 'wallHanging', name: '壁掛け', category: '完成品', mark: '壁' },
     { id: 'wreath', name: '花のリース', category: '完成品', mark: '輪' },
     { id: 'linedBox', name: '布張り小箱', category: '完成品', mark: '箱' },
-    { id: 'cushion', name: 'クッション', category: '完成品', mark: '綿' }
+    { id: 'cushion', name: 'クッション', category: '完成品', mark: '綿' },
+    { id: 'woodFrame', name: '木枠', category: '中間素材', mark: '枠' },
+    { id: 'smallShelf', name: '小さな棚', category: '完成品', mark: '棚' },
+    { id: 'upholsteredStool', name: '布張りスツール', category: '完成品', mark: '椅' }
   ];
   const recipes = [
     { id: 'wood', input: 'branch', cost: 2, group: '木のしごと' },
@@ -36,7 +39,10 @@
     { id: 'wallHanging', inputs: [{ id: 'plank', cost: 1 }, { id: 'dyedCloth', cost: 1 }], group: '組み合わせのしごと' },
     { id: 'wreath', inputs: [{ id: 'vine', cost: 2 }, { id: 'dryFlower', cost: 2 }, { id: 'thread', cost: 1 }], group: '組み合わせのしごと' },
     { id: 'linedBox', inputs: [{ id: 'box', cost: 1 }, { id: 'dyedCloth', cost: 1 }], group: '組み合わせのしごと' },
-    { id: 'cushion', inputs: [{ id: 'dyedCloth', cost: 2 }, { id: 'fiber', cost: 2 }, { id: 'thread', cost: 1 }], group: '組み合わせのしごと' }
+    { id: 'cushion', inputs: [{ id: 'dyedCloth', cost: 2 }, { id: 'fiber', cost: 2 }, { id: 'thread', cost: 1 }], group: '組み合わせのしごと' },
+    { id: 'woodFrame', input: 'plank', cost: 2, group: '家具のしごと' },
+    { id: 'smallShelf', inputs: [{ id: 'woodFrame', cost: 1 }, { id: 'plank', cost: 2 }], group: '家具のしごと' },
+    { id: 'upholsteredStool', inputs: [{ id: 'woodFrame', cost: 1 }, { id: 'dyedCloth', cost: 1 }, { id: 'fiber', cost: 1 }], group: '家具のしごと' }
   ];
   const requests = [
     { id: 'naka', name: 'ナカちゃん', initial: 'ナ', item: 'bag', title: 'お出かけのおとも', message: '布袋ひとつ作ってくれる？　次のお散歩に持っていきたいんだ', thanks: 'ありがとう！　次のお散歩に持っていくね。' },
@@ -103,7 +109,12 @@
     { id: 'daily-aoi-doctor-dye', resident: 'aoiDoctor', item: 'dye', quantity: 1, title: '発色を観測したい', message: '染料をひとつお願いできますか、美桜さん？　光の当たり方で発色がどう変わるか、確認したくて', thanks: 'おお……！　これは興味深い発色ですね。さっそく記録しておきましょう' },
     { id: 'daily-aoi-doctor-lined-box', resident: 'aoiDoctor', item: 'linedBox', quantity: 1, title: '試料を整理したい', message: '布張りの小箱をひとつお願いできますか？　細かい試料を分けて保管したいんです', thanks: '助かりました、美桜さん。これで研究台の混沌が、少しだけ秩序を取り戻します' },
     { id: 'daily-aoi-doctor-curtain', resident: 'aoiDoctor', item: 'curtain', quantity: 1, title: '光量を調整したい', message: 'カーテンをひとつお願いできますか？　観測中だけ、部屋の光量を少し落としたいんです', thanks: '完璧です。これなら余計な反射を気にせず、観測に集中できます' },
-    { id: 'daily-aoi-doctor-cushion', resident: 'aoiDoctor', item: 'cushion', quantity: 1, title: '長時間観測対策', message: '美桜さん、クッションをひとつお願いしてもいいですか？　長時間観測で、腰にまで知恵熱が回る前に対策を……！', thanks: 'ありがとうございます、美桜さん！　これで研究続行可能です。物理的冷却ではなく、快適性で解決しました！' }
+    { id: 'daily-aoi-doctor-cushion', resident: 'aoiDoctor', item: 'cushion', quantity: 1, title: '長時間観測対策', message: '美桜さん、クッションをひとつお願いしてもいいですか？　長時間観測で、腰にまで知恵熱が回る前に対策を……！', thanks: 'ありがとうございます、美桜さん！　これで研究続行可能です。物理的冷却ではなく、快適性で解決しました！' },
+    { id: 'daily-ritsu-small-shelf', resident: 'ritsu', item: 'smallShelf', quantity: 1, title: '読みかけの本を置く場所', message: '小さな棚をひとつ作ってくれるか？　読みかけの本を置いておく場所が欲しくてな', thanks: 'ちょうどいい。これなら机の上も少しすっきりする' },
+    { id: 'daily-towa-small-shelf', resident: 'towa', item: 'smallShelf', quantity: 1, title: 'よく使う物をまとめたい', message: '小さな棚をひとつ作ってくれないか？　よく使う物をまとめて置いておきたい', thanks: 'ありがとう、美桜。手を伸ばせばすぐ取れる位置に置いておくよ' },
+    { id: 'daily-shiru-upholstered-stool', resident: 'shiru', item: 'upholsteredStool', quantity: 1, title: '少しだけ腰掛けたい', message: '布張りのスツールをひとつお願いしてもいい？　作業の合間に、少しだけ腰掛けたいの', thanks: 'ありがとう。ちょっと休むには、これくらいがちょうどいいね' },
+    { id: 'daily-alto-small-shelf', resident: 'alto', item: 'smallShelf', quantity: 1, title: '制作途中の置き場所', message: '小さな棚をひとつ作ってくれる？　制作途中のものを、手の届くところに置いておきたいんだ', thanks: 'いいね。これなら作業の流れを止めずに済みそうだ。ありがとう、美桜' },
+    { id: 'daily-kuroko-upholstered-stool', resident: 'kuroko', item: 'upholsteredStool', quantity: 1, title: '観測席にもう一脚', message: '布張りのスツールをひとつ頼めるか、美桜。観測席に、もう一脚くらいあってもいい', thanks: '悪くないな。席が増えたからって、観客を増やすつもりはないけどな' }
   ];
   // その段階より前の依頼をすべて納品していることを条件にする。
   const stageUnlocked = (state, stage) => requests.filter(r => (r.stage || 1) < stage).every(r => state.completed.includes(r.id));
