@@ -20,7 +20,7 @@ body {
 .brand span { color: var(--ink); border-color: #c8d0ba; }
 .prototype { background: #fffdf880; color: #76735e; }
 .layout { gap: 40px; padding-bottom: 64px; }
-.eyebrow { color: #738166; }
+.eyebrow { color: #5c6d53; }
 .sidebar-note { border-top-style: dashed; line-height: 2.3; }
 .save-status { line-height: 1.8; }
 
@@ -97,7 +97,7 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
 .hero-stamp { background: #f9f6e680; border-style: dashed; color: #6a7b5e; }
 .hero .button { position: relative; z-index: 1; }
 .page-heading { margin-bottom: 30px; }
-.page-heading .eyebrow, .hero .eyebrow { color: #6e7c5f; }
+.page-heading .eyebrow, .hero .eyebrow { color: #5c6d53; }
 .page-heading h1 { color: #405d46; line-height: 1.6; }
 .page-heading p:last-child { line-height: 1.95; }
 .section-title h2, .recipe-section > h2,
@@ -128,7 +128,7 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
 .day-status span { line-height: 1.9; }
 .stats { margin-bottom: 32px; }
 .stats strong { color: #5b7254; }
-.stats strong.slow { color: #987153; }
+.stats strong.slow { color: #856149; }
 .steps { gap: 14px; }
 .steps > a, .gather-card, .inventory-item, .request-card, .encyclopedia-card {
   border-radius: 17px;
@@ -167,7 +167,7 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
 .inventory-item { min-width: 0; }
 .inventory-item > span:not(.small-mark) { overflow-wrap: anywhere; }
 .inventory-item strong { flex-shrink: 0; color: #5d7154; }
-.inventory-item.empty { color: #747d6b; background: #efefe4; box-shadow: none; }
+.inventory-item.empty { color: #65715e; background: #efefe4; box-shadow: none; }
 .small-mark { border-radius: 11px; color: #778465; }
 .request-card { padding: 28px; }
 .resident { margin-bottom: 20px; }
@@ -190,7 +190,7 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
 .encyclopedia-card h3 { margin-top: 3px; }
 .encyclopedia-recipe { border-top-style: dashed; line-height: 1.9; }
 .encyclopedia-card.undiscovered { background: #eeeee3; border-style: dashed; box-shadow: none; padding: 25px 22px; }
-.encyclopedia-card.undiscovered h3 { letter-spacing: 4px; color: #7d876e; }
+.encyclopedia-card.undiscovered h3 { letter-spacing: 4px; color: #68745d; }
 
 #rest-dialog, #recipe-dialog {
   border-radius: 22px;
@@ -203,7 +203,7 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
 .recipe-dialog-section ul { border-radius: 12px; background: #f6f5eb; }
 .recipe-dialog-section li { border-bottom-style: dashed; }
 #toast { border-radius: 15px; background: #405e49; line-height: 1.8; }
-footer { border-top-style: dashed; color: #757e68; }
+footer { border-top-style: dashed; color: var(--muted); }
 
 @media (hover: hover) and (pointer: fine) {
   .steps > a:hover { border-color: #9baa88; background: #f9faef; }
