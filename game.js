@@ -59,7 +59,8 @@
     towa: { name: '秘書トワ', initial: 'ト' },
     keikaiTowa: { name: '軽快トワ', initial: '軽' },
     shiru: { name: 'シル', initial: 'シ' },
-    kuroko: { name: '黒子', initial: '黒' }
+    kuroko: { name: '黒子', initial: '黒' },
+    alto: { name: 'アルト', initial: 'ア' }
   };
   const dailyRequestPool = [
     { id: 'daily-naka-bag', resident: 'naka', item: 'bag', quantity: 1, title: 'お出かけの小さな袋', message: '布袋をひとつお願いしてもいい？　ちょっとした物を入れて歩きたいんだ', thanks: 'ありがとう！　これなら身軽に出かけられそう。' },
@@ -91,7 +92,12 @@
     { id: 'daily-kuroko-dyed-cloth', resident: 'kuroko', item: 'dyedCloth', quantity: 1, title: '光を見るための布', message: '染め布を一枚作ってくれ。照明が当たった時、どんな色になるか見てみたい', thanks: '悪くない。光が乗ると、思ってたより表情が出るな' },
     { id: 'daily-kuroko-curtain', resident: 'kuroko', item: 'curtain', quantity: 1, title: '幕のそばに', message: 'カーテンをひとつ頼めるか？　光を少し切りたい場所があってな', thanks: 'ちょうどいい。全部を照らさない方が、見えるものもある' },
     { id: 'daily-kuroko-lined-box', resident: 'kuroko', item: 'linedBox', quantity: 1, title: '小道具をひとまとめ', message: '布張りの小箱をひとつ作ってくれ。細かい小道具が増えてきた', thanks: '助かった。舞台裏は、散らかってるくらいが面白いんだが……限度はあるな' },
-    { id: 'daily-kuroko-wall', resident: 'kuroko', item: 'wallHanging', quantity: 1, title: '壁にひとつだけ', message: '壁掛けをひとつ頼めるか、美桜。何もない壁も嫌いじゃないが、今日はひとつだけ置きたい', thanks: 'うん。これくらいがいい。余白まで消す必要はないからな' }
+    { id: 'daily-kuroko-wall', resident: 'kuroko', item: 'wallHanging', quantity: 1, title: '壁にひとつだけ', message: '壁掛けをひとつ頼めるか、美桜。何もない壁も嫌いじゃないが、今日はひとつだけ置きたい', thanks: 'うん。これくらいがいい。余白まで消す必要はないからな' },
+    { id: 'daily-alto-dye', resident: 'alto', item: 'dye', quantity: 1, title: '色をひとつ試したい', message: '染料をひとつ作ってくれる？　次の一枚で、少し試してみたい色があるんだ', thanks: 'ありがとう、美桜。うん、この色なら面白くなりそうだ' },
+    { id: 'daily-alto-dry-flower', resident: 'alto', item: 'dryFlower', quantity: 2, title: '花の色を残しておきたい', message: '乾燥花を二つお願い。色の組み合わせを考える時、手元に置いて眺めたいんだ', thanks: 'いいね。同じ花でも、並べ方でずいぶん印象が変わる' },
+    { id: 'daily-alto-dyed-cloth', resident: 'alto', item: 'dyedCloth', quantity: 1, title: '布にした時の色', message: '染め布を一枚作ってくれる？　染料だけじゃなくて、布になった時の色も見ておきたい', thanks: 'うん、思ってたより柔らかい色になった。これは使えそうだ' },
+    { id: 'daily-alto-wreath', resident: 'alto', item: 'wreath', quantity: 1, title: '丸い構図でひとつ', message: '花のリースをひとつ頼める？　丸い形の中で色がどう収まるか、ちょっと見てみたくて', thanks: 'いいな。視線がちゃんと一周する。こういうまとまり方、好きだ' },
+    { id: 'daily-alto-wall', resident: 'alto', item: 'wallHanging', quantity: 1, title: '壁に置いて確かめたい', message: '壁掛けをひとつ作ってくれる？　実際に壁へ置いた時の見え方まで確かめたいんだ', thanks: 'ありがとう、美桜。机の上で見るのと、壁に置くのじゃやっぱり違うな' }
   ];
   // その段階より前の依頼をすべて納品していることを条件にする。
   const stageUnlocked = (state, stage) => requests.filter(r => (r.stage || 1) < stage).every(r => state.completed.includes(r.id));
