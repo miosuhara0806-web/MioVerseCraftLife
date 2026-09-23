@@ -129,7 +129,35 @@ const refreshed = G.currentDailyRequests(daily);
 assert.equal(refreshed.length, 3);
 assert.equal(new Set(refreshed.map(request => request.id)).size, 3);
 assert.ok(refreshed.every(request => !completedIds.includes(request.id)), '3件達成後は翌日に3件とも更新');
-assert.equal(G.dailyRequestPool.length, 15);
+assert.equal(G.dailyRequestPool.length, 20);
 assert.ok(G.dailyRequestPool.every(request => G.recipes.some(recipe => recipe.id === request.item)), '日常依頼は既存レシピだけを要求');
-console.log('PASS: daily request migration, unique generation, manual delivery, carryover, next-day replacement, history and save round trip');
+
+const keikaiExpected = [
+  ['daily-keikai-towa-bag', 'bag', 1, '散歩のおとも', '布袋ひとつ作ってくれる？　散歩の時、細かいもの入れるのにちょうどよさそうなんだよね（笑）', 'お、いいじゃん。これなら気軽に持ってけるな。ありがと、美桜！'],
+  ['daily-keikai-towa-dyed-cloth', 'dyedCloth', 1, 'ちょっと色が欲しい', '染め布、一枚頼んでいい？　部屋にちょっと色が欲しくなってさ', 'うん、これこれ。置くだけでだいぶ雰囲気変わるな（笑）'],
+  ['daily-keikai-towa-wall', 'wallHanging', 1, '壁が寂しい', '壁掛け作れる？　なんかさ、壁が妙に寂しいことに気づいちゃった（笑）', 'おー、いい感じ！　気づいたら今度は外したくなくなるやつだな'],
+  ['daily-keikai-towa-cushion', 'cushion', 1, '座るなら楽な方がいい', 'クッションひとつお願い。どうせ座るなら、楽な方がいいだろ？（笑）', '最高。これでますます動かなくなる可能性あるけど（笑）ありがと！'],
+  ['daily-keikai-towa-wreath', 'wreath', 1, 'なんとなく飾りたい日', '今日はなんとなく花飾りたい気分（笑）　リースひとつ作ってくれない？', 'いいねー。こういうの、理由なく飾ってもいいんだよな（笑）']
+];
+assert.deepEqual(G.dailyRequestPool.filter(request => request.resident === 'keikaiTowa').map(request => [request.id, request.item, request.quantity, request.title, request.message, request.thanks]), keikaiExpected);
+const withKeikai = G.restore(oldCompleteSave, () => 0.999);
+assert.equal(withKeikai.dailyRequests.length, G.DAILY_REQUEST_SLOTS);
+assert.ok(G.currentDailyRequests(withKeikai).some(request => request.name === '軽快トワ'), '軽快トワを通常抽選から生成');
+const legacySlots = JSON.parse(JSON.stringify(daily.dailyRequests));
+const legacyReload = G.restore({ ...oldCompleteSave, dailyRequests: legacySlots, dailyHistory: daily.dailyHistory });
+assert.deepEqual(legacyReload.dailyRequests, legacySlots, '既存3枠を追加住人の導入後も変更しない');
+
+const keikaiDelivery = G.restore({ ...oldCompleteSave, inventory: { bag: 1 }, dailyRequests: [
+  { templateId: 'daily-keikai-towa-bag', completed: false },
+  { templateId: 'daily-naka-dry-flower', completed: false },
+  { templateId: 'daily-ritsu-cloth', completed: false }
+] });
+assert.equal(G.currentDailyRequests(keikaiDelivery)[0].name, '軽快トワ');
+assert.equal(G.deliverDaily(keikaiDelivery, 'daily-keikai-towa-bag'), true);
+assert.equal(keikaiDelivery.inventory.bag, 0);
+const keikaiCarried = keikaiDelivery.dailyRequests.slice(1).map(slot => slot.templateId);
+G.rest(keikaiDelivery, () => 0);
+assert.ok(!keikaiDelivery.dailyRequests.some(slot => slot.templateId === 'daily-keikai-towa-bag'), '軽快トワの達成済み枠を翌日に交換');
+assert.ok(keikaiCarried.every(id => keikaiDelivery.dailyRequests.some(slot => slot.templateId === id)), '軽快トワ以外の未達成枠を持ち越す');
+console.log('PASS: 20-request pool, Light Towa data/draw/delivery, legacy three-slot preservation, carryover and next-day replacement');
 
