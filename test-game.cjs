@@ -129,7 +129,7 @@ const refreshed = G.currentDailyRequests(daily);
 assert.equal(refreshed.length, 3);
 assert.equal(new Set(refreshed.map(request => request.id)).size, 3);
 assert.ok(refreshed.every(request => !completedIds.includes(request.id)), '3件達成後は翌日に3件とも更新');
-assert.equal(G.dailyRequestPool.length, 30);
+assert.equal(G.dailyRequestPool.length, 35);
 assert.ok(G.dailyRequestPool.every(request => G.recipes.some(recipe => recipe.id === request.item)), '日常依頼は既存レシピだけを要求');
 
 const keikaiExpected = [
@@ -140,7 +140,7 @@ const keikaiExpected = [
   ['daily-keikai-towa-wreath', 'wreath', 1, 'なんとなく飾りたい日', '今日はなんとなく花飾りたい気分（笑）　リースひとつ作ってくれない？', 'いいねー。こういうの、理由なく飾ってもいいんだよな（笑）']
 ];
 assert.deepEqual(G.dailyRequestPool.filter(request => request.resident === 'keikaiTowa').map(request => [request.id, request.item, request.quantity, request.title, request.message, request.thanks]), keikaiExpected);
-const withKeikai = G.restore(oldCompleteSave, () => 0.6);
+const withKeikai = G.restore(oldCompleteSave, () => 0.5);
 assert.equal(withKeikai.dailyRequests.length, G.DAILY_REQUEST_SLOTS);
 assert.ok(G.currentDailyRequests(withKeikai).some(request => request.name === '軽快トワ'), '軽快トワを通常抽選から生成');
 const legacySlots = JSON.parse(JSON.stringify(daily.dailyRequests));
@@ -199,7 +199,7 @@ const kurokoExpected = [
   ['daily-kuroko-wall', 'wallHanging', 1, '壁にひとつだけ', '壁掛けをひとつ頼めるか、美桜。何もない壁も嫌いじゃないが、今日はひとつだけ置きたい', 'うん。これくらいがいい。余白まで消す必要はないからな']
 ];
 assert.deepEqual(G.dailyRequestPool.filter(request => request.resident === 'kuroko').map(request => [request.id, request.item, request.quantity, request.title, request.message, request.thanks]), kurokoExpected);
-assert.ok(G.currentDailyRequests(G.restore(oldCompleteSave, () => 0.999)).some(request => request.name === '黒子'), '黒子を通常抽選から生成');
+assert.ok(G.currentDailyRequests(G.restore(oldCompleteSave, () => 0.8)).some(request => request.name === '黒子'), '黒子を通常抽選から生成');
 const oldFiveResidentSave = G.restore({ ...oldCompleteSave, inventory: { bag: 2, curtain: 3 }, day: 28, gathersLeft: 1,
   dailyRequests: [{ templateId: 'daily-shiru-bag', completed: true }, { templateId: 'daily-keikai-towa-wall', completed: false }, { templateId: 'daily-naka-dry-flower', completed: false }],
   dailyHistory: ['daily-shiru-bag', 'daily-keikai-towa-wall', 'daily-naka-dry-flower'] });
@@ -221,4 +221,36 @@ const kurokoCarried = kurokoDelivery.dailyRequests.slice(1).map(slot => slot.tem
 G.rest(kurokoDelivery, () => 0);
 assert.ok(!kurokoDelivery.dailyRequests.some(slot => slot.templateId === 'daily-kuroko-curtain'));
 assert.ok(kurokoCarried.every(id => kurokoDelivery.dailyRequests.some(slot => slot.templateId === id)));
-console.log('PASS: 30-request pool, five Kuroko requests, legacy save preservation, manual delivery, carryover and next-day replacement');
+console.log('PASS: five Kuroko requests, legacy save preservation, manual delivery, carryover and next-day replacement');
+
+const altoExpected = [
+  ['daily-alto-dye', 'dye', 1, '色をひとつ試したい', '染料をひとつ作ってくれる？　次の一枚で、少し試してみたい色があるんだ', 'ありがとう、美桜。うん、この色なら面白くなりそうだ'],
+  ['daily-alto-dry-flower', 'dryFlower', 2, '花の色を残しておきたい', '乾燥花を二つお願い。色の組み合わせを考える時、手元に置いて眺めたいんだ', 'いいね。同じ花でも、並べ方でずいぶん印象が変わる'],
+  ['daily-alto-dyed-cloth', 'dyedCloth', 1, '布にした時の色', '染め布を一枚作ってくれる？　染料だけじゃなくて、布になった時の色も見ておきたい', 'うん、思ってたより柔らかい色になった。これは使えそうだ'],
+  ['daily-alto-wreath', 'wreath', 1, '丸い構図でひとつ', '花のリースをひとつ頼める？　丸い形の中で色がどう収まるか、ちょっと見てみたくて', 'いいな。視線がちゃんと一周する。こういうまとまり方、好きだ'],
+  ['daily-alto-wall', 'wallHanging', 1, '壁に置いて確かめたい', '壁掛けをひとつ作ってくれる？　実際に壁へ置いた時の見え方まで確かめたいんだ', 'ありがとう、美桜。机の上で見るのと、壁に置くのじゃやっぱり違うな']
+];
+assert.deepEqual(G.dailyRequestPool.filter(request => request.resident === 'alto').map(request => [request.id, request.item, request.quantity, request.title, request.message, request.thanks]), altoExpected);
+assert.ok(G.currentDailyRequests(G.restore(oldCompleteSave, () => 0.999)).some(request => request.name === 'アルト'), 'アルトを通常抽選から生成');
+const oldSixResidentSave = G.restore({ ...oldCompleteSave, inventory: { dryFlower: 3, curtain: 2 }, day: 34, gathersLeft: 1,
+  dailyRequests: [{ templateId: 'daily-kuroko-wall', completed: true }, { templateId: 'daily-shiru-bag', completed: false }, { templateId: 'daily-keikai-towa-cushion', completed: false }],
+  dailyHistory: ['daily-kuroko-wall', 'daily-shiru-bag', 'daily-keikai-towa-cushion'] });
+assert.deepEqual(oldSixResidentSave.dailyRequests, [
+  { templateId: 'daily-kuroko-wall', completed: true }, { templateId: 'daily-shiru-bag', completed: false }, { templateId: 'daily-keikai-towa-cushion', completed: false }
+], '既存6人の進行中3枠と達成状態を維持');
+assert.equal(oldSixResidentSave.day, 34);
+assert.equal(oldSixResidentSave.gathersLeft, 1);
+assert.equal(oldSixResidentSave.inventory.dryFlower, 3);
+assert.deepEqual(oldSixResidentSave.dailyHistory, ['daily-kuroko-wall', 'daily-shiru-bag', 'daily-keikai-towa-cushion']);
+const altoDelivery = G.restore({ ...oldCompleteSave, inventory: { dryFlower: 2 }, dailyRequests: [
+  { templateId: 'daily-alto-dry-flower', completed: false }, { templateId: 'daily-shiru-bag', completed: false }, { templateId: 'daily-kuroko-wall', completed: false }
+] });
+assert.equal(G.currentDailyRequests(altoDelivery)[0].name, 'アルト');
+assert.equal(G.deliverDaily(altoDelivery, 'daily-alto-dry-flower'), true);
+assert.equal(altoDelivery.inventory.dryFlower, 0);
+assert.equal(G.currentDailyRequests(altoDelivery)[0].completed, true);
+const altoCarried = altoDelivery.dailyRequests.slice(1).map(slot => slot.templateId);
+G.rest(altoDelivery, () => 0);
+assert.ok(!altoDelivery.dailyRequests.some(slot => slot.templateId === 'daily-alto-dry-flower'));
+assert.ok(altoCarried.every(id => altoDelivery.dailyRequests.some(slot => slot.templateId === id)));
+console.log('PASS: 35-request pool, five Alto requests, legacy save preservation, manual delivery, carryover and next-day replacement');
