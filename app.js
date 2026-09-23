@@ -2,7 +2,7 @@
 const G = window.MioGame;
 const SAVE_KEY = 'mioverse-craft-v1';
 const names = Object.fromEntries(G.items.map(i => [i.id, i.name]));
-const pages = [['home', '工房', '01'], ['gather', '採集', '02'], ['craft', '加工', '03'], ['inventory', '在庫', '04'], ['requests', '依頼', '05']];
+const pages = [['home', '工房', '01'], ['gather', '採集', '02'], ['craft', '加工', '03'], ['inventory', '在庫', '04'], ['requests', '依頼', '05'], ['encyclopedia', '図鑑', '06']];
 let state = G.fresh();
 let saveMessage = '自動保存が有効です';
 try {
@@ -72,6 +72,18 @@ function craftPage() {
 function inventoryPage() {
   return heading('STOCK / 03', '工房の棚', `採集素材から完成品まで、いま持っているもの。合計 ${total()} 個。`) + ['採集素材', '中間素材', '完成品'].map(category => `<section class="inventory-section"><h2>${category}</h2><div class="inventory-grid">${G.items.filter(i => i.category === category).map(i => `<div class="inventory-item ${count(i.id) === 0 ? 'empty' : ''}"><span class="small-mark" aria-hidden="true">${i.mark}</span><span>${i.name}</span><strong>${count(i.id)} <small>個</small></strong></div>`).join('')}</div></section>`).join('') + `<p class="muted">在庫の上限はありません。加工・納品に使った素材はここから減ります。</p>`;
 }
+function encyclopediaPage() {
+  // 在庫の分類は変えず、図鑑では制作にも使う染料を加工素材としてまとめる。
+  const categoryOf = item => item.id === 'dye' || item.category === '中間素材' ? '加工素材' : item.category;
+  const found = new Set(state.discovered);
+  return heading('ENCYCLOPEDIA / 06', '図鑑', '一度でも手にしたものを、工房の記録に残します。')
+    + `<div class="encyclopedia-progress"><span>発見したアイテム</span><strong>${found.size} / ${G.items.length}</strong></div>`
+    + ['採集素材', '加工素材', '完成品'].map(category => `<section class="encyclopedia-section"><h2>${category}</h2><div class="encyclopedia-grid">${G.items.filter(item => categoryOf(item) === category).map(item => {
+      if (!found.has(item.id)) return '<article class="encyclopedia-card undiscovered"><h3>？？？</h3><p>未発見</p></article>';
+      const recipe = G.recipes.find(entry => entry.id === item.id);
+      return `<article class="encyclopedia-card"><span class="eyebrow">${category}</span><h3>${item.name}</h3><p>現在の在庫：<strong>${count(item.id)} 個</strong></p>${recipe ? `<div class="encyclopedia-recipe"><span>作り方</span><ul>${G.ingredients(recipe).map(input => `<li>${names[input.id]} × ${input.cost}</li>`).join('')}</ul></div>` : '<p class="encyclopedia-source">森の小径で採集</p>'}</article>`;
+    }).join('')}</div></section>`).join('');
+}
 function requestsPageBase() {
   return heading('REQUESTS / 04', '暮らしのお願い', 'ひと品に、気持ちを添えて。期限はありません。') + `<div class="request-progress"><span>${G.dailyUnlocked(state) ? '固定依頼' : 'お届けした依頼'}</span><strong>${state.completed.length} / ${requestTotal()}${G.dailyUnlocked(state) ? ' 完了' : ''}</strong><progress max="${requestTotal()}" value="${state.completed.length}" aria-label="依頼の達成状況"></progress></div><p class="muted">${G.dailyUnlocked(state) ? '最初の9件をすべてお届けしました。これまでのお礼も読み返せます。' : G.stageTwoUnlocked(state) ? (state.unlockedStage === 3 ? '第3段階の依頼が解放されました。これまでのお礼も読み返せます。' : '第2段階の依頼が解放されました。合計6件をすべて届けると、第3段階の3件が解放されます。') : '最初の3件をすべて届けると、次の3件が解放されます。'}</p><div class="requests-list">${G.visibleRequests(state).map(r => { const done = state.completed.includes(r.id); const ready = count(r.item) >= 1; return `<article class="request-card ${done ? 'completed' : ''}"><div class="resident"><span class="avatar" aria-hidden="true">${r.initial}</span><div><span class="eyebrow">${done ? 'DELIVERED' : 'FROM YOUR NEIGHBOR'}</span><h2>${r.name}</h2></div><span class="badge">${done ? '✓ お届け済み' : '受付中'}</span></div><h3>${r.title}</h3><p class="quote">「${done ? r.thanks : r.message}」</p><div class="delivery"><div><span>お届けするもの</span><strong>${names[r.item]} × 1</strong><small>${done ? '納品済み' : `在庫 ${count(r.item)}個 / 納品時に1個消費`}</small></div><button data-action="deliver" data-id="${r.id}" ${done || !ready ? 'disabled' : ''}>${done ? '達成しました' : ready ? '1個届ける' : '完成品が必要'}</button></div>${!done ? `<p class="request-hint">${recipeHints[r.item]}</p>` : ''}</article>`; }).join('')}</div><div class="bottom-note"><p>各依頼は1回ずつ達成できます。</p>${link('craft', '工房でつくる', 'text-link')}</div>`;
 }
@@ -120,7 +132,7 @@ function render() {
   const focusAction = focus?.dataset.action;
   const focusId = focus?.dataset.id;
   document.getElementById('navigation').innerHTML = pages.map(([id, name, number]) => `<a href="#${id}" ${id === currentPage ? 'aria-current="page"' : ''}><span class="nav-number">${number}</span>${name}${id === 'requests' ? `<span class="nav-count">${state.completed.length}/${requestTotal()}</span>` : ''}</a>`).join('');
-  document.getElementById('main').innerHTML = ({ home, gather: gatherPage, craft: craftPage, inventory: inventoryPage, requests: requestsPage })[currentPage]();
+  document.getElementById('main').innerHTML = ({ home, gather: gatherPage, craft: craftPage, inventory: inventoryPage, requests: requestsPage, encyclopedia: encyclopediaPage })[currentPage]();
   document.getElementById('save-status').textContent = saveMessage;
   if (focusAction) {
     const replacement = document.querySelector(`[data-action="${focusAction}"][data-id="${focusId}"]`);
