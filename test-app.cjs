@@ -455,3 +455,40 @@ app.page('home'); app.click('rest'); app.click('rest-confirm');
 assert.ok(!G.currentDailyRequests(app.state()).some(request => request.id === lastAlto.id));
 assert.ok(altoUnfinished.every(id => G.currentDailyRequests(app.state()).some(request => request.id === id)));
 console.log('PASS: all 5 Alto cards, recipe dialogs/highlights, manual delivery, dialogue, localStorage reload and next-day replacement');
+
+const aoiDoctorRequests = G.dailyRequestPool.filter(request => request.resident === 'aoiDoctor');
+assert.equal(aoiDoctorRequests.length, 5);
+for (const request of aoiDoctorRequests) {
+  const aoiDoctorState = G.restore({ inventory: { [request.item]: request.quantity }, completed: G.requests.map(fixed => fixed.id), day: 40, dailyRequests: [
+    { templateId: request.id, completed: false },
+    { templateId: 'daily-alto-wreath', completed: false },
+    { templateId: 'daily-kuroko-wall', completed: false }
+  ] });
+  saved.set('mioverse-craft-v1', JSON.stringify(aoiDoctorState));
+  app = launch();
+  const html = app.page('requests');
+  assert.ok(html.includes('<h2>碧博士</h2>'), `${request.id}: 碧博士名を表示`);
+  assert.ok(html.includes(request.title) && html.includes(request.message));
+  assert.ok(html.includes(`${G.items.find(item => item.id === request.item).name} × ${request.quantity}`));
+  assert.ok(html.includes('<details class="fixed-history">'));
+  app.click('view-recipe', request.id);
+  assert.equal(app.recipeDialogOpen(), true);
+  assert.ok(app.recipeDialogHtml().includes(`id="recipe-dialog-title">${G.items.find(item => item.id === request.item).name}</h2>`));
+  app.click('recipe-go-craft');
+  assert.ok(app.page('craft').includes(`class="recipe recipe-highlight" data-recipe-id="${request.item}"`));
+  app.page('requests');
+  assert.equal(G.currentDailyRequests(app.state()).find(entry => entry.id === request.id).completed, false, '加工前後も自動達成しない');
+  app.click('deliver-daily', request.id);
+  assert.equal(app.state().inventory[request.item], 0);
+  assert.equal(G.currentDailyRequests(app.state()).find(entry => entry.id === request.id).completed, true);
+  assert.ok(app.page('requests').includes(request.thanks));
+  assert.ok(app.page('requests').includes('本日は納品済み'));
+}
+app = launch();
+const lastAoiDoctor = aoiDoctorRequests.at(-1);
+assert.ok(app.page('requests').includes(lastAoiDoctor.thanks), '碧博士の納品状態をlocalStorageから復元');
+const aoiDoctorUnfinished = G.currentDailyRequests(app.state()).filter(request => !request.completed).map(request => request.id);
+app.page('home'); app.click('rest'); app.click('rest-confirm');
+assert.ok(!G.currentDailyRequests(app.state()).some(request => request.id === lastAoiDoctor.id));
+assert.ok(aoiDoctorUnfinished.every(id => G.currentDailyRequests(app.state()).some(request => request.id === id)));
+console.log('PASS: all 5 Aoi Doctor cards, recipe dialogs/highlights, manual delivery, dialogue, localStorage reload and next-day replacement');
