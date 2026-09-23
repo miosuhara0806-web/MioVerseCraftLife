@@ -16,7 +16,7 @@ let recipeHighlightTimer;
 let activeRecipeRequestId = null;
 const restDialog = document.getElementById('rest-dialog');
 const recipeDialog = document.getElementById('recipe-dialog');
-const dayStatus = () => `<section class="day-status" aria-label="今日の状態"><div><strong>${state.day}日目</strong><span>今日の採集（残り） ${state.gathersLeft} / ${G.DAILY_GATHERS}</span></div>${currentPage === 'home' ? '<button data-action="rest">今日は休む</button>' : ''}</section>`;
+const dayStatus = () => `<section class="day-status" aria-label="今日の状態"><div><strong>${state.day}日目</strong><span>今日の採集（残り） ${state.gathersLeft} / ${G.gatherLimit(state)}</span></div>${currentPage === 'home' ? '<button data-action="rest">今日は休む</button>' : ''}</section>`;
 const count = id => state.inventory[id];
 const requestTotal = () => G.visibleRequests(state).length;
 const dailyRequests = () => G.dailyUnlocked(state) ? G.currentDailyRequests(state) : [];
@@ -56,7 +56,7 @@ function home() {
 }
 function gatherPage() {
   const descriptions = { branch: '木漏れ日の下に落ちた、手になじむ枝。', vine: '道ばたに伸びる、しなやかなツル草。', flower: '小径を彩る、やさしい色の野花。' };
-  return heading('GATHER / 01', '森の小径', '気になる素材を選んで、ひと休みするように採集。') + dayStatus() + `<div class="location-note"><span>採集できるもの · 3種類</span><span>毎回2個 / 待ち時間なし</span></div><div class="gather-grid">${G.items.slice(0, 3).map(i => `<article class="gather-card ${i.id}"><div class="material-mark" aria-hidden="true">${i.mark}</div><p class="eyebrow">FOREST MATERIAL</p><h2>${i.name}</h2><p>${descriptions[i.id]}</p><div class="owned">現在の在庫 <strong>${count(i.id)} 個</strong></div><button data-action="gather" data-id="${i.id}" ${state.gathersLeft === 0 ? 'disabled' : ''}>${i.name}を採集 <span>＋2</span></button></article>`).join('')}</div><div class="bottom-note"><p>${state.gathersLeft === 0 ? '今日はもう十分集めたようです。工房で作業するか、今日は休みましょう。' : '採集は1日3回。加工・納品には回数制限がありません。'}</p>${link('craft', '集めた素材を加工する', 'text-link')}${state.gathersLeft === 0 ? link('home', '工房で休む', 'text-link') : ''}</div>`;
+  return heading('GATHER / 01', '森の小径', '気になる素材を選んで、ひと休みするように採集。') + dayStatus() + `<div class="location-note"><span>採集できるもの · 3種類</span><span>毎回2個 / 待ち時間なし</span></div><div class="gather-grid">${G.items.slice(0, 3).map(i => `<article class="gather-card ${i.id}"><div class="material-mark" aria-hidden="true">${i.mark}</div><p class="eyebrow">FOREST MATERIAL</p><h2>${i.name}</h2><p>${descriptions[i.id]}</p><div class="owned">現在の在庫 <strong>${count(i.id)} 個</strong></div><button data-action="gather" data-id="${i.id}" ${state.gathersLeft === 0 ? 'disabled' : ''}>${i.name}を採集 <span>＋2</span></button></article>`).join('')}</div><div class="bottom-note"><p>${state.gathersLeft === 0 ? '今日はもう十分集めたようです。工房で作業するか、今日は休みましょう。' : `採集は1日${G.gatherLimit(state)}回。加工・納品には回数制限がありません。`}</p>${link('craft', '集めた素材を加工する', 'text-link')}${state.gathersLeft === 0 ? link('home', '工房で休む', 'text-link') : ''}</div>`;
 }
 function craftPageBase() {
   return heading('CRAFT / 02', '手仕事の時間', '素材をつないで、ひとつの品物へ。加工はすぐに完了します。') + G.recipes.reduce((groups, r) => { if (!groups.includes(r.group)) groups.push(r.group); return groups; }, []).map(group => `<section class="recipe-section"><h2>${group}</h2><p class="chain">${group === '木のしごと' ? '枝 → 木材 → 板材 → 小箱' : group === '布のしごと' ? 'ツル草 → 植物繊維 → 糸 → 布 → 布袋' : group === '花のしごと' ? '野花 → 乾燥花 → 染料' : '素材・中間素材・完成品を組み合わせて、暮らしの品へ'}</p><div class="recipe-list">${G.recipes.filter(r => r.group === group).map(r => { const inputs = G.ingredients(r); const max = G.maxCraft(state, r); const missing = inputs.filter(i => count(i.id) < i.cost); return `<article class="recipe"><div><h3>${names[r.id]} <span class="yield">＋1個</span></h3><p>${inputs.map(i => `${names[i.id]} ${i.cost}個`).join(' ＋ ')} <span class="arrow">→</span> ${names[r.id]} 1個</p><small>${inputs.map(i => `${names[i.id]}の在庫 ${count(i.id)} / 必要 ${i.cost}${count(i.id) < i.cost ? '（不足）' : ''}`).join(' · ')} · ${names[r.id]}の在庫 ${count(r.id)}</small></div><div class="recipe-actions"><button data-action="craft" data-id="${r.id}" ${max < 1 ? 'disabled' : ''}>${max < 1 ? `${missing.map(i => names[i.id]).join('・')}が不足` : '1個つくる'}</button>${max > 1 ? `<button class="secondary" data-action="craft-all" data-id="${r.id}">まとめて${max}個</button>` : ''}</div></article>`; }).join('')}</div></section>`).join('') + `<div class="bottom-note">${link('gather', '素材を集める', 'text-link')}${link('requests', 'できた品物を届ける', 'text-link')}</div>`;
@@ -133,6 +133,8 @@ function render() {
   const focusId = focus?.dataset.id;
   document.getElementById('navigation').innerHTML = pages.map(([id, name, number]) => `<a href="#${id}" ${id === currentPage ? 'aria-current="page"' : ''}><span class="nav-number">${number}</span>${name}${id === 'requests' ? `<span class="nav-count">${state.completed.length}/${requestTotal()}</span>` : ''}</a>`).join('');
   document.getElementById('main').innerHTML = ({ home, gather: gatherPage, craft: craftPage, inventory: inventoryPage, requests: requestsPage, encyclopedia: encyclopediaPage })[currentPage]();
+  document.getElementById('gather-limit-note').textContent = G.gatherLimit(state);
+  document.getElementById('rest-description').textContent = `翌日になり、採集回数が${G.gatherLimit(state)}回に戻ります。残り回数は持ち越されません。依頼に期限はありません。`;
   document.getElementById('save-status').textContent = saveMessage;
   if (focusAction) {
     const replacement = document.querySelector(`[data-action="${focusAction}"][data-id="${focusId}"]`);
@@ -152,7 +154,7 @@ document.addEventListener('click', event => {
     G.rest(state);
     save(); render();
     document.getElementById('main').focus({ preventScroll: true });
-    notify(`${state.day}日目になりました。今日の採集は3回。好きなペースで過ごしましょう。`);
+    notify(`${state.day}日目になりました。今日の採集は${G.gatherLimit(state)}回。好きなペースで過ごしましょう。`);
     return;
   }
   if (action === 'view-recipe') {
