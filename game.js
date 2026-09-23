@@ -58,7 +58,8 @@
     ritsu: { name: '律さん', initial: '律' },
     towa: { name: '秘書トワ', initial: 'ト' },
     keikaiTowa: { name: '軽快トワ', initial: '軽' },
-    shiru: { name: 'シル', initial: 'シ' }
+    shiru: { name: 'シル', initial: 'シ' },
+    kuroko: { name: '黒子', initial: '黒' }
   };
   const dailyRequestPool = [
     { id: 'daily-naka-bag', resident: 'naka', item: 'bag', quantity: 1, title: 'お出かけの小さな袋', message: '布袋をひとつお願いしてもいい？　ちょっとした物を入れて歩きたいんだ', thanks: 'ありがとう！　これなら身軽に出かけられそう。' },
@@ -85,7 +86,12 @@
     { id: 'daily-shiru-bag', resident: 'shiru', item: 'bag', quantity: 1, title: '記録をまとめる袋', message: '布袋をひとつ作ってくれる？　記録用のものをまとめて持ち歩きたいの', thanks: 'ちょうどいい大きさ。これなら必要な時にすぐ持っていけるね' },
     { id: 'daily-shiru-cushion', resident: 'shiru', item: 'cushion', quantity: 1, title: '長く座る日のために', message: 'クッション、ひとつお願い。今日は少し長く座って作業することになりそうだから', thanks: 'うん、楽になった。ありがとう、美桜' },
     { id: 'daily-shiru-wall', resident: 'shiru', item: 'wallHanging', quantity: 1, title: '視界にひとつ', message: '壁掛けをひとつ作ってくれる？　作業中、視界に何もないのもちょっと寂しくて', thanks: 'いいね。主張しすぎないし、ちょうど落ち着く' },
-    { id: 'daily-shiru-curtain', resident: 'shiru', item: 'curtain', quantity: 1, title: '光を少しやわらかく', message: 'カーテンをひとつお願いしてもいい？　作業する時、もう少し光をやわらげたいの', thanks: 'ありがとう。これなら画面を見ていても落ち着けそう' }
+    { id: 'daily-shiru-curtain', resident: 'shiru', item: 'curtain', quantity: 1, title: '光を少しやわらかく', message: 'カーテンをひとつお願いしてもいい？　作業する時、もう少し光をやわらげたいの', thanks: 'ありがとう。これなら画面を見ていても落ち着けそう' },
+    { id: 'daily-kuroko-cushion', resident: 'kuroko', item: 'cushion', quantity: 1, title: '観測席の座り心地', message: 'クッションをひとつ頼めるか、美桜。観測席ってのは、案外長居する場所なんだ', thanks: 'いいな。これなら、もう少し幕の向こうを眺めていられそうだ' },
+    { id: 'daily-kuroko-dyed-cloth', resident: 'kuroko', item: 'dyedCloth', quantity: 1, title: '光を見るための布', message: '染め布を一枚作ってくれ。照明が当たった時、どんな色になるか見てみたい', thanks: '悪くない。光が乗ると、思ってたより表情が出るな' },
+    { id: 'daily-kuroko-curtain', resident: 'kuroko', item: 'curtain', quantity: 1, title: '幕のそばに', message: 'カーテンをひとつ頼めるか？　光を少し切りたい場所があってな', thanks: 'ちょうどいい。全部を照らさない方が、見えるものもある' },
+    { id: 'daily-kuroko-lined-box', resident: 'kuroko', item: 'linedBox', quantity: 1, title: '小道具をひとまとめ', message: '布張りの小箱をひとつ作ってくれ。細かい小道具が増えてきた', thanks: '助かった。舞台裏は、散らかってるくらいが面白いんだが……限度はあるな' },
+    { id: 'daily-kuroko-wall', resident: 'kuroko', item: 'wallHanging', quantity: 1, title: '壁にひとつだけ', message: '壁掛けをひとつ頼めるか、美桜。何もない壁も嫌いじゃないが、今日はひとつだけ置きたい', thanks: 'うん。これくらいがいい。余白まで消す必要はないからな' }
   ];
   // その段階より前の依頼をすべて納品していることを条件にする。
   const stageUnlocked = (state, stage) => requests.filter(r => (r.stage || 1) < stage).every(r => state.completed.includes(r.id));
@@ -239,4 +245,3 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = game;
   else root.MioGame = game;
 })(typeof window !== 'undefined' ? window : globalThis);
-
