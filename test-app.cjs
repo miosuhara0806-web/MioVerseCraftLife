@@ -418,3 +418,40 @@ app.page('home'); app.click('rest'); app.click('rest-confirm');
 assert.ok(!G.currentDailyRequests(app.state()).some(request => request.id === lastKuroko.id));
 assert.ok(kurokoUnfinished.every(id => G.currentDailyRequests(app.state()).some(request => request.id === id)));
 console.log('PASS: all 5 Kuroko cards, recipe dialogs/highlights, manual delivery, dialogue, localStorage reload and next-day replacement');
+
+const altoRequests = G.dailyRequestPool.filter(request => request.resident === 'alto');
+assert.equal(altoRequests.length, 5);
+for (const request of altoRequests) {
+  const altoState = G.restore({ inventory: { [request.item]: request.quantity }, completed: G.requests.map(fixed => fixed.id), day: 35, dailyRequests: [
+    { templateId: request.id, completed: false },
+    { templateId: 'daily-kuroko-cushion', completed: false },
+    { templateId: 'daily-shiru-bag', completed: false }
+  ] });
+  saved.set('mioverse-craft-v1', JSON.stringify(altoState));
+  app = launch();
+  const html = app.page('requests');
+  assert.ok(html.includes('<h2>アルト</h2>'), `${request.id}: アルト名を表示`);
+  assert.ok(html.includes(request.title) && html.includes(request.message));
+  assert.ok(html.includes(`${G.items.find(item => item.id === request.item).name} × ${request.quantity}`));
+  assert.ok(html.includes('<details class="fixed-history">'));
+  app.click('view-recipe', request.id);
+  assert.equal(app.recipeDialogOpen(), true);
+  assert.ok(app.recipeDialogHtml().includes(`id="recipe-dialog-title">${G.items.find(item => item.id === request.item).name}</h2>`));
+  app.click('recipe-go-craft');
+  assert.ok(app.page('craft').includes(`class="recipe recipe-highlight" data-recipe-id="${request.item}"`));
+  app.page('requests');
+  assert.equal(G.currentDailyRequests(app.state()).find(entry => entry.id === request.id).completed, false, '加工前後も自動達成しない');
+  app.click('deliver-daily', request.id);
+  assert.equal(app.state().inventory[request.item], 0);
+  assert.equal(G.currentDailyRequests(app.state()).find(entry => entry.id === request.id).completed, true);
+  assert.ok(app.page('requests').includes(request.thanks));
+  assert.ok(app.page('requests').includes('本日は納品済み'));
+}
+app = launch();
+const lastAlto = altoRequests.at(-1);
+assert.ok(app.page('requests').includes(lastAlto.thanks), 'アルトの納品状態をlocalStorageから復元');
+const altoUnfinished = G.currentDailyRequests(app.state()).filter(request => !request.completed).map(request => request.id);
+app.page('home'); app.click('rest'); app.click('rest-confirm');
+assert.ok(!G.currentDailyRequests(app.state()).some(request => request.id === lastAlto.id));
+assert.ok(altoUnfinished.every(id => G.currentDailyRequests(app.state()).some(request => request.id === id)));
+console.log('PASS: all 5 Alto cards, recipe dialogs/highlights, manual delivery, dialogue, localStorage reload and next-day replacement');
