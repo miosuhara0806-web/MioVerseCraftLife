@@ -129,7 +129,7 @@ const refreshed = G.currentDailyRequests(daily);
 assert.equal(refreshed.length, 3);
 assert.equal(new Set(refreshed.map(request => request.id)).size, 3);
 assert.ok(refreshed.every(request => !completedIds.includes(request.id)), '3件達成後は翌日に3件とも更新');
-assert.equal(G.dailyRequestPool.length, 20);
+assert.equal(G.dailyRequestPool.length, 25);
 assert.ok(G.dailyRequestPool.every(request => G.recipes.some(recipe => recipe.id === request.item)), '日常依頼は既存レシピだけを要求');
 
 const keikaiExpected = [
@@ -159,5 +159,35 @@ const keikaiCarried = keikaiDelivery.dailyRequests.slice(1).map(slot => slot.tem
 G.rest(keikaiDelivery, () => 0);
 assert.ok(!keikaiDelivery.dailyRequests.some(slot => slot.templateId === 'daily-keikai-towa-bag'), '軽快トワの達成済み枠を翌日に交換');
 assert.ok(keikaiCarried.every(id => keikaiDelivery.dailyRequests.some(slot => slot.templateId === id)), '軽快トワ以外の未達成枠を持ち越す');
-console.log('PASS: 20-request pool, Light Towa data/draw/delivery, legacy three-slot preservation, carryover and next-day replacement');
+const shiruExpected = [
+  ['daily-shiru-box', 'box', 1, '机の上を少しだけ', '小箱をひとつお願いしてもいい？　机の上に散らばる細かいものだけ、まとめておきたくて', 'ありがとう。これくらい整ってると、作業しやすいね'],
+  ['daily-shiru-bag', 'bag', 1, '記録をまとめる袋', '布袋をひとつ作ってくれる？　記録用のものをまとめて持ち歩きたいの', 'ちょうどいい大きさ。これなら必要な時にすぐ持っていけるね'],
+  ['daily-shiru-cushion', 'cushion', 1, '長く座る日のために', 'クッション、ひとつお願い。今日は少し長く座って作業することになりそうだから', 'うん、楽になった。ありがとう、美桜'],
+  ['daily-shiru-wall', 'wallHanging', 1, '視界にひとつ', '壁掛けをひとつ作ってくれる？　作業中、視界に何もないのもちょっと寂しくて', 'いいね。主張しすぎないし、ちょうど落ち着く'],
+  ['daily-shiru-curtain', 'curtain', 1, '光を少しやわらかく', 'カーテンをひとつお願いしてもいい？　作業する時、もう少し光をやわらげたいの', 'ありがとう。これなら画面を見ていても落ち着けそう']
+];
+assert.deepEqual(G.dailyRequestPool.filter(request => request.resident === 'shiru').map(request => [request.id, request.item, request.quantity, request.title, request.message, request.thanks]), shiruExpected);
+assert.ok(G.currentDailyRequests(G.restore(oldCompleteSave, () => 0.999)).some(request => request.name === 'シル'), 'シルを通常抽選から生成');
+const oldFourResidentSave = G.restore({ ...oldCompleteSave, inventory: { bag: 2, cloth: 4 }, day: 15, gathersLeft: 0,
+  dailyRequests: [{ templateId: 'daily-keikai-towa-bag', completed: true }, { templateId: 'daily-naka-dry-flower', completed: false }, { templateId: 'daily-towa-box', completed: false }],
+  dailyHistory: ['daily-keikai-towa-bag', 'daily-naka-dry-flower', 'daily-towa-box'] });
+assert.deepEqual(oldFourResidentSave.dailyRequests, [
+  { templateId: 'daily-keikai-towa-bag', completed: true }, { templateId: 'daily-naka-dry-flower', completed: false }, { templateId: 'daily-towa-box', completed: false }
+], '既存4人の進行中3枠と達成状態を維持');
+assert.equal(oldFourResidentSave.day, 15);
+assert.equal(oldFourResidentSave.gathersLeft, 0);
+assert.equal(oldFourResidentSave.inventory.cloth, 4);
+assert.deepEqual(oldFourResidentSave.dailyHistory, ['daily-keikai-towa-bag', 'daily-naka-dry-flower', 'daily-towa-box']);
+const shiruDelivery = G.restore({ ...oldCompleteSave, inventory: { curtain: 1 }, dailyRequests: [
+  { templateId: 'daily-shiru-curtain', completed: false }, { templateId: 'daily-naka-dry-flower', completed: false }, { templateId: 'daily-keikai-towa-bag', completed: false }
+] });
+assert.equal(G.currentDailyRequests(shiruDelivery)[0].name, 'シル');
+assert.equal(G.deliverDaily(shiruDelivery, 'daily-shiru-curtain'), true);
+assert.equal(shiruDelivery.inventory.curtain, 0);
+assert.equal(G.currentDailyRequests(shiruDelivery)[0].completed, true);
+const shiruCarried = shiruDelivery.dailyRequests.slice(1).map(slot => slot.templateId);
+G.rest(shiruDelivery, () => 0);
+assert.ok(!shiruDelivery.dailyRequests.some(slot => slot.templateId === 'daily-shiru-curtain'));
+assert.ok(shiruCarried.every(id => shiruDelivery.dailyRequests.some(slot => slot.templateId === id)));
+console.log('PASS: 25-request pool, five Sil requests, legacy save preservation, manual delivery, carryover and next-day replacement');
 
