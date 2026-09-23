@@ -115,7 +115,21 @@
   const maxCraft = (state, recipe) => Math.min(...ingredients(recipe).map(i => Math.floor(state.inventory[i.id] / i.cost)));
   const DAILY_GATHERS = 3;
   const DAILY_REQUEST_SLOTS = 3;
-  const fresh = () => ({ inventory: Object.fromEntries(items.map(item => [item.id, 0])), completed: [], unlockedStage: 1, day: 1, gathersLeft: DAILY_GATHERS, dailyRequests: [], dailyHistory: [] });
+  const fresh = () => ({ inventory: Object.fromEntries(items.map(item => [item.id, 0])), completed: [], unlockedStage: 1, day: 1, gathersLeft: DAILY_GATHERS, dailyRequests: [], dailyHistory: [], discovered: [] });
+  const recordDiscovery = (state, id) => { if (!state.discovered.includes(id)) state.discovered.push(id); };
+  function inferLegacyDiscoveries(state) {
+    const found = new Set();
+    function includeWithIngredients(id) {
+      if (found.has(id) || !items.some(item => item.id === id)) return;
+      found.add(id);
+      const recipe = recipes.find(entry => entry.id === id);
+      if (recipe) ingredients(recipe).forEach(input => includeWithIngredients(input.id));
+    }
+    items.filter(item => state.inventory[item.id] > 0).forEach(item => includeWithIngredients(item.id));
+    requests.filter(request => state.completed.includes(request.id)).forEach(request => includeWithIngredients(request.item));
+    state.dailyRequests.filter(slot => slot.completed).forEach(slot => includeWithIngredients(dailyTemplate(slot.templateId).item));
+    return items.filter(item => found.has(item.id)).map(item => item.id);
+  }
   const dailyTemplate = id => dailyRequestPool.find(request => request.id === id);
   const currentDailyRequests = state => state.dailyRequests.map(slot => {
     const request = dailyTemplate(slot.templateId);
@@ -210,6 +224,9 @@
       const slots = data.dailyRequests.filter(slot => slot && dailyTemplate(slot.templateId)).map(slot => ({ templateId: slot.templateId, completed: slot.completed === true }));
       if (slots.length === DAILY_REQUEST_SLOTS && new Set(slots.map(slot => slot.templateId)).size === DAILY_REQUEST_SLOTS) state.dailyRequests = slots;
     }
+    state.discovered = Array.isArray(data.discovered)
+      ? [...new Set(data.discovered.filter(id => items.some(item => item.id === id)))]
+      : inferLegacyDiscoveries(state);
     if (dailyUnlocked(state)) ensureDailyRequests(state, random);
     return state;
   }
@@ -217,6 +234,7 @@
     if (state.gathersLeft <= 0 || !['branch', 'vine', 'flower'].includes(id) || state.inventory[id] > Number.MAX_SAFE_INTEGER - 2) return false;
     state.inventory[id] += 2;
     state.gathersLeft--;
+    recordDiscovery(state, id);
     return true;
   }
   function rest(state, random = Math.random) {
@@ -232,6 +250,7 @@
     // 全素材の充足を確認してからまとめて消費する。不足時は在庫を変更しない。
     for (const input of ingredients(recipe)) state.inventory[input.id] -= input.cost * amount;
     state.inventory[id] += amount;
+    recordDiscovery(state, id);
     return true;
   }
   function deliver(state, id) {
