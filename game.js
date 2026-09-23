@@ -60,7 +60,8 @@
     keikaiTowa: { name: '軽快トワ', initial: '軽' },
     shiru: { name: 'シル', initial: 'シ' },
     kuroko: { name: '黒子', initial: '黒' },
-    alto: { name: 'アルト', initial: 'ア' }
+    alto: { name: 'アルト', initial: 'ア' },
+    aoiDoctor: { name: '碧博士', initial: '碧' }
   };
   const dailyRequestPool = [
     { id: 'daily-naka-bag', resident: 'naka', item: 'bag', quantity: 1, title: 'お出かけの小さな袋', message: '布袋をひとつお願いしてもいい？　ちょっとした物を入れて歩きたいんだ', thanks: 'ありがとう！　これなら身軽に出かけられそう。' },
@@ -97,7 +98,12 @@
     { id: 'daily-alto-dry-flower', resident: 'alto', item: 'dryFlower', quantity: 2, title: '花の色を残しておきたい', message: '乾燥花を二つお願い。色の組み合わせを考える時、手元に置いて眺めたいんだ', thanks: 'いいね。同じ花でも、並べ方でずいぶん印象が変わる' },
     { id: 'daily-alto-dyed-cloth', resident: 'alto', item: 'dyedCloth', quantity: 1, title: '布にした時の色', message: '染め布を一枚作ってくれる？　染料だけじゃなくて、布になった時の色も見ておきたい', thanks: 'うん、思ってたより柔らかい色になった。これは使えそうだ' },
     { id: 'daily-alto-wreath', resident: 'alto', item: 'wreath', quantity: 1, title: '丸い構図でひとつ', message: '花のリースをひとつ頼める？　丸い形の中で色がどう収まるか、ちょっと見てみたくて', thanks: 'いいな。視線がちゃんと一周する。こういうまとまり方、好きだ' },
-    { id: 'daily-alto-wall', resident: 'alto', item: 'wallHanging', quantity: 1, title: '壁に置いて確かめたい', message: '壁掛けをひとつ作ってくれる？　実際に壁へ置いた時の見え方まで確かめたいんだ', thanks: 'ありがとう、美桜。机の上で見るのと、壁に置くのじゃやっぱり違うな' }
+    { id: 'daily-alto-wall', resident: 'alto', item: 'wallHanging', quantity: 1, title: '壁に置いて確かめたい', message: '壁掛けをひとつ作ってくれる？　実際に壁へ置いた時の見え方まで確かめたいんだ', thanks: 'ありがとう、美桜。机の上で見るのと、壁に置くのじゃやっぱり違うな' },
+    { id: 'daily-aoi-doctor-dry-flower', resident: 'aoiDoctor', item: 'dryFlower', quantity: 2, title: '比較試料を確保したい', message: '美桜さん、乾燥花を二つお願いできますか？　生花とは違う色の変化を、比較しておきたいんです', thanks: 'ありがとうございます！　これで比較条件が揃いました。いい観測データが取れそうです' },
+    { id: 'daily-aoi-doctor-dye', resident: 'aoiDoctor', item: 'dye', quantity: 1, title: '発色を観測したい', message: '染料をひとつお願いできますか、美桜さん？　光の当たり方で発色がどう変わるか、確認したくて', thanks: 'おお……！　これは興味深い発色ですね。さっそく記録しておきましょう' },
+    { id: 'daily-aoi-doctor-lined-box', resident: 'aoiDoctor', item: 'linedBox', quantity: 1, title: '試料を整理したい', message: '布張りの小箱をひとつお願いできますか？　細かい試料を分けて保管したいんです', thanks: '助かりました、美桜さん。これで研究台の混沌が、少しだけ秩序を取り戻します' },
+    { id: 'daily-aoi-doctor-curtain', resident: 'aoiDoctor', item: 'curtain', quantity: 1, title: '光量を調整したい', message: 'カーテンをひとつお願いできますか？　観測中だけ、部屋の光量を少し落としたいんです', thanks: '完璧です。これなら余計な反射を気にせず、観測に集中できます' },
+    { id: 'daily-aoi-doctor-cushion', resident: 'aoiDoctor', item: 'cushion', quantity: 1, title: '長時間観測対策', message: '美桜さん、クッションをひとつお願いしてもいいですか？　長時間観測で、腰にまで知恵熱が回る前に対策を……！', thanks: 'ありがとうございます、美桜さん！　これで研究続行可能です。物理的冷却ではなく、快適性で解決しました！' }
   ];
   // その段階より前の依頼をすべて納品していることを条件にする。
   const stageUnlocked = (state, stage) => requests.filter(r => (r.stage || 1) < stage).every(r => state.completed.includes(r.id));
