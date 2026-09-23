@@ -346,3 +346,39 @@ assert.ok(!G.currentDailyRequests(app.state()).some(request => request.id === de
 assert.ok(unchangedKeikaiIds.every(id => G.currentDailyRequests(app.state()).some(request => request.id === id)));
 console.log('PASS: all 5 Light Towa cards, recipe dialogs/highlights, manual delivery, dialogue, next-day replacement and localStorage reload');
 
+const shiruRequests = G.dailyRequestPool.filter(request => request.resident === 'shiru');
+assert.equal(shiruRequests.length, 5);
+for (const request of shiruRequests) {
+  const shiruState = G.restore({ inventory: { [request.item]: 1 }, completed: G.requests.map(fixed => fixed.id), day: 24, dailyRequests: [
+    { templateId: request.id, completed: false },
+    { templateId: 'daily-keikai-towa-bag', completed: false },
+    { templateId: 'daily-ritsu-cloth', completed: false }
+  ] });
+  saved.set('mioverse-craft-v1', JSON.stringify(shiruState));
+  app = launch();
+  const html = app.page('requests');
+  assert.ok(html.includes('<h2>シル</h2>'), `${request.id}: シル名を表示`);
+  assert.ok(html.includes(request.title) && html.includes(request.message));
+  assert.ok(html.includes(`${G.items.find(item => item.id === request.item).name} × 1`));
+  assert.ok(html.includes('<details class="fixed-history">'));
+  app.click('view-recipe', request.id);
+  assert.equal(app.recipeDialogOpen(), true);
+  assert.ok(app.recipeDialogHtml().includes(`id="recipe-dialog-title">${G.items.find(item => item.id === request.item).name}</h2>`));
+  app.click('recipe-go-craft');
+  assert.ok(app.page('craft').includes(`class="recipe recipe-highlight" data-recipe-id="${request.item}"`));
+  app.page('requests');
+  app.click('deliver-daily', request.id);
+  assert.equal(app.state().inventory[request.item], 0);
+  assert.equal(G.currentDailyRequests(app.state()).find(entry => entry.id === request.id).completed, true);
+  assert.ok(app.page('requests').includes(request.thanks));
+  assert.ok(app.page('requests').includes('本日は納品済み'));
+}
+app = launch();
+const lastShiru = shiruRequests.at(-1);
+assert.ok(app.page('requests').includes(lastShiru.thanks), 'シルの納品状態をlocalStorageから復元');
+const shiruUnfinished = G.currentDailyRequests(app.state()).filter(request => !request.completed).map(request => request.id);
+app.page('home'); app.click('rest'); app.click('rest-confirm');
+assert.ok(!G.currentDailyRequests(app.state()).some(request => request.id === lastShiru.id));
+assert.ok(shiruUnfinished.every(id => G.currentDailyRequests(app.state()).some(request => request.id === id)));
+console.log('PASS: all 5 Sil cards, recipe dialogs/highlights, manual delivery, dialogue, localStorage reload and next-day replacement');
+
