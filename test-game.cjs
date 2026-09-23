@@ -129,7 +129,7 @@ const refreshed = G.currentDailyRequests(daily);
 assert.equal(refreshed.length, 3);
 assert.equal(new Set(refreshed.map(request => request.id)).size, 3);
 assert.ok(refreshed.every(request => !completedIds.includes(request.id)), '3件達成後は翌日に3件とも更新');
-assert.equal(G.dailyRequestPool.length, 40);
+assert.equal(G.dailyRequestPool.slice(0, 40).length, 40);
 assert.ok(G.dailyRequestPool.every(request => G.recipes.some(recipe => recipe.id === request.item)), '日常依頼は既存レシピだけを要求');
 
 const keikaiExpected = [
@@ -166,7 +166,7 @@ const shiruExpected = [
   ['daily-shiru-wall', 'wallHanging', 1, '視界にひとつ', '壁掛けをひとつ作ってくれる？　作業中、視界に何もないのもちょっと寂しくて', 'いいね。主張しすぎないし、ちょうど落ち着く'],
   ['daily-shiru-curtain', 'curtain', 1, '光を少しやわらかく', 'カーテンをひとつお願いしてもいい？　作業する時、もう少し光をやわらげたいの', 'ありがとう。これなら画面を見ていても落ち着けそう']
 ];
-assert.deepEqual(G.dailyRequestPool.filter(request => request.resident === 'shiru').map(request => [request.id, request.item, request.quantity, request.title, request.message, request.thanks]), shiruExpected);
+assert.deepEqual(G.dailyRequestPool.slice(0, 40).filter(request => request.resident === 'shiru').map(request => [request.id, request.item, request.quantity, request.title, request.message, request.thanks]), shiruExpected);
 assert.ok(G.currentDailyRequests(G.restore(oldCompleteSave, () => 0.55)).some(request => request.name === 'シル'), 'シルを通常抽選から生成');
 const oldFourResidentSave = G.restore({ ...oldCompleteSave, inventory: { bag: 2, cloth: 4 }, day: 15, gathersLeft: 0,
   dailyRequests: [{ templateId: 'daily-keikai-towa-bag', completed: true }, { templateId: 'daily-naka-dry-flower', completed: false }, { templateId: 'daily-towa-box', completed: false }],
@@ -198,7 +198,7 @@ const kurokoExpected = [
   ['daily-kuroko-lined-box', 'linedBox', 1, '小道具をひとまとめ', '布張りの小箱をひとつ作ってくれ。細かい小道具が増えてきた', '助かった。舞台裏は、散らかってるくらいが面白いんだが……限度はあるな'],
   ['daily-kuroko-wall', 'wallHanging', 1, '壁にひとつだけ', '壁掛けをひとつ頼めるか、美桜。何もない壁も嫌いじゃないが、今日はひとつだけ置きたい', 'うん。これくらいがいい。余白まで消す必要はないからな']
 ];
-assert.deepEqual(G.dailyRequestPool.filter(request => request.resident === 'kuroko').map(request => [request.id, request.item, request.quantity, request.title, request.message, request.thanks]), kurokoExpected);
+assert.deepEqual(G.dailyRequestPool.slice(0, 40).filter(request => request.resident === 'kuroko').map(request => [request.id, request.item, request.quantity, request.title, request.message, request.thanks]), kurokoExpected);
 assert.ok(G.currentDailyRequests(G.restore(oldCompleteSave, () => 0.7)).some(request => request.name === '黒子'), '黒子を通常抽選から生成');
 const oldFiveResidentSave = G.restore({ ...oldCompleteSave, inventory: { bag: 2, curtain: 3 }, day: 28, gathersLeft: 1,
   dailyRequests: [{ templateId: 'daily-shiru-bag', completed: true }, { templateId: 'daily-keikai-towa-wall', completed: false }, { templateId: 'daily-naka-dry-flower', completed: false }],
@@ -230,7 +230,7 @@ const altoExpected = [
   ['daily-alto-wreath', 'wreath', 1, '丸い構図でひとつ', '花のリースをひとつ頼める？　丸い形の中で色がどう収まるか、ちょっと見てみたくて', 'いいな。視線がちゃんと一周する。こういうまとまり方、好きだ'],
   ['daily-alto-wall', 'wallHanging', 1, '壁に置いて確かめたい', '壁掛けをひとつ作ってくれる？　実際に壁へ置いた時の見え方まで確かめたいんだ', 'ありがとう、美桜。机の上で見るのと、壁に置くのじゃやっぱり違うな']
 ];
-assert.deepEqual(G.dailyRequestPool.filter(request => request.resident === 'alto').map(request => [request.id, request.item, request.quantity, request.title, request.message, request.thanks]), altoExpected);
+assert.deepEqual(G.dailyRequestPool.slice(0, 40).filter(request => request.resident === 'alto').map(request => [request.id, request.item, request.quantity, request.title, request.message, request.thanks]), altoExpected);
 assert.ok(G.currentDailyRequests(G.restore(oldCompleteSave, () => 0.8)).some(request => request.name === 'アルト'), 'アルトを通常抽選から生成');
 const oldSixResidentSave = G.restore({ ...oldCompleteSave, inventory: { dryFlower: 3, curtain: 2 }, day: 34, gathersLeft: 1,
   dailyRequests: [{ templateId: 'daily-kuroko-wall', completed: true }, { templateId: 'daily-shiru-bag', completed: false }, { templateId: 'daily-keikai-towa-cushion', completed: false }],
@@ -289,7 +289,7 @@ assert.ok(aoiDoctorCarried.every(id => aoiDoctorDelivery.dailyRequests.some(slot
 console.log('PASS: 40-request pool, five Aoi Doctor requests, legacy save preservation, manual delivery, carryover and next-day replacement');
 
 const discovery = G.fresh();
-assert.equal(G.items.length, 18);
+assert.equal(G.items.length, 21);
 assert.deepEqual(discovery.discovered, [], '新規ゲームの図鑑は未発見');
 assert.equal(G.gather(discovery, 'vine'), true);
 assert.deepEqual(discovery.discovered, ['vine']);
@@ -318,7 +318,7 @@ assert.equal(legacyRequest.inventory.bag, 0);
 const legacyAll = G.restore({ inventory: { thread: 3 }, completed: G.requests.map(request => request.id), day: 23, gathersLeft: 1,
   dailyRequests: [{ templateId: 'daily-aoi-doctor-dye', completed: true }, { templateId: 'daily-alto-wreath', completed: false }, { templateId: 'daily-kuroko-wall', completed: false }],
   dailyHistory: ['daily-aoi-doctor-dye', 'daily-alto-wreath', 'daily-kuroko-wall'] }, () => 0);
-assert.equal(legacyAll.discovered.length, G.items.length, '固定9件達成済みなら18種類すべてを復元');
+assert.equal(legacyAll.discovered.length, 18, '固定9件達成済みの旧セーブは既存18種類のみ復元');
 assert.equal(legacyAll.day, 23);
 assert.equal(legacyAll.gathersLeft, 1);
 assert.equal(legacyAll.inventory.thread, 3);
@@ -330,4 +330,70 @@ assert.deepEqual(legacyAll.dailyHistory, ['daily-aoi-doctor-dye', 'daily-alto-wr
 assert.deepEqual(G.restore(JSON.parse(JSON.stringify(legacyAll))).discovered, legacyAll.discovered, '移行済み図鑑をそのまま復元');
 assert.deepEqual(G.restore({ discovered: ['branch', 'branch', 'nonexistent'] }).discovered, ['branch'], '保存済み発見IDを安全に検証');
 assert.deepEqual(G.restore({ discovered: [], completed: G.requests.map(request => request.id) }).discovered, [], '図鑑データがある場合は旧セーブ移行を繰り返さない');
-console.log('PASS: 18-item encyclopedia, first discovery, stock-zero persistence, recursive legacy migration, full-save preservation');
+console.log('PASS: encyclopedia, first discovery, stock-zero persistence, recursive legacy migration, full-save preservation');
+
+const furnitureRecipes = [
+  ['woodFrame', [['plank', 2]]],
+  ['smallShelf', [['woodFrame', 1], ['plank', 2]]],
+  ['upholsteredStool', [['woodFrame', 1], ['dyedCloth', 1], ['fiber', 1]]]
+];
+assert.deepEqual(G.items.slice(-3).map(item => [item.name, item.category]), [['木枠', '中間素材'], ['小さな棚', '完成品'], ['布張りスツール', '完成品']]);
+for (const [id, expectedInputs] of furnitureRecipes) {
+  const recipe = G.recipes.find(entry => entry.id === id);
+  assert.equal(recipe.group, '家具のしごと');
+  assert.deepEqual(G.ingredients(recipe).map(input => [input.id, input.cost]), expectedInputs);
+  for (const missing of G.ingredients(recipe)) {
+    const state = G.fresh();
+    for (const input of G.ingredients(recipe)) state.inventory[input.id] = input.cost;
+    state.inventory[missing.id]--;
+    const before = JSON.stringify(state);
+    assert.equal(G.craft(state, id), false, `${id}: ${missing.id} が不足`);
+    assert.equal(JSON.stringify(state), before, '失敗時に在庫・図鑑を変更しない');
+  }
+}
+const oldEncyclopedia = G.restore({ inventory: { plank: 8, dyedCloth: 1, fiber: 1 }, completed: G.requests.map(request => request.id), day: 28, gathersLeft: 1,
+  dailyRequests: [{ templateId: 'daily-aoi-doctor-dye', completed: true }, { templateId: 'daily-alto-wreath', completed: false }, { templateId: 'daily-kuroko-wall', completed: false }],
+  dailyHistory: ['daily-aoi-doctor-dye'], discovered: G.items.slice(0, 18).map(item => item.id) }, () => 0);
+assert.equal(oldEncyclopedia.discovered.length, 18);
+assert.deepEqual(oldEncyclopedia.dailyRequests.map(slot => slot.templateId), ['daily-aoi-doctor-dye', 'daily-alto-wreath', 'daily-kuroko-wall']);
+assert.deepEqual(oldEncyclopedia.dailyHistory, ['daily-aoi-doctor-dye']);
+assert.equal(oldEncyclopedia.day, 28);
+assert.equal(oldEncyclopedia.gathersLeft, 1);
+assert.equal(G.craft(oldEncyclopedia, 'woodFrame'), true);
+assert.equal(oldEncyclopedia.inventory.plank, 6);
+assert.equal(oldEncyclopedia.inventory.woodFrame, 1);
+assert.equal(oldEncyclopedia.discovered.length, 19);
+assert.equal(G.craft(oldEncyclopedia, 'smallShelf'), true);
+assert.equal(oldEncyclopedia.inventory.woodFrame, 0);
+assert.equal(oldEncyclopedia.inventory.plank, 4);
+assert.equal(oldEncyclopedia.discovered.length, 20);
+assert.equal(G.craft(oldEncyclopedia, 'woodFrame'), true);
+assert.equal(G.craft(oldEncyclopedia, 'upholsteredStool'), true);
+assert.equal(oldEncyclopedia.inventory.woodFrame, 0);
+assert.equal(oldEncyclopedia.inventory.dyedCloth, 0);
+assert.equal(oldEncyclopedia.inventory.fiber, 0);
+assert.equal(oldEncyclopedia.discovered.length, 21);
+assert.deepEqual(G.restore(JSON.parse(JSON.stringify(oldEncyclopedia))).discovered, oldEncyclopedia.discovered);
+console.log('PASS: furniture recipes, exact consumption, shortage rejection, 18-to-21 encyclopedia migration and persistence');
+
+const furnitureRequests = [
+  ['daily-ritsu-small-shelf', 'ritsu', 'smallShelf', '読みかけの本を置く場所', '小さな棚をひとつ作ってくれるか？　読みかけの本を置いておく場所が欲しくてな', 'ちょうどいい。これなら机の上も少しすっきりする'],
+  ['daily-towa-small-shelf', 'towa', 'smallShelf', 'よく使う物をまとめたい', '小さな棚をひとつ作ってくれないか？　よく使う物をまとめて置いておきたい', 'ありがとう、美桜。手を伸ばせばすぐ取れる位置に置いておくよ'],
+  ['daily-shiru-upholstered-stool', 'shiru', 'upholsteredStool', '少しだけ腰掛けたい', '布張りのスツールをひとつお願いしてもいい？　作業の合間に、少しだけ腰掛けたいの', 'ありがとう。ちょっと休むには、これくらいがちょうどいいね'],
+  ['daily-alto-small-shelf', 'alto', 'smallShelf', '制作途中の置き場所', '小さな棚をひとつ作ってくれる？　制作途中のものを、手の届くところに置いておきたいんだ', 'いいね。これなら作業の流れを止めずに済みそうだ。ありがとう、美桜'],
+  ['daily-kuroko-upholstered-stool', 'kuroko', 'upholsteredStool', '観測席にもう一脚', '布張りのスツールをひとつ頼めるか、美桜。観測席に、もう一脚くらいあってもいい', '悪くないな。席が増えたからって、観客を増やすつもりはないけどな']
+];
+assert.equal(G.dailyRequestPool.length, 45);
+assert.deepEqual(G.dailyRequestPool.slice(-5).map(request => [request.id, request.resident, request.item, request.title, request.message, request.thanks]), furnitureRequests);
+assert.ok(G.dailyRequestPool.slice(-5).every(request => request.quantity === 1));
+const activeFurnitureSave = G.restore({ completed: G.requests.map(request => request.id), inventory: { smallShelf: 1 }, day: 32, gathersLeft: 2,
+  dailyRequests: [{ templateId: 'daily-ritsu-small-shelf', completed: false }, { templateId: 'daily-towa-box', completed: false }, { templateId: 'daily-shiru-curtain', completed: false }],
+  dailyHistory: ['daily-ritsu-small-shelf', 'daily-towa-box', 'daily-shiru-curtain'], discovered: G.items.slice(0, 18).map(item => item.id) });
+assert.equal(G.deliverDaily(activeFurnitureSave, 'daily-ritsu-small-shelf'), true);
+assert.equal(activeFurnitureSave.inventory.smallShelf, 0);
+assert.equal(activeFurnitureSave.dailyRequests[0].completed, true);
+const carriedFurniture = activeFurnitureSave.dailyRequests.slice(1).map(slot => slot.templateId);
+G.rest(activeFurnitureSave, () => 0);
+assert.notEqual(activeFurnitureSave.dailyRequests[0].templateId, 'daily-ritsu-small-shelf');
+assert.ok(carriedFurniture.every(id => activeFurnitureSave.dailyRequests.some(slot => slot.templateId === id)));
+console.log('PASS: 45 daily requests, furniture delivery, completed-slot renewal and unfinished-slot carryover');
