@@ -89,7 +89,9 @@ function requestsPage() {
     return `<button class="secondary view-recipe" data-action="view-recipe" data-id="${request.id}">作り方を見る</button>${match}`;
   });
   if (!G.dailyUnlocked(state)) return fixed;
-  return fixed.replace('<div class="requests-list">', `${dailyRequestsSection()}<div class="fixed-history-heading"><span>固定依頼のお礼</span><small>9件</small></div><div class="requests-list">`);
+  return fixed
+    .replace('<div class="requests-list">', `${dailyRequestsSection()}<details class="fixed-history"><summary><span>固定依頼のお礼</span><small>9件</small></summary><div class="requests-list">`)
+    .replace('<div class="bottom-note">', '</details><div class="bottom-note">');
 }
 function openRecipeDialog(request) {
   const recipe = G.recipes.find(r => r.id === request.item);
