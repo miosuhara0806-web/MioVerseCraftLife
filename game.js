@@ -125,8 +125,10 @@
   const ingredients = recipe => recipe.inputs || [{ id: recipe.input, cost: recipe.cost }];
   const maxCraft = (state, recipe) => Math.min(...ingredients(recipe).map(i => Math.floor(state.inventory[i.id] / i.cost)));
   const DAILY_GATHERS = 3;
+  const UNLOCKED_DAILY_GATHERS = 5;
+  const gatherLimit = state => dailyUnlocked(state) ? UNLOCKED_DAILY_GATHERS : DAILY_GATHERS;
   const DAILY_REQUEST_SLOTS = 3;
-  const fresh = () => ({ inventory: Object.fromEntries(items.map(item => [item.id, 0])), completed: [], unlockedStage: 1, day: 1, gathersLeft: DAILY_GATHERS, dailyRequests: [], dailyHistory: [], discovered: [] });
+  const fresh = () => ({ inventory: Object.fromEntries(items.map(item => [item.id, 0])), completed: [], unlockedStage: 1, day: 1, gathersLeft: DAILY_GATHERS, gatherLimit: DAILY_GATHERS, dailyRequests: [], dailyHistory: [], discovered: [] });
   const recordDiscovery = (state, id) => { if (!state.discovered.includes(id)) state.discovered.push(id); };
   function inferLegacyDiscoveries(state) {
     const found = new Set();
@@ -221,7 +223,6 @@
     if (Number.isSafeInteger(data.day) && data.day >= 1) state.day = data.day;
     // 非常に大きい日数も文字列として保存し、上限を設けずに進められる。
     else if (typeof data.day === 'string' && /^[1-9][0-9]*$/.test(data.day)) state.day = data.day;
-    if (Number.isInteger(data.gathersLeft) && data.gathersLeft >= 0 && data.gathersLeft <= DAILY_GATHERS) state.gathersLeft = data.gathersLeft;
     for (const item of items) {
       const n = data.inventory?.[item.id];
       if (Number.isSafeInteger(n) && n >= 0) state.inventory[item.id] = n;
@@ -230,6 +231,12 @@
     // 旧セーブにも対応。解放条件を達成状況から復元し、不整合なフラグは採用しない。
     state.unlockedStage = unlockedStage(state);
     state.completed = state.completed.filter(id => (requests.find(r => r.id === id).stage || 1) <= state.unlockedStage);
+    const limit = gatherLimit(state);
+    const savedLimit = data.gatherLimit === UNLOCKED_DAILY_GATHERS && limit === UNLOCKED_DAILY_GATHERS ? UNLOCKED_DAILY_GATHERS : DAILY_GATHERS;
+    state.gatherLimit = limit;
+    state.gathersLeft = Number.isInteger(data.gathersLeft) && data.gathersLeft >= 0 && data.gathersLeft <= savedLimit
+      ? data.gathersLeft + limit - savedLimit
+      : limit;
     state.dailyHistory = Array.isArray(data.dailyHistory) ? data.dailyHistory.filter(id => dailyTemplate(id)).slice(-12) : [];
     if (dailyUnlocked(state) && Array.isArray(data.dailyRequests)) {
       const slots = data.dailyRequests.filter(slot => slot && dailyTemplate(slot.templateId)).map(slot => ({ templateId: slot.templateId, completed: slot.completed === true }));
@@ -251,7 +258,8 @@
   function rest(state, random = Math.random) {
     const nextDay = BigInt(state.day) + 1n;
     state.day = nextDay <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(nextDay) : String(nextDay);
-    state.gathersLeft = DAILY_GATHERS;
+    state.gathersLeft = gatherLimit(state);
+    state.gatherLimit = gatherLimit(state);
     refreshDailyRequests(state, random);
   }
   function craft(state, id, amount = 1) {
@@ -267,9 +275,12 @@
   function deliver(state, id) {
     const request = requests.find(r => r.id === id);
     if (!request || !stageUnlocked(state, request.stage || 1) || state.completed.includes(id) || state.inventory[request.item] < 1) return false;
+    const previousLimit = gatherLimit(state);
     state.inventory[request.item]--;
     state.completed.push(id);
     state.unlockedStage = unlockedStage(state);
+    state.gatherLimit = gatherLimit(state);
+    state.gathersLeft += state.gatherLimit - previousLimit;
     ensureDailyRequests(state);
     return true;
   }
@@ -283,7 +294,7 @@
     slot.completed = true;
     return true;
   }
-  const game = { items, recipes, requests, dailyResidents, dailyRequestPool, fresh, restore, gather, craft, deliver, deliverDaily, rest, DAILY_GATHERS, DAILY_REQUEST_SLOTS, ingredients, maxCraft, stageTwoUnlocked, stageUnlocked, unlockedStage, visibleRequests, dailyUnlocked, ensureDailyRequests, refreshDailyRequests, currentDailyRequests };
+  const game = { items, recipes, requests, dailyResidents, dailyRequestPool, fresh, restore, gather, craft, deliver, deliverDaily, rest, DAILY_GATHERS, DAILY_REQUEST_SLOTS, gatherLimit, ingredients, maxCraft, stageTwoUnlocked, stageUnlocked, unlockedStage, visibleRequests, dailyUnlocked, ensureDailyRequests, refreshDailyRequests, currentDailyRequests };
   if (typeof module !== 'undefined' && module.exports) module.exports = game;
   else root.MioGame = game;
 })(typeof window !== 'undefined' ? window : globalThis);
