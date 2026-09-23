@@ -39,6 +39,8 @@ nav a[aria-current] {
   font-weight: 700;
 }
 .nav-number { opacity: .8; }
+.nav-icon { width: 19px; height: 19px; flex: 0 0 19px; }
+.nav-label { white-space: nowrap; }
 .nav-count { padding: 1px 7px; border-radius: 20px; background: #ffffff20; }
 
 button, .button {
@@ -219,7 +221,8 @@ footer { border-top-style: dashed; color: var(--muted); }
   .layout { padding-top: 0; }
   .sidebar { margin-bottom: 25px; }
   nav { padding: 6px; background: #eceede; border: 1px solid #e0e3d1; border-radius: 18px; gap: 5px; }
-  nav a { min-height: 46px; border-radius: 12px; font-size: 12px; }
+  nav a { min-height: 58px; border-radius: 12px; font-size: 12px; flex-direction: column; gap: 3px; line-height: 1.2; padding: 7px 2px; }
+  .nav-icon { width: 20px; height: 20px; flex-basis: 20px; }
   .hero { padding: 30px 26px; border-radius: 22px 22px 36px 22px; }
   .hero h1 { font-size: 29px; }
   .hero p:not(.eyebrow) { font-size: 13px; }
