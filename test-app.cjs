@@ -22,6 +22,8 @@ function launch() {
     click(action, id) { handlers.click({ target: { closest: () => ({ dataset: { action, id }, disabled: false }) } }); },
     page(id) { context.location.hash = '#' + id; handlers.hashchange(); return node('main').innerHTML; },
     navigation() { return node('navigation').innerHTML; },
+    gatherLimitNote() { return node('gather-limit-note').textContent; },
+    restDescription() { return node('rest-description').textContent; },
     state() { return saved.has('mioverse-craft-v1') ? JSON.parse(saved.get('mioverse-craft-v1')) : G.fresh(); },
     dialogOpen() { return node('rest-dialog').open; },
     recipeDialogOpen() { return node('recipe-dialog').open; },
@@ -216,7 +218,7 @@ const oldSave = { inventory: { box: 4 }, completed: G.requests.map(r => r.id), u
 saved.set('mioverse-craft-v1', JSON.stringify(oldSave));
 app = launch();
 assert.equal(app.state().day, 1);
-assert.equal(app.state().gathersLeft, 3);
+assert.equal(app.state().gathersLeft, 5);
 assert.equal(app.state().inventory.box, 4);
 assert.deepEqual(app.state().completed, oldSave.completed);
 assert.equal(app.state().unlockedStage, 3);
@@ -535,7 +537,7 @@ const oldFurnitureSave = G.restore({ inventory: { plank: 8, dyedCloth: 1, fiber:
 saved.set('mioverse-craft-v1', JSON.stringify(oldFurnitureSave));
 app = launch();
 assert.equal(app.state().day, 29);
-assert.equal(app.state().gathersLeft, 1);
+assert.equal(app.state().gathersLeft, 3);
 assert.equal(app.state().inventory.plank, 8);
 assert.deepEqual(app.state().dailyRequests.map(slot => slot.templateId), oldFurnitureSave.dailyRequests.map(slot => slot.templateId));
 assert.deepEqual(app.state().dailyHistory, oldFurnitureSave.dailyHistory);
@@ -581,3 +583,48 @@ for (const request of G.dailyRequestPool.slice(-5)) {
   assert.ok(app.page('requests').includes('本日は納品済み'));
 }
 console.log('PASS: five furniture requests, shared recipe dialog/highlight and manual delivery');
+
+const gatherMigrationSave = { completed: G.requests.map(request => request.id), inventory: { plank: 2 }, day: 31, gathersLeft: 1,
+  dailyRequests: [{ templateId: 'daily-ritsu-curtain', completed: false }, { templateId: 'daily-towa-box', completed: true }, { templateId: 'daily-shiru-curtain', completed: false }],
+  dailyHistory: ['daily-towa-box'], discovered: G.items.slice(0, 18).map(item => item.id) };
+saved.set('mioverse-craft-v1', JSON.stringify(gatherMigrationSave));
+app = launch();
+assert.ok(app.page('home').includes('今日の採集（残り） 3 / 5'));
+assert.ok(app.page('gather').includes('今日の採集（残り） 3 / 5'));
+assert.equal(Number(app.gatherLimitNote()), 5);
+assert.ok(app.restDescription().includes('採集回数が5回に戻ります'));
+assert.deepEqual(app.state().dailyRequests.map(slot => slot.templateId), gatherMigrationSave.dailyRequests.map(slot => slot.templateId));
+assert.equal(app.state().day, 31);
+assert.equal(app.state().inventory.plank, 2);
+assert.deepEqual(app.state().discovered, gatherMigrationSave.discovered);
+app = launch();
+assert.equal(app.state().gathersLeft, 3, '旧セーブ移行は初回だけ');
+assert.ok(app.page('home').includes('今日の採集（残り） 3 / 5'));
+
+const beforeFinalDelivery = G.restore({ completed: G.requests.slice(0, -1).map(request => request.id), inventory: { linedBox: 1 }, gathersLeft: 0, day: 6 });
+saved.set('mioverse-craft-v1', JSON.stringify(beforeFinalDelivery));
+app = launch();
+assert.ok(app.page('home').includes('今日の採集（残り） 0 / 3'));
+app.page('requests'); app.click('deliver', G.requests.at(-1).id);
+assert.ok(app.page('home').includes('今日の採集（残り） 2 / 5'));
+assert.ok(app.page('gather').includes('今日の採集（残り） 2 / 5'));
+assert.equal(app.state().inventory.linedBox, 0);
+
+const fullGatherDay = G.restore({ completed: G.requests.map(request => request.id), gatherLimit: 5, gathersLeft: 5, day: 10 });
+saved.set('mioverse-craft-v1', JSON.stringify(fullGatherDay));
+app = launch();
+assert.ok(app.page('gather').includes('今日の採集（残り） 5 / 5'));
+for (let remaining = 4; remaining >= 0; remaining--) {
+  app.click('gather', 'branch');
+  assert.ok(app.page('gather').includes(`今日の採集（残り） ${remaining} / 5`));
+}
+const exhaustedFive = JSON.stringify(app.state());
+app.click('gather', 'branch');
+assert.equal(JSON.stringify(app.state()), exhaustedFive);
+assert.equal((app.page('gather').match(/data-action="gather" data-id="[^"]+" disabled/g) || []).length, 3);
+app.page('home'); app.click('rest'); app.click('rest-confirm');
+assert.ok(app.page('home').includes('今日の採集（残り） 5 / 5'));
+assert.equal(app.state().day, 11);
+app = launch();
+assert.equal(app.state().gathersLeft, 5);
+console.log('PASS: live UI 3-to-5 gather cap, legacy save migration once, final delivery, exhaustion and next-day reset');
