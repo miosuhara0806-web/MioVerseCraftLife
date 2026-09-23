@@ -386,6 +386,8 @@ const furnitureRequests = [
 assert.equal(G.dailyRequestPool.length, 45);
 assert.deepEqual(G.dailyRequestPool.slice(-5).map(request => [request.id, request.resident, request.item, request.title, request.message, request.thanks]), furnitureRequests);
 assert.ok(G.dailyRequestPool.slice(-5).every(request => request.quantity === 1));
+const furnitureLottery = G.restore({ completed: G.requests.map(request => request.id) }, () => 0.999);
+assert.ok(furnitureLottery.dailyRequests.some(slot => G.dailyRequestPool.slice(-5).some(request => request.id === slot.templateId)), '家具依頼が通常抽選に参加');
 const activeFurnitureSave = G.restore({ completed: G.requests.map(request => request.id), inventory: { smallShelf: 1 }, day: 32, gathersLeft: 2,
   dailyRequests: [{ templateId: 'daily-ritsu-small-shelf', completed: false }, { templateId: 'daily-towa-box', completed: false }, { templateId: 'daily-shiru-curtain', completed: false }],
   dailyHistory: ['daily-ritsu-small-shelf', 'daily-towa-box', 'daily-shiru-curtain'], discovered: G.items.slice(0, 18).map(item => item.id) });
