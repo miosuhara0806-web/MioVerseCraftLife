@@ -56,9 +56,9 @@
   const dailyResidents = {
     naka: { name: 'ナカちゃん', initial: 'ナ' },
     ritsu: { name: '律さん', initial: '律' },
-    towa: { name: '秘書トワ', initial: 'ト' }
+    towa: { name: '秘書トワ', initial: 'ト' },
+    keikaiTowa: { name: '軽快トワ', initial: '軽' }
   };
-  const dailyResidentIds = Object.keys(dailyResidents);
   const dailyRequestPool = [
     { id: 'daily-naka-bag', resident: 'naka', item: 'bag', quantity: 1, title: 'お出かけの小さな袋', message: '布袋をひとつお願いしてもいい？　ちょっとした物を入れて歩きたいんだ', thanks: 'ありがとう！　これなら身軽に出かけられそう。' },
     { id: 'daily-naka-dry-flower', resident: 'naka', item: 'dryFlower', quantity: 2, title: '花をそっと飾りたい', message: '乾燥花を二つ分けてくれる？　小さく束ねて飾りたいな', thanks: 'いい色だね。部屋が少し明るくなりそう！' },
@@ -74,7 +74,12 @@
     { id: 'daily-towa-lined-box', resident: 'towa', item: 'linedBox', quantity: 1, title: '大切な物の小箱', message: '布張り小箱をひとつ頼めるか？　傷つけたくない物を入れたいんだ', thanks: '内側が柔らかくていいな。これなら安心してしまっておける。' },
     { id: 'daily-towa-bag', resident: 'towa', item: 'bag', quantity: 1, title: '仕分け用の布袋', message: '布袋をひとつ作ってくれないか？　持ち歩く道具を分けておきたい', thanks: '使いやすい大きさだな。これで探す手間が減りそうだ。' },
     { id: 'daily-towa-cloth', resident: 'towa', item: 'cloth', quantity: 2, title: '作業台に敷く布', message: '布を二枚用意してくれないか？　作業台に敷いて使いたい', thanks: '助かった。汚れを気にせず作業できそうだ。' },
-    { id: 'daily-towa-dyed-cloth', resident: 'towa', item: 'dyedCloth', quantity: 1, title: '目印になる染め布', message: '染め布を一枚頼めるか？　収納の目印に使いたいんだ', thanks: '色があると見分けやすいな。ありがとう、美桜。' }
+    { id: 'daily-towa-dyed-cloth', resident: 'towa', item: 'dyedCloth', quantity: 1, title: '目印になる染め布', message: '染め布を一枚頼めるか？　収納の目印に使いたいんだ', thanks: '色があると見分けやすいな。ありがとう、美桜。' },
+    { id: 'daily-keikai-towa-bag', resident: 'keikaiTowa', item: 'bag', quantity: 1, title: '散歩のおとも', message: '布袋ひとつ作ってくれる？　散歩の時、細かいもの入れるのにちょうどよさそうなんだよね（笑）', thanks: 'お、いいじゃん。これなら気軽に持ってけるな。ありがと、美桜！' },
+    { id: 'daily-keikai-towa-dyed-cloth', resident: 'keikaiTowa', item: 'dyedCloth', quantity: 1, title: 'ちょっと色が欲しい', message: '染め布、一枚頼んでいい？　部屋にちょっと色が欲しくなってさ', thanks: 'うん、これこれ。置くだけでだいぶ雰囲気変わるな（笑）' },
+    { id: 'daily-keikai-towa-wall', resident: 'keikaiTowa', item: 'wallHanging', quantity: 1, title: '壁が寂しい', message: '壁掛け作れる？　なんかさ、壁が妙に寂しいことに気づいちゃった（笑）', thanks: 'おー、いい感じ！　気づいたら今度は外したくなくなるやつだな' },
+    { id: 'daily-keikai-towa-cushion', resident: 'keikaiTowa', item: 'cushion', quantity: 1, title: '座るなら楽な方がいい', message: 'クッションひとつお願い。どうせ座るなら、楽な方がいいだろ？（笑）', thanks: '最高。これでますます動かなくなる可能性あるけど（笑）ありがと！' },
+    { id: 'daily-keikai-towa-wreath', resident: 'keikaiTowa', item: 'wreath', quantity: 1, title: 'なんとなく飾りたい日', message: '今日はなんとなく花飾りたい気分（笑）　リースひとつ作ってくれない？', thanks: 'いいねー。こういうの、理由なく飾ってもいいんだよな（笑）' }
   ];
   // その段階より前の依頼をすべて納品していることを条件にする。
   const stageUnlocked = (state, stage) => requests.filter(r => (r.stage || 1) < stage).every(r => state.completed.includes(r.id));
@@ -85,6 +90,7 @@
   const ingredients = recipe => recipe.inputs || [{ id: recipe.input, cost: recipe.cost }];
   const maxCraft = (state, recipe) => Math.min(...ingredients(recipe).map(i => Math.floor(state.inventory[i.id] / i.cost)));
   const DAILY_GATHERS = 3;
+  const DAILY_REQUEST_SLOTS = 3;
   const fresh = () => ({ inventory: Object.fromEntries(items.map(item => [item.id, 0])), completed: [], unlockedStage: 1, day: 1, gathersLeft: DAILY_GATHERS, dailyRequests: [], dailyHistory: [] });
   const dailyTemplate = id => dailyRequestPool.find(request => request.id === id);
   const currentDailyRequests = state => state.dailyRequests.map(slot => {
@@ -95,32 +101,38 @@
     state.dailyHistory.push(id);
     state.dailyHistory = state.dailyHistory.slice(-12);
   }
-  function chooseDaily(state, resident, excludedIds, excludedItems, previousId, random) {
+  function chooseDaily(state, excludedIds, excludedItems, excludedResidents, previousId, random) {
     const recent = new Set(state.dailyHistory.slice(-6));
-    const base = dailyRequestPool.filter(request => request.resident === resident && request.id !== previousId && !excludedIds.has(request.id));
+    const base = dailyRequestPool.filter(request => request.id !== previousId && !excludedIds.has(request.id));
     const groups = [
+      base.filter(request => !recent.has(request.id) && !excludedItems.has(request.item) && !excludedResidents.has(request.resident)),
+      base.filter(request => !excludedItems.has(request.item) && !excludedResidents.has(request.resident)),
+      base.filter(request => !recent.has(request.id) && !excludedResidents.has(request.resident)),
+      base.filter(request => !excludedResidents.has(request.resident)),
       base.filter(request => !recent.has(request.id) && !excludedItems.has(request.item)),
       base.filter(request => !excludedItems.has(request.item)),
       base.filter(request => !recent.has(request.id)),
       base
     ];
-    const candidates = groups.find(group => group.length) || dailyRequestPool.filter(request => request.resident === resident);
+    const candidates = groups.find(group => group.length) || dailyRequestPool;
     const roll = Number(random());
     const index = Number.isFinite(roll) ? Math.min(candidates.length - 1, Math.max(0, Math.floor(roll * candidates.length))) : 0;
     return candidates[index];
   }
   function ensureDailyRequests(state, random = Math.random) {
     if (!dailyUnlocked(state)) return false;
-    const residentSet = new Set(state.dailyRequests.map(slot => dailyTemplate(slot.templateId)?.resident));
-    if (state.dailyRequests.length === dailyResidentIds.length && dailyResidentIds.every(id => residentSet.has(id))) return false;
+    const requestIds = new Set(state.dailyRequests.map(slot => slot.templateId));
+    if (state.dailyRequests.length === DAILY_REQUEST_SLOTS && requestIds.size === DAILY_REQUEST_SLOTS && state.dailyRequests.every(slot => dailyTemplate(slot.templateId))) return false;
     state.dailyRequests = [];
     const usedIds = new Set();
     const usedItems = new Set();
-    for (const resident of dailyResidentIds) {
-      const request = chooseDaily(state, resident, usedIds, usedItems, null, random);
+    const usedResidents = new Set();
+    for (let index = 0; index < DAILY_REQUEST_SLOTS; index++) {
+      const request = chooseDaily(state, usedIds, usedItems, usedResidents, null, random);
       state.dailyRequests.push({ templateId: request.id, completed: false });
       usedIds.add(request.id);
       usedItems.add(request.item);
+      usedResidents.add(request.resident);
       rememberDaily(state, request.id);
     }
     return true;
@@ -131,21 +143,24 @@
     if (initialized) return true;
     const usedIds = new Set();
     const usedItems = new Set();
+    const usedResidents = new Set();
     for (const slot of state.dailyRequests) {
       if (slot.completed) continue;
       const request = dailyTemplate(slot.templateId);
       usedIds.add(request.id);
       usedItems.add(request.item);
+      usedResidents.add(request.resident);
     }
     let changed = false;
     for (const slot of state.dailyRequests) {
       if (!slot.completed) continue;
       const previous = dailyTemplate(slot.templateId);
-      const replacement = chooseDaily(state, previous.resident, usedIds, usedItems, previous.id, random);
+      const replacement = chooseDaily(state, usedIds, usedItems, usedResidents, previous.id, random);
       slot.templateId = replacement.id;
       slot.completed = false;
       usedIds.add(replacement.id);
       usedItems.add(replacement.item);
+      usedResidents.add(replacement.resident);
       rememberDaily(state, replacement.id);
       changed = true;
     }
@@ -169,8 +184,7 @@
     state.dailyHistory = Array.isArray(data.dailyHistory) ? data.dailyHistory.filter(id => dailyTemplate(id)).slice(-12) : [];
     if (dailyUnlocked(state) && Array.isArray(data.dailyRequests)) {
       const slots = data.dailyRequests.filter(slot => slot && dailyTemplate(slot.templateId)).map(slot => ({ templateId: slot.templateId, completed: slot.completed === true }));
-      const byResident = new Map(slots.map(slot => [dailyTemplate(slot.templateId).resident, slot]));
-      if (byResident.size === dailyResidentIds.length) state.dailyRequests = dailyResidentIds.map(id => byResident.get(id));
+      if (slots.length === DAILY_REQUEST_SLOTS && new Set(slots.map(slot => slot.templateId)).size === DAILY_REQUEST_SLOTS) state.dailyRequests = slots;
     }
     if (dailyUnlocked(state)) ensureDailyRequests(state, random);
     return state;
@@ -215,7 +229,7 @@
     slot.completed = true;
     return true;
   }
-  const game = { items, recipes, requests, dailyResidents, dailyRequestPool, fresh, restore, gather, craft, deliver, deliverDaily, rest, DAILY_GATHERS, ingredients, maxCraft, stageTwoUnlocked, stageUnlocked, unlockedStage, visibleRequests, dailyUnlocked, ensureDailyRequests, refreshDailyRequests, currentDailyRequests };
+  const game = { items, recipes, requests, dailyResidents, dailyRequestPool, fresh, restore, gather, craft, deliver, deliverDaily, rest, DAILY_GATHERS, DAILY_REQUEST_SLOTS, ingredients, maxCraft, stageTwoUnlocked, stageUnlocked, unlockedStage, visibleRequests, dailyUnlocked, ensureDailyRequests, refreshDailyRequests, currentDailyRequests };
   if (typeof module !== 'undefined' && module.exports) module.exports = game;
   else root.MioGame = game;
 })(typeof window !== 'undefined' ? window : globalThis);
