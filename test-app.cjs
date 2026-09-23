@@ -303,3 +303,46 @@ app = launch();
 assert.deepEqual(G.currentDailyRequests(app.state()).map(request => request.id), nextDaily.map(request => request.id), '更新後の3件をlocalStorageから復元');
 console.log('PASS: daily request UI, recipe dialog, craft highlight, manual delivery, carryover, next-day replacement and localStorage reload');
 
+// 軽快トワ5件も既存の日常依頼UI・作り方モーダル・レシピ移動を共用する。
+const keikaiRequests = G.dailyRequestPool.filter(request => request.resident === 'keikaiTowa');
+assert.equal(keikaiRequests.length, 5);
+for (const request of keikaiRequests) {
+  const keikaiState = G.restore({ inventory: { [request.item]: request.quantity }, completed: G.requests.map(fixed => fixed.id), day: 20, gathersLeft: 3, dailyRequests: [
+    { templateId: request.id, completed: false },
+    { templateId: 'daily-naka-dry-flower', completed: false },
+    { templateId: 'daily-ritsu-cloth', completed: false }
+  ], dailyHistory: [request.id] });
+  saved.set('mioverse-craft-v1', JSON.stringify(keikaiState));
+  app = launch();
+  const html = app.page('requests');
+  assert.ok(html.includes('<h2>軽快トワ</h2>'), `${request.id}: 軽快トワ名を表示`);
+  assert.ok(html.includes(request.title));
+  assert.ok(html.includes(request.message));
+  assert.ok(html.includes(`${G.items.find(item => item.id === request.item).name} × ${request.quantity}`));
+  assert.ok(html.includes('<details class="fixed-history">'), '固定依頼のお礼の折りたたみを維持');
+  app.click('view-recipe', request.id);
+  assert.equal(app.recipeDialogOpen(), true);
+  assert.ok(app.recipeDialogHtml().includes(`id="recipe-dialog-title">${G.items.find(item => item.id === request.item).name}</h2>`));
+  app.click('recipe-go-craft');
+  assert.ok(app.page('craft').includes(`class="recipe recipe-highlight" data-recipe-id="${request.item}"`));
+}
+
+const deliveryRequest = keikaiRequests[0];
+const deliveryState = G.restore({ inventory: { bag: 1 }, completed: G.requests.map(request => request.id), day: 21, gathersLeft: 3, dailyRequests: [
+  { templateId: deliveryRequest.id, completed: false },
+  { templateId: 'daily-naka-dry-flower', completed: false },
+  { templateId: 'daily-ritsu-cloth', completed: false }
+] });
+saved.set('mioverse-craft-v1', JSON.stringify(deliveryState));
+app = launch(); app.page('requests'); app.click('deliver-daily', deliveryRequest.id);
+assert.equal(app.state().inventory.bag, 0);
+assert.equal(G.currentDailyRequests(app.state()).find(request => request.id === deliveryRequest.id).completed, true);
+assert.ok(app.page('requests').includes(deliveryRequest.thanks));
+app = launch();
+assert.ok(app.page('requests').includes(deliveryRequest.thanks), '軽快トワの納品状態をlocalStorageから復元');
+const unchangedKeikaiIds = G.currentDailyRequests(app.state()).filter(request => !request.completed).map(request => request.id);
+app.page('home'); app.click('rest'); app.click('rest-confirm');
+assert.ok(!G.currentDailyRequests(app.state()).some(request => request.id === deliveryRequest.id));
+assert.ok(unchangedKeikaiIds.every(id => G.currentDailyRequests(app.state()).some(request => request.id === id)));
+console.log('PASS: all 5 Light Towa cards, recipe dialogs/highlights, manual delivery, dialogue, next-day replacement and localStorage reload');
+
