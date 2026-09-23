@@ -347,7 +347,7 @@ assert.ok(!G.currentDailyRequests(app.state()).some(request => request.id === de
 assert.ok(unchangedKeikaiIds.every(id => G.currentDailyRequests(app.state()).some(request => request.id === id)));
 console.log('PASS: all 5 Light Towa cards, recipe dialogs/highlights, manual delivery, dialogue, next-day replacement and localStorage reload');
 
-const shiruRequests = G.dailyRequestPool.filter(request => request.resident === 'shiru');
+const shiruRequests = G.dailyRequestPool.slice(0, 40).filter(request => request.resident === 'shiru');
 assert.equal(shiruRequests.length, 5);
 for (const request of shiruRequests) {
   const shiruState = G.restore({ inventory: { [request.item]: 1 }, completed: G.requests.map(fixed => fixed.id), day: 24, dailyRequests: [
@@ -383,7 +383,7 @@ assert.ok(!G.currentDailyRequests(app.state()).some(request => request.id === la
 assert.ok(shiruUnfinished.every(id => G.currentDailyRequests(app.state()).some(request => request.id === id)));
 console.log('PASS: all 5 Sil cards, recipe dialogs/highlights, manual delivery, dialogue, localStorage reload and next-day replacement');
 
-const kurokoRequests = G.dailyRequestPool.filter(request => request.resident === 'kuroko');
+const kurokoRequests = G.dailyRequestPool.slice(0, 40).filter(request => request.resident === 'kuroko');
 assert.equal(kurokoRequests.length, 5);
 for (const request of kurokoRequests) {
   const kurokoState = G.restore({ inventory: { [request.item]: 1 }, completed: G.requests.map(fixed => fixed.id), day: 29, dailyRequests: [
@@ -420,7 +420,7 @@ assert.ok(!G.currentDailyRequests(app.state()).some(request => request.id === la
 assert.ok(kurokoUnfinished.every(id => G.currentDailyRequests(app.state()).some(request => request.id === id)));
 console.log('PASS: all 5 Kuroko cards, recipe dialogs/highlights, manual delivery, dialogue, localStorage reload and next-day replacement');
 
-const altoRequests = G.dailyRequestPool.filter(request => request.resident === 'alto');
+const altoRequests = G.dailyRequestPool.slice(0, 40).filter(request => request.resident === 'alto');
 assert.equal(altoRequests.length, 5);
 for (const request of altoRequests) {
   const altoState = G.restore({ inventory: { [request.item]: request.quantity }, completed: G.requests.map(fixed => fixed.id), day: 35, dailyRequests: [
@@ -498,29 +498,86 @@ saved.set('mioverse-craft-v1', JSON.stringify(G.fresh()));
 app = launch();
 assert.ok(app.navigation().includes('href="#encyclopedia"'));
 let encyclopedia = app.page('encyclopedia');
-assert.ok(encyclopedia.includes('0 / 18'));
-assert.equal((encyclopedia.match(/class="encyclopedia-card undiscovered"/g) || []).length, 18);
+assert.ok(encyclopedia.includes('0 / 21'));
+assert.equal((encyclopedia.match(/class="encyclopedia-card undiscovered"/g) || []).length, 21);
 assert.ok(['採集素材', '加工素材', '完成品'].every(category => encyclopedia.includes(`<h2>${category}</h2>`)));
 assert.ok(!encyclopedia.includes('<h3>枝</h3>') && !encyclopedia.includes('森の小径で採集'), '未発見の名前と詳細は表示しない');
 app.click('gather', 'branch');
 encyclopedia = app.page('encyclopedia');
-assert.ok(encyclopedia.includes('1 / 18') && encyclopedia.includes('<h3>枝</h3>'));
+assert.ok(encyclopedia.includes('1 / 21') && encyclopedia.includes('<h3>枝</h3>'));
 assert.ok(encyclopedia.includes('森の小径で採集'));
 assert.ok(encyclopedia.includes('現在の在庫：<strong>2 個</strong>'));
 app.click('craft', 'wood');
 encyclopedia = app.page('encyclopedia');
-assert.ok(encyclopedia.includes('2 / 18') && encyclopedia.includes('<h3>木材</h3>'));
+assert.ok(encyclopedia.includes('2 / 21') && encyclopedia.includes('<h3>木材</h3>'));
 assert.ok(encyclopedia.includes('<li>枝 × 2</li>'));
 assert.ok(encyclopedia.includes('現在の在庫：<strong>0 個</strong>'), '在庫0でも枝を表示');
 app = launch();
-assert.ok(app.page('encyclopedia').includes('2 / 18'), '図鑑の発見状態を再読み込み後も維持');
+assert.ok(app.page('encyclopedia').includes('2 / 21'), '図鑑の発見状態を再読み込み後も維持');
 const migratedEncyclopedia = G.restore({ completed: G.requests.map(request => request.id), day: 27, inventory: { dye: 1 } }, () => 0);
 saved.set('mioverse-craft-v1', JSON.stringify(migratedEncyclopedia));
 app = launch();
 encyclopedia = app.page('encyclopedia');
-assert.ok(encyclopedia.includes('18 / 18'));
-assert.equal((encyclopedia.match(/class="encyclopedia-card undiscovered"/g) || []).length, 0);
+assert.ok(encyclopedia.includes('18 / 21'));
+assert.equal((encyclopedia.match(/class="encyclopedia-card undiscovered"/g) || []).length, 3);
 assert.ok(encyclopedia.split('<h2>加工素材</h2>')[1].split('<h2>完成品</h2>')[0].includes('<h3>染料</h3>'), '染料を図鑑では加工素材に分類');
 assert.ok(encyclopedia.includes('<li>布 × 1</li>') && encyclopedia.includes('<li>染料 × 1</li>'), '複数素材レシピを表示');
 assert.ok(app.page('requests').includes('<details class="fixed-history">'), '固定依頼の折りたたみを維持');
 console.log('PASS: encyclopedia navigation, hidden entries, categories, stock and recipe display, reload, full legacy migration');
+
+assert.ok(app.page('craft').includes('<h2>家具のしごと</h2>'));
+assert.ok(app.page('craft').includes('板材 2個 <span class="arrow">→</span> 木枠 1個'));
+assert.ok(app.page('inventory').includes('<span>小さな棚</span>'));
+assert.ok(app.page('inventory').includes('<span>布張りスツール</span>'));
+const oldFurnitureSave = G.restore({ inventory: { plank: 8, dyedCloth: 1, fiber: 1 }, completed: G.requests.map(request => request.id), day: 29, gathersLeft: 1,
+  dailyRequests: [{ templateId: 'daily-ritsu-curtain', completed: true }, { templateId: 'daily-towa-box', completed: false }, { templateId: 'daily-shiru-curtain', completed: false }],
+  dailyHistory: ['daily-ritsu-curtain', 'daily-towa-box', 'daily-shiru-curtain'], discovered: G.items.slice(0, 18).map(item => item.id) });
+saved.set('mioverse-craft-v1', JSON.stringify(oldFurnitureSave));
+app = launch();
+assert.equal(app.state().day, 29);
+assert.equal(app.state().gathersLeft, 1);
+assert.equal(app.state().inventory.plank, 8);
+assert.deepEqual(app.state().dailyRequests.map(slot => slot.templateId), oldFurnitureSave.dailyRequests.map(slot => slot.templateId));
+assert.deepEqual(app.state().dailyHistory, oldFurnitureSave.dailyHistory);
+assert.ok(app.page('encyclopedia').includes('18 / 21'));
+assert.equal((app.page('encyclopedia').match(/class="encyclopedia-card undiscovered"/g) || []).length, 3);
+app.click('craft', 'woodFrame');
+assert.ok(app.page('encyclopedia').includes('19 / 21'));
+assert.ok(app.page('encyclopedia').includes('<h3>木枠</h3>'));
+app.click('craft', 'smallShelf');
+assert.ok(app.page('encyclopedia').includes('20 / 21'));
+app.click('craft', 'woodFrame');
+app.click('craft', 'upholsteredStool');
+assert.ok(app.page('encyclopedia').includes('21 / 21'));
+assert.ok(app.page('encyclopedia').includes('<h3>布張りスツール</h3>'));
+assert.ok(app.page('encyclopedia').includes('<li>植物繊維 × 1</li>'));
+assert.equal(app.state().inventory.woodFrame, 0);
+app = launch();
+assert.ok(app.page('encyclopedia').includes('21 / 21'));
+console.log('PASS: furniture section, inventory, 18-to-21 discovery progression and reload');
+
+for (const request of G.dailyRequestPool.slice(-5)) {
+  const furnitureState = G.restore({ inventory: { [request.item]: 1 }, completed: G.requests.map(fixed => fixed.id), day: 30,
+    dailyRequests: [{ templateId: request.id, completed: false }, { templateId: 'daily-towa-box', completed: false }, { templateId: 'daily-shiru-curtain', completed: false }],
+    discovered: G.items.slice(0, 18).map(item => item.id) });
+  saved.set('mioverse-craft-v1', JSON.stringify(furnitureState));
+  app = launch();
+  assert.ok(app.page('requests').includes(request.title));
+  assert.ok(app.page('requests').includes(request.message));
+  app.click('view-recipe', request.id);
+  assert.equal(app.recipeDialogOpen(), true);
+  const recipe = G.recipes.find(entry => entry.id === request.item);
+  assert.ok(app.recipeDialogHtml().includes(`id="recipe-dialog-title">${G.items.find(item => item.id === request.item).name}</h2>`));
+  for (const input of G.ingredients(recipe)) {
+    assert.ok(app.recipeDialogHtml().includes(`<span>${G.items.find(item => item.id === input.id).name}</span><strong>× ${input.cost}</strong>`));
+    assert.ok(app.recipeDialogHtml().includes(`<span>${G.items.find(item => item.id === input.id).name}</span><strong>0 / ${input.cost}</strong>`));
+  }
+  app.click('recipe-go-craft');
+  assert.ok(app.page('craft').includes(`class="recipe recipe-highlight" data-recipe-id="${request.item}"`));
+  app.page('requests');
+  app.click('deliver-daily', request.id);
+  assert.equal(app.state().inventory[request.item], 0);
+  assert.ok(app.page('requests').includes(request.thanks));
+  assert.ok(app.page('requests').includes('本日は納品済み'));
+}
+console.log('PASS: five furniture requests, shared recipe dialog/highlight and manual delivery');
