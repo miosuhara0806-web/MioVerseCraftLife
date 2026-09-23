@@ -287,3 +287,47 @@ G.rest(aoiDoctorDelivery, () => 0);
 assert.ok(!aoiDoctorDelivery.dailyRequests.some(slot => slot.templateId === 'daily-aoi-doctor-dry-flower'));
 assert.ok(aoiDoctorCarried.every(id => aoiDoctorDelivery.dailyRequests.some(slot => slot.templateId === id)));
 console.log('PASS: 40-request pool, five Aoi Doctor requests, legacy save preservation, manual delivery, carryover and next-day replacement');
+
+const discovery = G.fresh();
+assert.equal(G.items.length, 18);
+assert.deepEqual(discovery.discovered, [], '新規ゲームの図鑑は未発見');
+assert.equal(G.gather(discovery, 'vine'), true);
+assert.deepEqual(discovery.discovered, ['vine']);
+for (const id of ['fiber', 'thread']) assert.equal(G.craft(discovery, id, 2), true);
+assert.equal(G.craft(discovery, 'cloth'), true);
+assert.equal(G.craft(discovery, 'bag'), true);
+assert.ok(['vine', 'fiber', 'thread', 'cloth', 'bag'].every(id => discovery.discovered.includes(id)));
+assert.equal(G.deliver(discovery, 'naka'), true);
+assert.equal(discovery.inventory.bag, 0);
+assert.ok(discovery.discovered.includes('bag'), '在庫0でも発見を維持');
+assert.equal(G.gather(discovery, 'vine'), true);
+assert.equal(discovery.discovered.filter(id => id === 'vine').length, 1, '再入手しても重複しない');
+assert.deepEqual(G.restore(JSON.parse(JSON.stringify(discovery))).discovered, discovery.discovered, '再読み込み後も発見を維持');
+const knownBeforeFailure = JSON.stringify(discovery.discovered);
+assert.equal(G.craft(discovery, 'curtain'), false);
+assert.equal(JSON.stringify(discovery.discovered), knownBeforeFailure);
+
+const legacyStock = G.restore({ inventory: { box: 1 }, day: 7, gathersLeft: 0 });
+assert.deepEqual(legacyStock.discovered, ['branch', 'wood', 'plank', 'box'], '在庫のある品から素材を再帰的に推定');
+assert.equal(legacyStock.day, 7);
+assert.equal(legacyStock.gathersLeft, 0);
+assert.equal(legacyStock.inventory.box, 1);
+const legacyRequest = G.restore({ completed: ['naka'], inventory: { bag: 0 }, day: 11 });
+assert.deepEqual(legacyRequest.discovered, ['vine', 'fiber', 'thread', 'cloth', 'bag'], '納品済みの固定依頼から制作経路を推定');
+assert.equal(legacyRequest.inventory.bag, 0);
+const legacyAll = G.restore({ inventory: { thread: 3 }, completed: G.requests.map(request => request.id), day: 23, gathersLeft: 1,
+  dailyRequests: [{ templateId: 'daily-aoi-doctor-dye', completed: true }, { templateId: 'daily-alto-wreath', completed: false }, { templateId: 'daily-kuroko-wall', completed: false }],
+  dailyHistory: ['daily-aoi-doctor-dye', 'daily-alto-wreath', 'daily-kuroko-wall'] }, () => 0);
+assert.equal(legacyAll.discovered.length, G.items.length, '固定9件達成済みなら18種類すべてを復元');
+assert.equal(legacyAll.day, 23);
+assert.equal(legacyAll.gathersLeft, 1);
+assert.equal(legacyAll.inventory.thread, 3);
+assert.equal(legacyAll.completed.length, 9);
+assert.deepEqual(legacyAll.dailyRequests, [
+  { templateId: 'daily-aoi-doctor-dye', completed: true }, { templateId: 'daily-alto-wreath', completed: false }, { templateId: 'daily-kuroko-wall', completed: false }
+]);
+assert.deepEqual(legacyAll.dailyHistory, ['daily-aoi-doctor-dye', 'daily-alto-wreath', 'daily-kuroko-wall']);
+assert.deepEqual(G.restore(JSON.parse(JSON.stringify(legacyAll))).discovered, legacyAll.discovered, '移行済み図鑑をそのまま復元');
+assert.deepEqual(G.restore({ discovered: ['branch', 'branch', 'nonexistent'] }).discovered, ['branch'], '保存済み発見IDを安全に検証');
+assert.deepEqual(G.restore({ discovered: [], completed: G.requests.map(request => request.id) }).discovered, [], '図鑑データがある場合は旧セーブ移行を繰り返さない');
+console.log('PASS: 18-item encyclopedia, first discovery, stock-zero persistence, recursive legacy migration, full-save preservation');
