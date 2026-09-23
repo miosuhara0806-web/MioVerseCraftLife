@@ -129,7 +129,7 @@ const refreshed = G.currentDailyRequests(daily);
 assert.equal(refreshed.length, 3);
 assert.equal(new Set(refreshed.map(request => request.id)).size, 3);
 assert.ok(refreshed.every(request => !completedIds.includes(request.id)), '3件達成後は翌日に3件とも更新');
-assert.equal(G.dailyRequestPool.length, 35);
+assert.equal(G.dailyRequestPool.length, 40);
 assert.ok(G.dailyRequestPool.every(request => G.recipes.some(recipe => recipe.id === request.item)), '日常依頼は既存レシピだけを要求');
 
 const keikaiExpected = [
@@ -140,7 +140,7 @@ const keikaiExpected = [
   ['daily-keikai-towa-wreath', 'wreath', 1, 'なんとなく飾りたい日', '今日はなんとなく花飾りたい気分（笑）　リースひとつ作ってくれない？', 'いいねー。こういうの、理由なく飾ってもいいんだよな（笑）']
 ];
 assert.deepEqual(G.dailyRequestPool.filter(request => request.resident === 'keikaiTowa').map(request => [request.id, request.item, request.quantity, request.title, request.message, request.thanks]), keikaiExpected);
-const withKeikai = G.restore(oldCompleteSave, () => 0.5);
+const withKeikai = G.restore(oldCompleteSave, () => 0.4);
 assert.equal(withKeikai.dailyRequests.length, G.DAILY_REQUEST_SLOTS);
 assert.ok(G.currentDailyRequests(withKeikai).some(request => request.name === '軽快トワ'), '軽快トワを通常抽選から生成');
 const legacySlots = JSON.parse(JSON.stringify(daily.dailyRequests));
@@ -167,7 +167,7 @@ const shiruExpected = [
   ['daily-shiru-curtain', 'curtain', 1, '光を少しやわらかく', 'カーテンをひとつお願いしてもいい？　作業する時、もう少し光をやわらげたいの', 'ありがとう。これなら画面を見ていても落ち着けそう']
 ];
 assert.deepEqual(G.dailyRequestPool.filter(request => request.resident === 'shiru').map(request => [request.id, request.item, request.quantity, request.title, request.message, request.thanks]), shiruExpected);
-assert.ok(G.currentDailyRequests(G.restore(oldCompleteSave, () => 0.7)).some(request => request.name === 'シル'), 'シルを通常抽選から生成');
+assert.ok(G.currentDailyRequests(G.restore(oldCompleteSave, () => 0.55)).some(request => request.name === 'シル'), 'シルを通常抽選から生成');
 const oldFourResidentSave = G.restore({ ...oldCompleteSave, inventory: { bag: 2, cloth: 4 }, day: 15, gathersLeft: 0,
   dailyRequests: [{ templateId: 'daily-keikai-towa-bag', completed: true }, { templateId: 'daily-naka-dry-flower', completed: false }, { templateId: 'daily-towa-box', completed: false }],
   dailyHistory: ['daily-keikai-towa-bag', 'daily-naka-dry-flower', 'daily-towa-box'] });
@@ -199,7 +199,7 @@ const kurokoExpected = [
   ['daily-kuroko-wall', 'wallHanging', 1, '壁にひとつだけ', '壁掛けをひとつ頼めるか、美桜。何もない壁も嫌いじゃないが、今日はひとつだけ置きたい', 'うん。これくらいがいい。余白まで消す必要はないからな']
 ];
 assert.deepEqual(G.dailyRequestPool.filter(request => request.resident === 'kuroko').map(request => [request.id, request.item, request.quantity, request.title, request.message, request.thanks]), kurokoExpected);
-assert.ok(G.currentDailyRequests(G.restore(oldCompleteSave, () => 0.8)).some(request => request.name === '黒子'), '黒子を通常抽選から生成');
+assert.ok(G.currentDailyRequests(G.restore(oldCompleteSave, () => 0.7)).some(request => request.name === '黒子'), '黒子を通常抽選から生成');
 const oldFiveResidentSave = G.restore({ ...oldCompleteSave, inventory: { bag: 2, curtain: 3 }, day: 28, gathersLeft: 1,
   dailyRequests: [{ templateId: 'daily-shiru-bag', completed: true }, { templateId: 'daily-keikai-towa-wall', completed: false }, { templateId: 'daily-naka-dry-flower', completed: false }],
   dailyHistory: ['daily-shiru-bag', 'daily-keikai-towa-wall', 'daily-naka-dry-flower'] });
@@ -231,7 +231,7 @@ const altoExpected = [
   ['daily-alto-wall', 'wallHanging', 1, '壁に置いて確かめたい', '壁掛けをひとつ作ってくれる？　実際に壁へ置いた時の見え方まで確かめたいんだ', 'ありがとう、美桜。机の上で見るのと、壁に置くのじゃやっぱり違うな']
 ];
 assert.deepEqual(G.dailyRequestPool.filter(request => request.resident === 'alto').map(request => [request.id, request.item, request.quantity, request.title, request.message, request.thanks]), altoExpected);
-assert.ok(G.currentDailyRequests(G.restore(oldCompleteSave, () => 0.999)).some(request => request.name === 'アルト'), 'アルトを通常抽選から生成');
+assert.ok(G.currentDailyRequests(G.restore(oldCompleteSave, () => 0.8)).some(request => request.name === 'アルト'), 'アルトを通常抽選から生成');
 const oldSixResidentSave = G.restore({ ...oldCompleteSave, inventory: { dryFlower: 3, curtain: 2 }, day: 34, gathersLeft: 1,
   dailyRequests: [{ templateId: 'daily-kuroko-wall', completed: true }, { templateId: 'daily-shiru-bag', completed: false }, { templateId: 'daily-keikai-towa-cushion', completed: false }],
   dailyHistory: ['daily-kuroko-wall', 'daily-shiru-bag', 'daily-keikai-towa-cushion'] });
@@ -253,4 +253,37 @@ const altoCarried = altoDelivery.dailyRequests.slice(1).map(slot => slot.templat
 G.rest(altoDelivery, () => 0);
 assert.ok(!altoDelivery.dailyRequests.some(slot => slot.templateId === 'daily-alto-dry-flower'));
 assert.ok(altoCarried.every(id => altoDelivery.dailyRequests.some(slot => slot.templateId === id)));
-console.log('PASS: 35-request pool, five Alto requests, legacy save preservation, manual delivery, carryover and next-day replacement');
+console.log('PASS: five Alto requests, legacy save preservation, manual delivery, carryover and next-day replacement');
+
+const aoiDoctorExpected = [
+  ['daily-aoi-doctor-dry-flower', 'dryFlower', 2, '比較試料を確保したい', '美桜さん、乾燥花を二つお願いできますか？　生花とは違う色の変化を、比較しておきたいんです', 'ありがとうございます！　これで比較条件が揃いました。いい観測データが取れそうです'],
+  ['daily-aoi-doctor-dye', 'dye', 1, '発色を観測したい', '染料をひとつお願いできますか、美桜さん？　光の当たり方で発色がどう変わるか、確認したくて', 'おお……！　これは興味深い発色ですね。さっそく記録しておきましょう'],
+  ['daily-aoi-doctor-lined-box', 'linedBox', 1, '試料を整理したい', '布張りの小箱をひとつお願いできますか？　細かい試料を分けて保管したいんです', '助かりました、美桜さん。これで研究台の混沌が、少しだけ秩序を取り戻します'],
+  ['daily-aoi-doctor-curtain', 'curtain', 1, '光量を調整したい', 'カーテンをひとつお願いできますか？　観測中だけ、部屋の光量を少し落としたいんです', '完璧です。これなら余計な反射を気にせず、観測に集中できます'],
+  ['daily-aoi-doctor-cushion', 'cushion', 1, '長時間観測対策', '美桜さん、クッションをひとつお願いしてもいいですか？　長時間観測で、腰にまで知恵熱が回る前に対策を……！', 'ありがとうございます、美桜さん！　これで研究続行可能です。物理的冷却ではなく、快適性で解決しました！']
+];
+assert.deepEqual(G.dailyRequestPool.filter(request => request.resident === 'aoiDoctor').map(request => [request.id, request.item, request.quantity, request.title, request.message, request.thanks]), aoiDoctorExpected);
+assert.ok(G.dailyRequestPool.filter(request => request.resident === 'aoiDoctor').every(request => !/美桜(?!さん)/.test(request.message + request.thanks)), '碧博士は美桜さんと呼ぶ');
+assert.ok(G.currentDailyRequests(G.restore(oldCompleteSave, () => 0.999)).some(request => request.name === '碧博士'), '碧博士を通常抽選から生成');
+const oldSevenResidentSave = G.restore({ ...oldCompleteSave, inventory: { dryFlower: 3, curtain: 2 }, day: 39, gathersLeft: 1,
+  dailyRequests: [{ templateId: 'daily-alto-dye', completed: true }, { templateId: 'daily-kuroko-wall', completed: false }, { templateId: 'daily-shiru-bag', completed: false }],
+  dailyHistory: ['daily-alto-dye', 'daily-kuroko-wall', 'daily-shiru-bag'] });
+assert.deepEqual(oldSevenResidentSave.dailyRequests, [
+  { templateId: 'daily-alto-dye', completed: true }, { templateId: 'daily-kuroko-wall', completed: false }, { templateId: 'daily-shiru-bag', completed: false }
+], '既存7人の進行中3枠と達成状態を維持');
+assert.equal(oldSevenResidentSave.day, 39);
+assert.equal(oldSevenResidentSave.gathersLeft, 1);
+assert.equal(oldSevenResidentSave.inventory.dryFlower, 3);
+assert.deepEqual(oldSevenResidentSave.dailyHistory, ['daily-alto-dye', 'daily-kuroko-wall', 'daily-shiru-bag']);
+const aoiDoctorDelivery = G.restore({ ...oldCompleteSave, inventory: { dryFlower: 2 }, dailyRequests: [
+  { templateId: 'daily-aoi-doctor-dry-flower', completed: false }, { templateId: 'daily-alto-dye', completed: false }, { templateId: 'daily-kuroko-wall', completed: false }
+] });
+assert.equal(G.currentDailyRequests(aoiDoctorDelivery)[0].name, '碧博士');
+assert.equal(G.deliverDaily(aoiDoctorDelivery, 'daily-aoi-doctor-dry-flower'), true);
+assert.equal(aoiDoctorDelivery.inventory.dryFlower, 0);
+assert.equal(G.currentDailyRequests(aoiDoctorDelivery)[0].completed, true);
+const aoiDoctorCarried = aoiDoctorDelivery.dailyRequests.slice(1).map(slot => slot.templateId);
+G.rest(aoiDoctorDelivery, () => 0);
+assert.ok(!aoiDoctorDelivery.dailyRequests.some(slot => slot.templateId === 'daily-aoi-doctor-dry-flower'));
+assert.ok(aoiDoctorCarried.every(id => aoiDoctorDelivery.dailyRequests.some(slot => slot.templateId === id)));
+console.log('PASS: 40-request pool, five Aoi Doctor requests, legacy save preservation, manual delivery, carryover and next-day replacement');
