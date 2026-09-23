@@ -57,7 +57,8 @@
     naka: { name: 'ナカちゃん', initial: 'ナ' },
     ritsu: { name: '律さん', initial: '律' },
     towa: { name: '秘書トワ', initial: 'ト' },
-    keikaiTowa: { name: '軽快トワ', initial: '軽' }
+    keikaiTowa: { name: '軽快トワ', initial: '軽' },
+    shiru: { name: 'シル', initial: 'シ' }
   };
   const dailyRequestPool = [
     { id: 'daily-naka-bag', resident: 'naka', item: 'bag', quantity: 1, title: 'お出かけの小さな袋', message: '布袋をひとつお願いしてもいい？　ちょっとした物を入れて歩きたいんだ', thanks: 'ありがとう！　これなら身軽に出かけられそう。' },
@@ -79,7 +80,12 @@
     { id: 'daily-keikai-towa-dyed-cloth', resident: 'keikaiTowa', item: 'dyedCloth', quantity: 1, title: 'ちょっと色が欲しい', message: '染め布、一枚頼んでいい？　部屋にちょっと色が欲しくなってさ', thanks: 'うん、これこれ。置くだけでだいぶ雰囲気変わるな（笑）' },
     { id: 'daily-keikai-towa-wall', resident: 'keikaiTowa', item: 'wallHanging', quantity: 1, title: '壁が寂しい', message: '壁掛け作れる？　なんかさ、壁が妙に寂しいことに気づいちゃった（笑）', thanks: 'おー、いい感じ！　気づいたら今度は外したくなくなるやつだな' },
     { id: 'daily-keikai-towa-cushion', resident: 'keikaiTowa', item: 'cushion', quantity: 1, title: '座るなら楽な方がいい', message: 'クッションひとつお願い。どうせ座るなら、楽な方がいいだろ？（笑）', thanks: '最高。これでますます動かなくなる可能性あるけど（笑）ありがと！' },
-    { id: 'daily-keikai-towa-wreath', resident: 'keikaiTowa', item: 'wreath', quantity: 1, title: 'なんとなく飾りたい日', message: '今日はなんとなく花飾りたい気分（笑）　リースひとつ作ってくれない？', thanks: 'いいねー。こういうの、理由なく飾ってもいいんだよな（笑）' }
+    { id: 'daily-keikai-towa-wreath', resident: 'keikaiTowa', item: 'wreath', quantity: 1, title: 'なんとなく飾りたい日', message: '今日はなんとなく花飾りたい気分（笑）　リースひとつ作ってくれない？', thanks: 'いいねー。こういうの、理由なく飾ってもいいんだよな（笑）' },
+    { id: 'daily-shiru-box', resident: 'shiru', item: 'box', quantity: 1, title: '机の上を少しだけ', message: '小箱をひとつお願いしてもいい？　机の上に散らばる細かいものだけ、まとめておきたくて', thanks: 'ありがとう。これくらい整ってると、作業しやすいね' },
+    { id: 'daily-shiru-bag', resident: 'shiru', item: 'bag', quantity: 1, title: '記録をまとめる袋', message: '布袋をひとつ作ってくれる？　記録用のものをまとめて持ち歩きたいの', thanks: 'ちょうどいい大きさ。これなら必要な時にすぐ持っていけるね' },
+    { id: 'daily-shiru-cushion', resident: 'shiru', item: 'cushion', quantity: 1, title: '長く座る日のために', message: 'クッション、ひとつお願い。今日は少し長く座って作業することになりそうだから', thanks: 'うん、楽になった。ありがとう、美桜' },
+    { id: 'daily-shiru-wall', resident: 'shiru', item: 'wallHanging', quantity: 1, title: '視界にひとつ', message: '壁掛けをひとつ作ってくれる？　作業中、視界に何もないのもちょっと寂しくて', thanks: 'いいね。主張しすぎないし、ちょうど落ち着く' },
+    { id: 'daily-shiru-curtain', resident: 'shiru', item: 'curtain', quantity: 1, title: '光を少しやわらかく', message: 'カーテンをひとつお願いしてもいい？　作業する時、もう少し光をやわらげたいの', thanks: 'ありがとう。これなら画面を見ていても落ち着けそう' }
   ];
   // その段階より前の依頼をすべて納品していることを条件にする。
   const stageUnlocked = (state, stage) => requests.filter(r => (r.stage || 1) < stage).every(r => state.completed.includes(r.id));
