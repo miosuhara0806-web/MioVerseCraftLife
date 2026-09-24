@@ -218,11 +218,17 @@ const oldSave = { inventory: { box: 4 }, completed: G.requests.map(r => r.id), u
 saved.set('mioverse-craft-v1', JSON.stringify(oldSave));
 app = launch();
 assert.equal(app.state().day, 1);
-assert.equal(app.state().gathersLeft, 5);
-assert.equal(app.state().inventory.box, 4);
-assert.deepEqual(app.state().completed, oldSave.completed);
-assert.equal(app.state().unlockedStage, 3);
-console.log('PASS: daily cap, disabled UI, unlimited crafting/delivery, rest confirmation/cancel, early rest, day 5 reload and old save migration');
+assert.equal(app.state().gathersLeft, 3);
+assert.equal(app.state().inventory.box, 0);
+assert.deepEqual(app.state().completed, []);
+assert.equal(app.state().unlockedStage, 1);
+assert.equal(app.state().saveVersion, G.SAVE_VERSION);
+assert.ok(!app.page('requests').includes('みんなとの記録'));
+app.click('gather', 'branch');
+app = launch();
+assert.equal(app.state().inventory.branch, 2, '新形式のセーブは再読み込みで維持');
+assert.equal(app.state().gathersLeft, 2, '旧セーブの初期化は一度のみ');
+console.log('PASS: daily cap, disabled UI, rest, and one-time old-save reset');
 
 // 全9件の未達成依頼で作り方を確認し、対応する完成品レシピへ移動して強調できる。
 for (const request of G.requests) {
@@ -584,7 +590,7 @@ for (const request of G.dailyRequestPool.slice(-5)) {
 }
 console.log('PASS: five furniture requests, shared recipe dialog/highlight and manual delivery');
 
-const gatherMigrationSave = { completed: G.requests.map(request => request.id), inventory: { plank: 2 }, day: 31, gathersLeft: 1,
+const gatherMigrationSave = { saveVersion: G.SAVE_VERSION, completed: G.requests.map(request => request.id), inventory: { plank: 2 }, day: 31, gathersLeft: 1,
   dailyRequests: [{ templateId: 'daily-ritsu-curtain', completed: false }, { templateId: 'daily-towa-box', completed: true }, { templateId: 'daily-shiru-curtain', completed: false }],
   dailyHistory: ['daily-towa-box'], discovered: G.items.slice(0, 18).map(item => item.id) };
 saved.set('mioverse-craft-v1', JSON.stringify(gatherMigrationSave));
@@ -628,3 +634,44 @@ assert.equal(app.state().day, 11);
 app = launch();
 assert.equal(app.state().gathersLeft, 5);
 console.log('PASS: live UI 3-to-5 gather cap, legacy save migration once, final delivery, exhaustion and next-day reset');
+
+const recordState = G.restore({ completed: G.requests.map(request => request.id), dailyRequests: [
+  { templateId: 'daily-naka-bag', completed: false },
+  { templateId: 'daily-ritsu-thread', completed: false },
+  { templateId: 'daily-towa-box', completed: false }
+] });
+saved.set('mioverse-craft-v1', JSON.stringify(recordState));
+app = launch();
+let recordHtml = app.page('requests');
+assert.ok(recordHtml.includes('みんなとの記録'));
+for (const resident of Object.values(G.dailyResidents)) {
+  assert.ok(recordHtml.includes(`<span>${resident.name}</span><strong>0 / 5</strong>`), `${resident.name} の初期表示`);
+}
+const beforeFailedDaily = JSON.stringify(app.state());
+app.click('deliver-daily', 'daily-naka-bag');
+assert.equal(JSON.stringify(app.state()), beforeFailedDaily, '素材不足は保存状態を変えない');
+recordState.inventory.bag = 1;
+saved.set('mioverse-craft-v1', JSON.stringify(recordState));
+app = launch();
+app.page('requests');
+app.click('deliver-daily', 'daily-naka-bag');
+assert.equal(app.state().dailyRequestCounts.naka, 1);
+assert.equal(app.state().inventory.bag, 0);
+assert.equal(app.state().dailyRequests[0].completed, true);
+recordHtml = app.page('requests');
+assert.ok(recordHtml.includes('<span>ナカちゃん</span><strong>1 / 5</strong>'));
+assert.ok(recordHtml.includes('<span>律さん</span><strong>0 / 5</strong>'));
+const afterDelivery = JSON.stringify(app.state());
+app.click('deliver-daily', 'daily-naka-bag');
+assert.equal(JSON.stringify(app.state()), afterDelivery, 'ボタン連打で再加算しない');
+app = launch();
+assert.equal(app.state().dailyRequestCounts.naka, 1, '再読み込み後もカウントを復元');
+app.page('home'); app.click('rest'); app.click('rest-confirm');
+assert.equal(app.state().dailyRequestCounts.naka, 1, '翌日の依頼更新後もカウントを維持');
+const overFive = G.restore({ completed: G.requests.map(request => request.id), dailyRequestCounts: { naka: 7 } });
+saved.set('mioverse-craft-v1', JSON.stringify(overFive));
+app = launch();
+assert.equal(app.state().dailyRequestCounts.naka, 7);
+assert.ok(app.page('requests').includes('<span>ナカちゃん</span><strong>5 / 5</strong>'));
+console.log('PASS: eight-person record UI, failed and duplicate click guards, daily success, reload/rest persistence, display cap at five');
+
