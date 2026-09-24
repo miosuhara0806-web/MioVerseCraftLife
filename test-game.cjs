@@ -447,3 +447,34 @@ assert.deepEqual(migratedGathers.dailyHistory, ['daily-towa-box']);
 assert.deepEqual(migratedGathers.discovered, preservedDiscoveries);
 assert.equal(G.restore(JSON.parse(JSON.stringify(migratedGathers))).gathersLeft, 3);
 console.log('PASS: 3-to-5 gather cap, immediate unlock, legacy migration once, five-gather exhaustion and save preservation');
+
+const residentIds = Object.keys(G.dailyResidents);
+assert.equal(G.SAVE_VERSION, 2);
+assert.deepEqual(G.fresh().dailyRequestCounts, Object.fromEntries(residentIds.map(id => [id, 0])));
+const fixedOnly = G.restore({ completed: G.requests.slice(0, -1).map(request => request.id), inventory: { linedBox: 1 } });
+assert.equal(G.deliver(fixedOnly, G.requests.at(-1).id), true);
+assert.deepEqual(fixedOnly.dailyRequestCounts, G.fresh().dailyRequestCounts, '固定依頼9件はカウントしない');
+for (const residentId of residentIds) {
+  const target = G.dailyRequestPool.find(request => request.resident === residentId);
+  const otherIds = G.dailyRequestPool.filter(request => request.id !== target.id).slice(0, 2).map(request => request.id);
+  const progress = G.restore({ completed: allFixedIds, dailyRequests: [target.id, ...otherIds].map(templateId => ({ templateId, completed: false })) });
+  assert.equal(G.deliverDaily(progress, target.id), false, `${residentId}: 素材不足では加算しない`);
+  assert.deepEqual(progress.dailyRequestCounts, G.fresh().dailyRequestCounts);
+  progress.inventory[target.item] = target.quantity;
+  assert.equal(G.deliverDaily(progress, target.id), true, `${residentId}: 日常依頼を納品`);
+  assert.equal(progress.inventory[target.item], 0);
+  assert.deepEqual(progress.dailyRequestCounts, { ...G.fresh().dailyRequestCounts, [residentId]: 1 }, `${residentId} だけ加算`);
+  assert.equal(G.deliverDaily(progress, target.id), false, '二重納品を拒否');
+  assert.equal(progress.dailyRequestCounts[residentId], 1);
+  const restored = G.restore(JSON.parse(JSON.stringify(progress)));
+  assert.equal(restored.dailyRequestCounts[residentId], 1, '再読み込み後も保持');
+  G.rest(restored, () => 0);
+  assert.equal(restored.dailyRequestCounts[residentId], 1, '翌日も保持');
+}
+const aboveGoal = G.restore({ completed: allFixedIds, dailyRequestCounts: { naka: 7, ritsu: -1, towa: 1.5, unknown: 9 } });
+assert.equal(aboveGoal.dailyRequestCounts.naka, 7, '5超の内部累計を保持');
+assert.equal(aboveGoal.dailyRequestCounts.ritsu, 0, '不正な負値は無視');
+assert.equal(aboveGoal.dailyRequestCounts.towa, 0, '不正な小数は無視');
+assert.equal(Object.hasOwn(aboveGoal.dailyRequestCounts, 'unknown'), false, '未知の依頼主は保存しない');
+console.log('PASS: eight independent daily completion counts, fixed exclusion, failed and duplicate delivery guards, reload/rest persistence, uncapped total');
+
