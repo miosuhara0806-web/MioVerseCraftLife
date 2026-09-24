@@ -16,7 +16,11 @@ let state = G.fresh();
 let saveMessage = '自動保存が有効です';
 try {
   const stored = localStorage.getItem(SAVE_KEY);
-  if (stored) { state = G.restore(JSON.parse(stored)); save(); }
+  if (stored) {
+    const data = JSON.parse(stored);
+    state = data?.saveVersion === G.SAVE_VERSION ? G.restore(data) : G.fresh();
+    save();
+  }
 } catch { saveMessage = '保存データを読み込めませんでした。この画面では遊べます。'; }
 let currentPage = 'home';
 let toastTimer;
@@ -101,6 +105,10 @@ function dailyRequestsSection() {
   const requests = dailyRequests();
   return `<section class="daily-requests" aria-labelledby="daily-requests-title"><div class="daily-heading"><div><p class="eyebrow">DAILY REQUESTS</p><h2 id="daily-requests-title">日常のお願い</h2></div><span>今日の依頼 ${requests.length}件</span></div><p class="muted">未達成のお願いは翌日も持ち越します。お届け済みの枠だけ、「今日は休む」と新しいお願いに入れ替わります。</p><div class="requests-list">${requests.map(request => { const done = request.completed; const ready = count(request.item) >= request.quantity; return `<article class="request-card daily-request ${done ? 'completed' : ''}"><div class="resident"><span class="avatar" aria-hidden="true">${request.initial}</span><div><span class="eyebrow">${done ? 'DELIVERED TODAY' : 'TODAY’S REQUEST'}</span><h2>${request.name}</h2></div><span class="badge">${done ? '✓ お届け済み' : '受付中'}</span></div><h3>${request.title}</h3><p class="quote">「${done ? request.thanks : request.message}」</p><div class="delivery"><div><span>お届けするもの</span><strong>${names[request.item]} × ${request.quantity}</strong><small>${done ? '本日は納品済み' : `在庫 ${count(request.item)}個 / 納品時に${request.quantity}個消費`}</small></div>${!done ? `<button class="secondary view-recipe" data-action="view-recipe" data-id="${request.id}">作り方を見る</button>` : ''}<button data-action="deliver-daily" data-id="${request.id}" ${done || !ready ? 'disabled' : ''}>${done ? 'お届け済み' : ready ? `${request.quantity}個届ける` : '完成品が必要'}</button></div></article>`; }).join('')}</div></section>`;
 }
+function residentProgressSection() {
+  if (!G.dailyUnlocked(state)) return '';
+  return `<section class="residents-record" aria-labelledby="residents-record-title"><p class="eyebrow">WORKSHOP RECORD</p><h2 id="residents-record-title">みんなとの記録</h2><div class="residents-record-list">${Object.entries(G.dailyResidents).map(([id, resident]) => `<div class="residents-record-row"><span>${resident.name}</span><strong>${Math.min(state.dailyRequestCounts[id], 5)} / 5</strong></div>`).join('')}</div></section>`;
+}
 function requestsPage() {
   const visible = G.visibleRequests(state);
   let requestIndex = 0;
@@ -111,7 +119,7 @@ function requestsPage() {
   });
   if (!G.dailyUnlocked(state)) return fixed;
   return fixed
-    .replace('<div class="requests-list">', `${dailyRequestsSection()}<details class="fixed-history"><summary><span>固定依頼のお礼</span><small>9件</small></summary><div class="requests-list">`)
+    .replace('<div class="requests-list">', `${dailyRequestsSection()}${residentProgressSection()}<details class="fixed-history"><summary><span>固定依頼のお礼</span><small>9件</small></summary><div class="requests-list">`)
     .replace('<div class="bottom-note">', '</details><div class="bottom-note">');
 }
 function openRecipeDialog(request) {
@@ -214,3 +222,4 @@ window.addEventListener('hashchange', () => {
   else { document.getElementById('main').focus({ preventScroll: true }); window.scrollTo(0, 0); }
 });
 navigate();
+
