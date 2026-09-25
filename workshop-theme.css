@@ -93,7 +93,7 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
   transform: rotate(24deg);
   pointer-events: none;
 }
-.hero::after { border-color: #c5d0b8; width: 280px; height: 280px; }
+.hero::after { content: none; }
 .hero h1 { color: #3e5a44; letter-spacing: 3px; }
 .hero p:not(.eyebrow) { color: #5f705c; }
 .hero-stamp { background: #f9f6e680; border-style: dashed; color: #6a7b5e; }
@@ -330,4 +330,3 @@ footer { border-top-style: dashed; color: var(--muted); }
   button, .button, nav a { transition: none; }
   button:active:not(:disabled), .button:active { transform: none; }
 }
-
