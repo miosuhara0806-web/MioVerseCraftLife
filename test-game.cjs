@@ -616,8 +616,7 @@ assert.equal(G.ensureDailyRequests(activeReload, () => 0), false, '抽選ウェ�
 const sampledResidents = save => {
   const counts = Object.fromEntries(thankYouIds.map(id => [id, 0]));
   for (let i = 0; i < 9000; i++) {
-    const draw = G.restore({ ...save, dailyRequests: [], dailyHistory: [] });
-    G.ensureDailyRequests(draw, () => (i + 0.5) / 9000);
+    const draw = G.restore({ ...save, dailyRequests: [], dailyHistory: [] }, () => (i + 0.5) / 9000);
     const first = G.dailyRequestPool.find(request => request.id === draw.dailyRequests[0].templateId);
     counts[first.resident]++;
   }
@@ -756,3 +755,57 @@ assert.equal(clearReload.inventory.thread, craftAmount, '日付進行で在庫�
 assert.equal(clearReload.dailyRequests.length, 3, 'クリア後も日常依頼が継続');
 assert.equal(G.SAVE_VERSION, 2, 'セーブバージョンを変更しない');
 console.log('PASS: eight-thank-you final request, exact atomic delivery, ending read state, restored clear and continuing daily play');
+
+assert.equal(G.items.length, 21, '図鑑の21種類はそのまま');
+assert.deepEqual(G.crops.map(crop => [crop.name, crop.growDays]), [['じゃがいも', 2], ['にんじん', 3], ['小麦', 4]]);
+const lockedGarden = G.fresh();
+assert.deepEqual(lockedGarden.plots, [null, null, null]);
+assert.equal(G.plantCrop(lockedGarden, 0, 'potato'), false, '未クリアでは植えられない');
+assert.equal(G.harvestCrop(lockedGarden, 0), false, '未クリアでは収穫できない');
+const legacyGarden = G.restore({ ...finalReload, plots: undefined });
+assert.equal(G.postgameUnlocked(legacyGarden), true, '本編クリア済み旧セーブで裏庭を解放');
+assert.deepEqual(legacyGarden.plots, [null, null, null], '旧セーブの畑は3区画とも空き');
+assert.equal(legacyGarden.day, 88);
+assert.deepEqual(legacyGarden.dailyRequests, finalSlots);
+assert.equal(legacyGarden.inventory.bag, 7);
+assert.equal(G.plantCrop(legacyGarden, 0, 'potato'), true);
+assert.equal(G.plantCrop(legacyGarden, 1, 'carrot'), true);
+assert.equal(G.plantCrop(legacyGarden, 2, 'wheat'), true);
+assert.equal(G.plantCrop(legacyGarden, 0, 'wheat'), false, '栽培中の区画は上書き不可');
+assert.equal(G.plantCrop(legacyGarden, 3, 'wheat'), false, '4区画目はない');
+assert.equal(G.plantCrop(legacyGarden, 0, 'unknown'), false);
+assert.deepEqual(legacyGarden.plots.map(plot => plot.plantedDay), [88, 88, 88]);
+assert.deepEqual(legacyGarden.plots.map((_, index) => G.cropDaysLeft(legacyGarden, index)), [2, 3, 4]);
+assert.equal(G.harvestCrop(legacyGarden, 0), false, '植えた日には収穫不可');
+assert.deepEqual(G.restore({ ...finalReload, plots: [{ cropId: 'potato', plantedDay: 89 }, { cropId: 'unknown', plantedDay: 88 }, null] }).plots, [null, null, null], '不正な畑データは空きへ補正');
+const growingReload = G.restore(JSON.parse(JSON.stringify(legacyGarden)));
+assert.deepEqual(growingReload.plots, legacyGarden.plots, '栽培状態を再読込で維持');
+G.rest(growingReload);
+assert.deepEqual(growingReload.plots.map((_, index) => G.cropDaysLeft(growingReload, index)), [1, 2, 3]);
+G.rest(growingReload);
+assert.deepEqual(growingReload.plots.map((_, index) => G.cropDaysLeft(growingReload, index)), [0, 1, 2]);
+assert.equal(G.harvestCrop(growingReload, 0), true);
+assert.equal(growingReload.inventory.potato, 2);
+assert.equal(G.harvestCrop(growingReload, 0), false, '二重収穫不可');
+assert.equal(growingReload.plots[0], null);
+assert.equal(G.plantCrop(growingReload, 0, 'potato'), true, '収穫後は植え直せる');
+G.rest(growingReload);
+assert.equal(G.harvestCrop(growingReload, 1), true);
+assert.equal(growingReload.inventory.carrot, 2);
+G.rest(growingReload);
+assert.equal(G.harvestCrop(growingReload, 2), true);
+assert.equal(growingReload.inventory.wheat, 2);
+const harvestedReload = G.restore(JSON.parse(JSON.stringify(growingReload)));
+assert.equal(harvestedReload.inventory.potato, 2);
+assert.equal(harvestedReload.inventory.carrot, 2);
+assert.equal(harvestedReload.inventory.wheat, 2);
+assert.deepEqual(harvestedReload.plots[0], growingReload.plots[0]);
+assert.equal(harvestedReload.plots[1], null);
+assert.equal(harvestedReload.plots[2], null);
+assert.equal(harvestedReload.discovered.length, finalReload.discovered.length, '図鑑項目は増やさない');
+const fullStock = G.restore({ ...finalReload, inventory: { ...finalReload.inventory, potato: Number.MAX_SAFE_INTEGER - 1 }, plots: [{ cropId: 'potato', plantedDay: 1 }, null, null] });
+assert.equal(G.harvestCrop(fullStock, 0), false, '在庫が安全上限を超える収穫は拒否');
+assert.equal(fullStock.inventory.potato, Number.MAX_SAFE_INTEGER - 1);
+assert.equal(fullStock.plots[0].cropId, 'potato');
+assert.equal(G.SAVE_VERSION, 2, '既存セーブバージョンは維持');
+console.log('PASS: postgame garden unlock, legacy save, three crop durations, rest growth, exact harvest, empty reuse and reload');

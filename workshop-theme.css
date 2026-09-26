@@ -255,6 +255,16 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
 .workshop-sign { display: inline-flex; flex-direction: column; align-items: center; max-width: 100%; margin: 16px 0 0; padding: 8px 25px; color: var(--green); background: #f2e9dc; border: 1px solid #c9bda5; border-radius: 7px; box-shadow: inset 0 0 0 3px #f2e9dc, inset 0 0 0 4px #ded2ba; }
 .workshop-sign small { font-family: Georgia, serif; font-size: 10px; letter-spacing: 1px; }
 .workshop-sign strong { font-family: "Yu Mincho", serif; font-size: 18px; font-weight: 500; letter-spacing: 2px; }
+.garden-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.garden-plot { min-width: 0; padding: 22px; background: var(--paper); border: 1px solid var(--line); border-radius: 17px; box-shadow: var(--card-shadow); }
+.garden-plot .eyebrow { margin-bottom: 8px; }
+.garden-plot h2 { font-family: "Yu Mincho", serif; font-size: 20px; font-weight: 500; color: var(--green); }
+.garden-status, .garden-choices p { margin: 8px 0 16px; font-size: 12px; color: var(--muted); }
+.garden-plot button { width: 100%; min-width: 0; margin-top: 12px; padding: 10px; font-size: 12px; }
+.garden-choices button { justify-content: space-between; }
+.garden-choices small { font-size: 10px; font-weight: 400; }
+.garden-note { margin-top: 20px; }
+@media (max-width: 760px) { .garden-grid { grid-template-columns: 1fr; } }
 .story-dialog-actions { display: flex; gap: 10px; margin-top: 22px; }
 .story-dialog-actions button { flex: 1; min-height: 46px; font-size: 12px; }
 #story-close-button[hidden] { display: none; }

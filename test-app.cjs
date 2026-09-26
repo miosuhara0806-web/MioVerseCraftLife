@@ -60,6 +60,8 @@ assert.equal(app.state().inventory.branch, 7);
 saved.clear();
 app = launch();
 app.click('story-complete');
+assert.ok(!app.navigation().includes('裏庭'), '未クリアでは裏庭ナビを表示しない');
+assert.ok(!app.page('backyard').includes('工房の裏庭'), 'URLからの未クリア直接表示も防ぐ');
 function gatherForLoop(id) {
   if (app.state().gathersLeft === 0) { app.page('home'); app.click('rest'); app.click('rest-confirm'); }
   app.click('gather', id);
@@ -1018,3 +1020,45 @@ app.page('gather'); app.click('gather', 'branch');
 assert.equal(app.state().inventory.branch, clearEnding.inventory.branch + 2, 'クリア後も採集可能');
 assert.ok(app.page('inventory').includes('工房の棚'), 'クリア後も在庫画面を開ける');
 console.log('PASS: final request UI, five recipe routes, exact delivery, one-time ending, persistent sign and continuing play');
+
+saved.set('mioverse-craft-v1', JSON.stringify({ ...clearEnding, plots: undefined }));
+app = launch();
+assert.ok(app.navigation().includes('裏庭'), '本編クリア済み旧セーブで裏庭ナビが出る');
+let gardenHtml = app.page('backyard');
+assert.ok(gardenHtml.includes('工房の裏には、まだほとんど手を入れていない小さな庭がある。'));
+assert.equal((gardenHtml.match(/空いています/g) || []).length, 3);
+assert.ok(gardenHtml.includes('data-action="garden-select" data-id="0"'));
+app.click('garden-select', '0');
+assert.ok(app.page('backyard').includes('data-action="plant-crop" data-id="0:potato"'));
+app.click('plant-crop', '0:potato');
+app.click('garden-select', '1'); app.click('plant-crop', '1:carrot');
+app.click('garden-select', '2'); app.click('plant-crop', '2:wheat');
+assert.deepEqual(app.state().plots.map(plot => plot.cropId), ['potato', 'carrot', 'wheat']);
+assert.deepEqual(app.state().plots.map(plot => plot.plantedDay), [clearEnding.day, clearEnding.day, clearEnding.day]);
+assert.ok(app.page('backyard').includes('収穫まで あと2日'));
+app = launch();
+assert.deepEqual(app.state().plots.map(plot => plot.cropId), ['potato', 'carrot', 'wheat'], '再読込後も栽培中');
+for (let day = 1; day <= 4; day++) {
+  app.page('home'); app.click('rest'); app.click('rest-confirm');
+  gardenHtml = app.page('backyard');
+  if (day === 1) assert.ok(gardenHtml.includes('収穫まで あと1日'));
+  if (day === 2) {
+    assert.ok(gardenHtml.includes('data-action="harvest-crop" data-id="0"'));
+    app.click('harvest-crop', '0');
+    assert.equal(app.state().inventory.potato, 2);
+    assert.equal(app.state().plots[0], null);
+    app.click('harvest-crop', '0');
+    assert.equal(app.state().inventory.potato, 2, '連打でも二重収穫なし');
+  }
+  if (day === 3) { app.click('harvest-crop', '1'); assert.equal(app.state().inventory.carrot, 2); }
+  if (day === 4) { app.click('harvest-crop', '2'); assert.equal(app.state().inventory.wheat, 2); }
+}
+assert.deepEqual(app.state().plots, [null, null, null]);
+assert.ok(app.page('inventory').includes('収穫物'));
+for (const name of ['じゃがいも', 'にんじん', '小麦']) assert.ok(app.page('inventory').includes(name));
+assert.ok(app.page('encyclopedia').includes('21'), '図鑑21種類を維持');
+assert.ok(app.page('requests').includes('日常のお願い'), '日常依頼は継続');
+app = launch();
+assert.equal(app.state().inventory.wheat, 2, '収穫物も再読込で維持');
+assert.equal(app.state().storyProgress.milestone8EventViewed, true);
+console.log('PASS: garden navigation gating, three crop planting, daily growth, exact harvest, inventory and reload');

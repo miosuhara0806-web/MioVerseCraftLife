@@ -2,7 +2,7 @@
 const G = window.MioGame;
 const SAVE_KEY = 'mioverse-craft-v1';
 const names = Object.fromEntries(G.items.map(i => [i.id, i.name]));
-const pages = [['home', '工房', '01'], ['gather', '採集', '02'], ['craft', '加工', '03'], ['inventory', '在庫', '04'], ['requests', '依頼', '05'], ['encyclopedia', '図鑑', '06']];
+const pages = [['home', '工房', '01'], ['gather', '採集', '02'], ['craft', '加工', '03'], ['inventory', '在庫', '04'], ['requests', '依頼', '05'], ['encyclopedia', '図鑑', '06'], ['backyard', '裏庭', '07']];
 const introEvent = {
   title: '小径の工房',
   paragraphs: [
@@ -19,7 +19,8 @@ const navIcons = {
   craft: '<path d="M6 3h12l-2 4v10l2 4H6l2-4V7z"/><path d="M8 9c2 1.5 6 1.5 8 0M8 15c2-1.5 6-1.5 8 0"/>',
   inventory: '<path d="M3 8.5 12 4l9 4.5v10L12 23l-9-4.5z"/><path d="M3 8.5 12 13l9-4.5M12 13v10"/>',
   requests: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 7 9-7"/>',
-  encyclopedia: '<path d="M12 6c-2.5-1.8-5.7-2-9-1v14c3.3-1 6.5-.8 9 1 2.5-1.8 5.7-2 9-1V5c-3.3-1-6.5-.8-9 1Z"/><path d="M12 6v14"/>'
+  encyclopedia: '<path d="M12 6c-2.5-1.8-5.7-2-9-1v14c3.3-1 6.5-.8 9 1 2.5-1.8 5.7-2 9-1V5c-3.3-1-6.5-.8-9 1Z"/><path d="M12 6v14"/>',
+  backyard: '<path d="M3 19h18M7 19v-5m5 5V9m5 10v-5M7 14c-2-1-3-3-3-5 2 0 4 1 5 3m3-3c-2-1-3-3-3-5 2 0 4 1 5 3m3 7c-2-1-3-3-3-5 2 0 4 1 5 3"/>'
 };
 const navIcon = id => `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${navIcons[id]}</svg>`;
 let state = G.fresh();
@@ -39,6 +40,7 @@ let recipeHighlightTimer;
 let activeRecipeRequestId = null;
 let activeThankYouResidentId = null;
 let activeStoryMilestoneId = null;
+let selectedGardenPlot = null;
 const restDialog = document.getElementById('rest-dialog');
 const recipeDialog = document.getElementById('recipe-dialog');
 const thankYouDialog = document.getElementById('thank-you-dialog');
@@ -109,7 +111,14 @@ function craftPage() {
   });
 }
 function inventoryPage() {
-  return heading('STOCK / 03', '工房の棚', `採集素材から完成品まで、いま持っているもの。合計 ${total()} 個。`) + ['採集素材', '中間素材', '完成品'].map(category => `<section class="inventory-section"><h2>${category}</h2><div class="inventory-grid">${G.items.filter(i => i.category === category).map(i => `<div class="inventory-item ${count(i.id) === 0 ? 'empty' : ''}"><span class="small-mark" aria-hidden="true">${i.mark}</span><span>${i.name}</span><strong>${count(i.id)} <small>個</small></strong></div>`).join('')}</div></section>`).join('') + `<p class="muted">在庫の上限はありません。加工・納品に使った素材はここから減ります。</p>`;
+  return heading('STOCK / 03', '工房の棚', `採集素材から完成品まで、いま持っているもの。合計 ${total()} 個。`) + ['採集素材', '中間素材', '完成品'].map(category => `<section class="inventory-section"><h2>${category}</h2><div class="inventory-grid">${G.items.filter(i => i.category === category).map(i => `<div class="inventory-item ${count(i.id) === 0 ? 'empty' : ''}"><span class="small-mark" aria-hidden="true">${i.mark}</span><span>${i.name}</span><strong>${count(i.id)} <small>個</small></strong></div>`).join('')}</div></section>`).join('') + (G.postgameUnlocked(state) ? `<section class="inventory-section"><h2>収穫物</h2><div class="inventory-grid">${G.crops.map(crop => `<div class="inventory-item ${count(crop.id) === 0 ? 'empty' : ''}"><span class="small-mark" aria-hidden="true">${crop.mark}</span><span>${crop.name}</span><strong>${count(crop.id)} <small>個</small></strong></div>`).join('')}</div></section>` : '') + `<p class="muted">在庫の上限はありません。加工・納品に使った素材はここから減ります。</p>`;
+}
+function backyardPage() {
+  return heading('BACKYARD / 07', '工房の裏庭', '工房の裏には、まだほとんど手を入れていない小さな庭がある。') + dayStatus() + `<div class="garden-grid">${state.plots.map((plot, index) => {
+    const crop = plot && G.crops.find(entry => entry.id === plot.cropId);
+    const left = crop ? G.cropDaysLeft(state, index) : null;
+    return `<section class="garden-plot"><p class="eyebrow">畑 ${index + 1}</p>${crop ? `<h2>${crop.name}</h2><p class="garden-status">${left === 0 ? '収穫できます' : `収穫まで あと${left}日`}</p>${left === 0 ? `<button data-action="harvest-crop" data-id="${index}">収穫する <span>＋2</span></button>` : ''}` : `<h2>空いています</h2>${selectedGardenPlot === index ? `<div class="garden-choices"><p>育てる作物を選ぶ</p>${G.crops.map(choice => `<button class="secondary" data-action="plant-crop" data-id="${index}:${choice.id}">${choice.name} <small>${choice.growDays}日</small></button>`).join('')}<button class="secondary" data-action="garden-cancel">やめる</button></div>` : `<button data-action="garden-select" data-id="${index}">植える</button>`}`}</section>`;
+  }).join('')}</div><p class="muted garden-note">作物はゲーム内の日付が進むと育ちます。種や水やりは必要ありません。</p>`;
 }
 function encyclopediaPage() {
   // 在庫の分類は変えず、図鑑では制作にも使う染料を加工素材としてまとめる。
@@ -208,8 +217,8 @@ function render() {
   const focus = document.activeElement;
   const focusAction = focus?.dataset.action;
   const focusId = focus?.dataset.id;
-  document.getElementById('navigation').innerHTML = pages.map(([id, name, number]) => `<a href="#${id}" ${id === currentPage ? 'aria-current="page"' : ''}><span class="nav-number">${number}</span>${navIcon(id)}<span class="nav-label">${name}</span>${id === 'requests' ? `<span class="nav-count">${state.completed.length}/${requestTotal()}</span>` : ''}</a>`).join('');
-  document.getElementById('main').innerHTML = ({ home, gather: gatherPage, craft: craftPage, inventory: inventoryPage, requests: requestsPage, encyclopedia: encyclopediaPage })[currentPage]();
+  document.getElementById('navigation').innerHTML = pages.filter(([id]) => id !== 'backyard' || G.postgameUnlocked(state)).map(([id, name, number]) => `<a href="#${id}" ${id === currentPage ? 'aria-current="page"' : ''}><span class="nav-number">${number}</span>${navIcon(id)}<span class="nav-label">${name}</span>${id === 'requests' ? `<span class="nav-count">${state.completed.length}/${requestTotal()}</span>` : ''}</a>`).join('');
+  document.getElementById('main').innerHTML = ({ home, gather: gatherPage, craft: craftPage, inventory: inventoryPage, requests: requestsPage, encyclopedia: encyclopediaPage, backyard: backyardPage })[currentPage]();
   document.getElementById('gather-limit-note').textContent = G.gatherLimit(state);
   document.getElementById('rest-description').textContent = `翌日になり、採集回数が${G.gatherLimit(state)}回に戻ります。残り回数は持ち越されません。依頼に期限はありません。`;
   document.getElementById('save-status').textContent = saveMessage;
@@ -223,6 +232,28 @@ document.addEventListener('click', event => {
   const button = event.target.closest('button[data-action]');
   if (!button || button.disabled) return;
   const { action, id } = button.dataset;
+  if (action === 'garden-select') {
+    const index = Number(id);
+    if (!G.postgameUnlocked(state) || !Number.isInteger(index) || state.plots[index] !== null) return;
+    selectedGardenPlot = index;
+    render();
+    return;
+  }
+  if (action === 'garden-cancel') { selectedGardenPlot = null; render(); return; }
+  if (action === 'plant-crop') {
+    const [index, cropId] = (id || '').split(':');
+    if (!G.plantCrop(state, Number(index), cropId)) return;
+    selectedGardenPlot = null;
+    save(); render();
+    return;
+  }
+  if (action === 'harvest-crop') {
+    const index = Number(id);
+    const crop = G.crops.find(entry => entry.id === state.plots[index]?.cropId);
+    if (!G.harvestCrop(state, index)) return;
+    save(); render(); notify(`${crop.name}を2個収穫しました。`);
+    return;
+  }
   if (action === 'rest') { restDialog.showModal(); return; }
   if (action === 'rest-cancel') { restDialog.close(); return; }
   if (action === 'rest-confirm') {
@@ -312,7 +343,7 @@ document.addEventListener('click', event => {
 function navigate() {
   if (storyDialog.open) { storyDialog.close(); activeStoryMilestoneId = null; }
   const hash = location.hash.slice(1);
-  currentPage = pages.some(p => p[0] === hash) ? hash : 'home';
+  currentPage = pages.some(p => p[0] === hash) && (hash !== 'backyard' || G.postgameUnlocked(state)) ? hash : 'home';
   render();
 }
 window.addEventListener('hashchange', () => {

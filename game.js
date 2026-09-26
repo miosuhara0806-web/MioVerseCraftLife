@@ -24,6 +24,11 @@
     { id: 'smallShelf', name: '小さな棚', category: '完成品', mark: '棚' },
     { id: 'upholsteredStool', name: '布張りスツール', category: '完成品', mark: '椅' }
   ];
+  const crops = [
+    { id: 'potato', name: 'じゃがいも', growDays: 2, mark: '芋' },
+    { id: 'carrot', name: 'にんじん', growDays: 3, mark: '人' },
+    { id: 'wheat', name: '小麦', growDays: 4, mark: '麦' }
+  ];
   const recipes = [
     { id: 'wood', input: 'branch', cost: 2, group: '木のしごと' },
     { id: 'plank', input: 'wood', cost: 1, group: '木のしごと' },
@@ -270,11 +275,32 @@
   const gatherLimit = state => dailyUnlocked(state) ? UNLOCKED_DAILY_GATHERS : DAILY_GATHERS;
   const DAILY_REQUEST_SLOTS = 3;
   const SAVE_VERSION = 2;
-  const fresh = () => ({ saveVersion: SAVE_VERSION, introViewed: false, inventory: Object.fromEntries(items.map(item => [item.id, 0])), completed: [], unlockedStage: 1, day: 1, gathersLeft: DAILY_GATHERS, gatherLimit: DAILY_GATHERS, dailyRequests: [], dailyHistory: [], dailyRequestCounts: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, 0])), thankYouEventViewed: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, false])), storyProgress: { ...Object.fromEntries(Object.keys(storyMilestones).map(id => [`${id}Viewed`, false])), ...Object.fromEntries(Object.keys(storyRequests).flatMap(id => [[`${id}Completed`, false], [`${id}EventViewed`, false]])) }, discovered: [] });
+  const fresh = () => ({ saveVersion: SAVE_VERSION, introViewed: false, inventory: Object.fromEntries([...items, ...crops].map(item => [item.id, 0])), plots: [null, null, null], completed: [], unlockedStage: 1, day: 1, gathersLeft: DAILY_GATHERS, gatherLimit: DAILY_GATHERS, dailyRequests: [], dailyHistory: [], dailyRequestCounts: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, 0])), thankYouEventViewed: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, false])), storyProgress: { ...Object.fromEntries(Object.keys(storyMilestones).map(id => [`${id}Viewed`, false])), ...Object.fromEntries(Object.keys(storyRequests).flatMap(id => [[`${id}Completed`, false], [`${id}EventViewed`, false]])) }, discovered: [] });
   const canViewThankYou = (state, id) => !!dailyResidents[id] && state.dailyRequestCounts[id] >= 5 && !state.thankYouEventViewed[id];
   const completedThankYouCount = state => Object.keys(dailyResidents).filter(id => state.thankYouEventViewed[id]).length;
   const dailyResidentWeight = (state, id) => state.thankYouEventViewed[id] ? 1 : 2;
   const postgameUnlocked = state => state.storyProgress.milestone8EventViewed === true;
+  const validDay = value => Number.isSafeInteger(value) && value >= 1 || typeof value === 'string' && /^[1-9][0-9]*$/.test(value);
+  function cropDaysLeft(state, index) {
+    const plot = state.plots[index];
+    const crop = plot && crops.find(entry => entry.id === plot.cropId);
+    if (!crop) return null;
+    const remaining = BigInt(crop.growDays) - (BigInt(state.day) - BigInt(plot.plantedDay));
+    return Number(remaining > 0n ? remaining : 0n);
+  }
+  function plantCrop(state, index, cropId) {
+    if (!postgameUnlocked(state) || !Number.isInteger(index) || index < 0 || index >= 3 || state.plots[index] !== null || !crops.some(crop => crop.id === cropId)) return false;
+    state.plots[index] = { cropId, plantedDay: state.day };
+    return true;
+  }
+  function harvestCrop(state, index) {
+    if (!postgameUnlocked(state) || !Number.isInteger(index) || index < 0 || index >= 3 || cropDaysLeft(state, index) !== 0) return false;
+    const cropId = state.plots[index].cropId;
+    if (!Number.isSafeInteger(state.inventory[cropId]) || state.inventory[cropId] > Number.MAX_SAFE_INTEGER - 2) return false;
+    state.inventory[cropId] += 2;
+    state.plots[index] = null;
+    return true;
+  }
   const storyUnlocked = (state, id) => !!storyMilestones[id] && completedThankYouCount(state) >= storyMilestones[id].requiredThankYous && (!storyMilestones[id].prerequisite || state.storyProgress[storyMilestones[id].prerequisite] === true);
   const canViewStory = (state, id) => storyUnlocked(state, id) && !state.storyProgress[`${id}Viewed`];
   const storyRequestUnlocked = (state, id) => !!storyRequests[id] && completedThankYouCount(state) >= storyRequests[id].requiredThankYous && state.storyProgress[`${storyRequests[id].prerequisite}Viewed`] === true;
@@ -412,7 +438,7 @@
     if (Number.isSafeInteger(data.day) && data.day >= 1) state.day = data.day;
     // 非常に大きい日数も文字列として保存し、上限を設けずに進められる。
     else if (typeof data.day === 'string' && /^[1-9][0-9]*$/.test(data.day)) state.day = data.day;
-    for (const item of items) {
+    for (const item of [...items, ...crops]) {
       const n = data.inventory?.[item.id];
       if (Number.isSafeInteger(n) && n >= 0) state.inventory[item.id] = n;
     }
@@ -440,6 +466,13 @@
         state.storyProgress[`${id}Completed`] = true;
         if (data.storyProgress?.[`${id}EventViewed`] === true) state.storyProgress[`${id}EventViewed`] = true;
       }
+    }
+    if (Array.isArray(data.plots) && data.plots.length === 3 && postgameUnlocked(state)) {
+      state.plots = data.plots.map(plot => {
+        if (plot === null) return null;
+        if (!plot || !crops.some(crop => crop.id === plot.cropId) || !validDay(plot.plantedDay) || BigInt(plot.plantedDay) > BigInt(state.day)) return null;
+        return { cropId: plot.cropId, plantedDay: plot.plantedDay };
+      });
     }
     if (dailyUnlocked(state) && Array.isArray(data.dailyRequests)) {
       const slots = data.dailyRequests.filter(slot => slot && dailyTemplate(slot.templateId)).map(slot => ({ templateId: slot.templateId, completed: slot.completed === true }));
@@ -498,7 +531,7 @@
     state.dailyRequestCounts[request.resident] = Math.min(Number.MAX_SAFE_INTEGER, state.dailyRequestCounts[request.resident] + 1);
     return true;
   }
-  const game = { items, recipes, requests, dailyResidents, dailyRequestPool, thankYouEvents, storyMilestones, storyRequests, fresh, restore, gather, craft, deliver, deliverDaily, deliverStoryRequest, rest, completeThankYou, canViewThankYou, completedThankYouCount, dailyResidentWeight, postgameUnlocked, completeStory, canViewStory, storyUnlocked, storyRequestUnlocked, canViewStoryRequestCompletion, completeStoryRequestEvent, SAVE_VERSION, DAILY_GATHERS, DAILY_REQUEST_SLOTS, gatherLimit, ingredients, maxCraft, stageTwoUnlocked, stageUnlocked, unlockedStage, visibleRequests, dailyUnlocked, ensureDailyRequests, refreshDailyRequests, currentDailyRequests };
+  const game = { items, crops, recipes, requests, dailyResidents, dailyRequestPool, thankYouEvents, storyMilestones, storyRequests, fresh, restore, gather, craft, deliver, deliverDaily, deliverStoryRequest, rest, plantCrop, harvestCrop, cropDaysLeft, completeThankYou, canViewThankYou, completedThankYouCount, dailyResidentWeight, postgameUnlocked, completeStory, canViewStory, storyUnlocked, storyRequestUnlocked, canViewStoryRequestCompletion, completeStoryRequestEvent, SAVE_VERSION, DAILY_GATHERS, DAILY_REQUEST_SLOTS, gatherLimit, ingredients, maxCraft, stageTwoUnlocked, stageUnlocked, unlockedStage, visibleRequests, dailyUnlocked, ensureDailyRequests, refreshDailyRequests, currentDailyRequests };
   if (typeof module !== 'undefined' && module.exports) module.exports = game;
   else root.MioGame = game;
 })(typeof window !== 'undefined' ? window : globalThis);
