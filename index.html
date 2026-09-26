@@ -4,23 +4,23 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#496b53">
-  <title>MioVerse 小径の工房</title>
+  <title>Mio Verse 小径の工房</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="workshop-theme.css?v=story-ending-1">
-  <script src="game.js?v=story-ending-1" defer></script>
-  <script src="app.js?v=story-ending-1" defer></script>
+  <link rel="stylesheet" href="workshop-theme.css?v=intro-world-name-1">
+  <script src="game.js?v=intro-world-name-1" defer></script>
+  <script src="app.js?v=intro-world-name-1" defer></script>
 </head>
 <body>
   <div class="app-shell">
-    <header class="site-header"><a href="#home" class="brand">MioVerse <span>小径の工房</span></a><span class="prototype">PROTOTYPE 01</span></header>
+    <header class="site-header"><a href="#home" class="brand">Mio Verse <span>小径の工房</span></a><span class="prototype">PROTOTYPE 01</span></header>
     <div class="layout">
       <aside class="sidebar"><p class="eyebrow">森のそば、小さな暮らし。</p><nav aria-label="メインメニュー" id="navigation"></nav><div class="sidebar-note">ひとつずつ、好きなペースで。<br>採集は1日<span id="gather-limit-note">3</span>回。加工・納品は何度でも。<br>依頼に期限はありません。</div><p id="save-status" class="save-status"></p></aside>
       <main id="main" tabindex="-1"></main>
     </div>
-    <footer>MIOverse · GATHER, CRAFT & GIVE <span>採集と生産の生活ゲーム / 試作版</span></footer>
+    <footer>Mio Verse · GATHER, CRAFT & GIVE <span>採集と生産の生活ゲーム / 試作版</span></footer>
   </div>
   <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
   <dialog id="rest-dialog" aria-labelledby="rest-title" aria-describedby="rest-description">
@@ -38,7 +38,7 @@
   </dialog>
   <dialog id="story-dialog" aria-labelledby="story-dialog-title">
     <div id="story-dialog-content"></div>
-    <div class="story-dialog-actions"><button class="secondary" data-action="story-close">あとで読む</button><button id="story-complete-button" data-action="story-complete">工房へ戻る</button></div>
+    <div class="story-dialog-actions"><button id="story-close-button" class="secondary" data-action="story-close">あとで読む</button><button id="story-complete-button" data-action="story-complete">工房へ戻る</button></div>
   </dialog>
 </body>
 </html>

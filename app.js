@@ -3,6 +3,16 @@ const G = window.MioGame;
 const SAVE_KEY = 'mioverse-craft-v1';
 const names = Object.fromEntries(G.items.map(i => [i.id, i.name]));
 const pages = [['home', '工房', '01'], ['gather', '採集', '02'], ['craft', '加工', '03'], ['inventory', '在庫', '04'], ['requests', '依頼', '05'], ['encyclopedia', '図鑑', '06']];
+const introEvent = {
+  title: '小径の工房',
+  paragraphs: [
+    '森の小径の先に、\n小さな工房がある。',
+    'ここでできることは、\nまだそれほど多くない。',
+    '森で素材を集めて、\n手を動かして、\n暮らしの道具を作る。',
+    'そして、\n必要としている誰かへ届ける。',
+    'お願いをひとつずつ叶えながら、\nこの場所で過ごす時間が始まる。'
+  ]
+};
 const navIcons = {
   home: '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 21v-7h6v7"/>',
   gather: '<path d="M20 4c-8 0-15 3-15 11a5 5 0 0 0 5 5c8 0 11-7 10-16Z"/><path d="M4 21c3-5 7-8 12-11"/>',
@@ -35,6 +45,7 @@ const thankYouDialog = document.getElementById('thank-you-dialog');
 const storyDialog = document.getElementById('story-dialog');
 thankYouDialog.addEventListener?.('close', () => { activeThankYouResidentId = null; });
 storyDialog.addEventListener?.('close', () => { activeStoryMilestoneId = null; });
+storyDialog.addEventListener?.('cancel', event => { if (activeStoryMilestoneId === 'intro') event.preventDefault(); });
 const dayStatus = () => `<section class="day-status" aria-label="今日の状態"><div><strong>${state.day}日目</strong><span>今日の採集（残り） ${state.gathersLeft} / ${G.gatherLimit(state)}</span></div>${currentPage === 'home' ? '<button data-action="rest">今日は休む</button>' : ''}</section>`;
 const count = id => state.inventory[id];
 const requestTotal = () => G.visibleRequests(state).length;
@@ -77,7 +88,7 @@ function notify(message) {
 }
 function home() {
   const done = state.completed.length;
-  return `${dayStatus()}<section class="hero"><p class="eyebrow">A LITTLE WORKSHOP IN THE WOODS</p><h1>森の恵みで、<br>暮らしをひとつ。</h1><p>小径で集めて、工房でつくる。<br>あなたの手仕事を、住人たちが待っています。</p>${link('gather', '森の小径へ')}<span class="hero-stamp" aria-hidden="true">森<br>と<br>暮らす</span></section>${state.storyProgress.milestone8Completed ? '<div class="workshop-sign"><small>MioVerse</small><strong>小径の工房</strong></div>' : ''}
+  return `${dayStatus()}<section class="hero"><p class="eyebrow">A LITTLE WORKSHOP IN THE WOODS</p><h1>森の恵みで、<br>暮らしをひとつ。</h1><p>小径で集めて、工房でつくる。<br>あなたの手仕事を、住人たちが待っています。</p>${link('gather', '森の小径へ')}<span class="hero-stamp" aria-hidden="true">森<br>と<br>暮らす</span></section>${state.storyProgress.milestone8Completed ? '<div class="workshop-sign"><small>Mio Verse</small><strong>小径の工房</strong></div>' : ''}
     <div class="stats"><div><span>在庫の合計</span><strong>${total()} <small>個</small></strong></div><div><span>住人へのお届け</span><strong>${done} <small>/ ${requestTotal()} 件</small></strong></div><div><span>今日のペース</span><strong class="slow">のんびり</strong></div></div>
     <section><div class="section-title"><h2>工房での過ごし方</h2><span>急がず、ひとつずつ</span></div><div class="steps"><a href="#gather"><span class="step-number">01 / GATHER</span><h3>森で集める</h3><p>枝、ツル草、野花。<br>好きな素材を選んで採集。</p><span class="text-link">採集へ →</span></a><a href="#craft"><span class="step-number">02 / CRAFT</span><h3>手を動かす</h3><p>素材を少しずつ加工して、<br>暮らしの道具をつくる。</p><span class="text-link">加工へ →</span></a><a href="#requests"><span class="step-number">03 / GIVE</span><h3>住人へ届ける</h3><p>できあがった品物で、<br>小さなお願いを叶える。</p><span class="text-link">依頼へ →</span></a></div></section>
     <section class="note"><span class="note-icon" aria-hidden="true">✳</span><div><h3>${done === G.requests.length ? '日常のお願いが届いています' : G.stageTwoUnlocked(state) ? '新しい3件のお願いが届いています' : 'はじめのひと品に、布袋はいかが？'}</h3><p>${done === G.requests.length ? '8人の住人から届く日常のお願いのうち、3件を受け付けます。お届け済みの枠は「今日は休む」と翌日に入れ替わります。' : G.stageTwoUnlocked(state) ? (state.unlockedStage === 3 ? '乾燥花はリースに、小箱は布張りに。素材の使い道を選びながら、新しい品物をつくってみましょう。' : '布と染料、そして木材。素材を組み合わせて、窓辺や壁を彩る品物をつくってみましょう。') : 'ツル草を1回採集 → 植物繊維を2個 → 糸を2個 → 布を1個 → 布袋を1個。ナカちゃんに届けてみましょう。'}</p></div></section>`;
@@ -146,7 +157,8 @@ function openThankYouDialog(id) {
 function showStoryDialog(id, event, label) {
   activeStoryMilestoneId = id;
   document.getElementById('story-dialog-content').innerHTML = `<p class="eyebrow">${label}</p><h2 id="story-dialog-title" tabindex="-1">${event.title}</h2><div class="story-dialog-body">${event.paragraphs.map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`).join('')}</div>${event.reward ? `<div class="story-reward"><h3>住人たちからの差し入れ</h3><ul>${event.reward.map(item => `<li>${names[item.id]} ×${item.quantity}</li>`).join('')}</ul></div>` : ''}`;
-  document.getElementById('story-complete-button').textContent = id === 'milestone8' ? 'これからも工房で暮らす' : event.reward ? '受け取る' : '工房へ戻る';
+  document.getElementById('story-close-button').hidden = id === 'intro';
+  document.getElementById('story-complete-button').textContent = id === 'intro' ? '工房へ入る' : id === 'milestone8' ? 'これからも工房で暮らす' : event.reward ? '受け取る' : '工房へ戻る';
   storyDialog.showModal();
   document.getElementById('story-dialog-title').focus({ preventScroll: true });
   storyDialog.scrollTop = 0;
@@ -236,6 +248,15 @@ document.addEventListener('click', event => {
   if (action === 'story-close') { storyDialog.close(); activeStoryMilestoneId = null; return; }
   if (action === 'story-complete') {
     if (!storyDialog.open) return;
+    if (activeStoryMilestoneId === 'intro') {
+      state.introViewed = true;
+      storyDialog.close();
+      activeStoryMilestoneId = null;
+      save();
+      location.hash = '#home';
+      navigate();
+      return;
+    }
     const completed = G.storyRequests[activeStoryMilestoneId] ? G.completeStoryRequestEvent(state, activeStoryMilestoneId) : G.completeStory(state, activeStoryMilestoneId);
     if (!completed) return;
     storyDialog.close();
@@ -300,3 +321,4 @@ window.addEventListener('hashchange', () => {
   else { document.getElementById('main').focus({ preventScroll: true }); window.scrollTo(0, 0); }
 });
 navigate();
+if (!state.introViewed) showStoryDialog('intro', introEvent, '物語のはじまり');

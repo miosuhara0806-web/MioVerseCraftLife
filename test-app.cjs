@@ -32,10 +32,34 @@ function launch() {
     thankYouDialogHtml() { return node('thank-you-dialog-content').innerHTML; },
     storyDialogOpen() { return node('story-dialog').open; },
     storyDialogHtml() { return node('story-dialog-content').innerHTML; },
+    storyCloseHidden() { return node('story-close-button').hidden; },
     storyCompleteLabel() { return node('story-complete-button').textContent; }
   };
 }
 let app = launch();
+assert.equal(app.storyDialogOpen(), true, '完全新規ではイントロを開く');
+assert.ok(app.storyDialogHtml().includes('小径の工房'));
+assert.ok(app.storyDialogHtml().includes('この場所で過ごす時間が始まる。'));
+assert.equal(app.storyCompleteLabel(), '工房へ入る');
+assert.equal(app.storyCloseHidden(), true, 'イントロは開始ボタンから進む');
+assert.equal(app.state().introViewed, false, '開いただけでは未閲覧');
+app.click('story-complete');
+assert.equal(app.storyDialogOpen(), false);
+assert.equal(app.state().introViewed, true);
+assert.equal(app.state().day, 1);
+app = launch();
+assert.equal(app.storyDialogOpen(), false, '再読み込みでイントロを再表示しない');
+const legacyBeforeIntro = { ...G.fresh(), day: 23, introViewed: undefined };
+legacyBeforeIntro.inventory.branch = 7;
+saved.set('mioverse-craft-v1', JSON.stringify(legacyBeforeIntro));
+app = launch();
+assert.equal(app.storyDialogOpen(), false, '旧セーブはイントロなしで再開');
+assert.equal(app.state().introViewed, true);
+assert.equal(app.state().day, 23);
+assert.equal(app.state().inventory.branch, 7);
+saved.clear();
+app = launch();
+app.click('story-complete');
 function gatherForLoop(id) {
   if (app.state().gathersLeft === 0) { app.page('home'); app.click('rest'); app.click('rest-confirm'); }
   app.click('gather', id);

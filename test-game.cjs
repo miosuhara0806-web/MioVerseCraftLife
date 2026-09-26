@@ -1,6 +1,15 @@
 const assert = require('node:assert/strict');
 const G = require('./game.js');
 const s = G.fresh();
+assert.equal(s.introViewed, false, '完全新規ではイントロ未閲覧');
+const legacyIntroSave = { ...G.fresh(), day: 17, introViewed: undefined };
+legacyIntroSave.inventory.branch = 4;
+const legacyIntroRestored = G.restore(legacyIntroSave);
+assert.equal(legacyIntroRestored.introViewed, true, '旧セーブにはイントロを出さない');
+assert.equal(legacyIntroRestored.day, 17);
+assert.equal(legacyIntroRestored.inventory.branch, 4);
+assert.equal(G.restore(G.fresh()).introViewed, false, '新規の未完了イントロは維持');
+assert.equal(G.restore({ ...G.fresh(), introViewed: true }).introViewed, true, '完了済みは維持');
 assert.equal(G.craft(s, 'box'), false);
 assert.equal(G.deliver(s, 'naka'), false);
 G.gather(s, 'vine');
