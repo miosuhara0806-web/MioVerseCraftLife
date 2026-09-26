@@ -809,3 +809,66 @@ assert.equal(fullStock.inventory.potato, Number.MAX_SAFE_INTEGER - 1);
 assert.equal(fullStock.plots[0].cropId, 'potato');
 assert.equal(G.SAVE_VERSION, 2, '既存セーブバージョンは維持');
 console.log('PASS: postgame garden unlock, legacy save, three crop durations, rest growth, exact harvest, empty reuse and reload');
+
+const gardenIds = new Set(G.gardenDailyRequestPool.map(request => request.id));
+const isGardenRequest = request => gardenIds.has(request.id);
+const sequence = (...values) => { let index = 0; return () => values[index++] ?? 0.5; };
+assert.equal(G.GARDEN_REQUEST_CHANCE, 0.35);
+assert.deepEqual(G.gardenDailyRequestPool.map(request => [request.item, request.quantity]), [['potato', 2], ['carrot', 2], ['wheat', 2]]);
+assert.ok(G.gardenDailyRequestPool.every(request => request.source === 'garden'));
+
+const preClearGardenGuard = G.restore({ ...oldCompleteSave, dailyRequests: [
+  { templateId: 'daily-garden-naka-potato', completed: false },
+  { templateId: 'daily-ritsu-thread', completed: false },
+  { templateId: 'daily-towa-box', completed: false }
+] }, () => 0);
+assert.equal(G.postgameUnlocked(preClearGardenGuard), false);
+assert.equal(G.currentDailyRequests(preClearGardenGuard).some(isGardenRequest), false, '本編未クリアでは保存値からも畑依頼を出さない');
+
+const postgameRequestSeed = JSON.parse(JSON.stringify(finalReload));
+postgameRequestSeed.dailyRequests = [];
+postgameRequestSeed.dailyHistory = [];
+const generatedCropItems = [];
+for (const gardenRoll of [0, 0.4, 0.9]) {
+  const draw = G.restore(postgameRequestSeed, sequence(0, gardenRoll, 0.2, 0.8));
+  const requests = G.currentDailyRequests(draw);
+  const gardenRequests = requests.filter(isGardenRequest);
+  assert.equal(gardenRequests.length, 1, '裏庭解放後も畑依頼は最大1枠');
+  assert.equal(requests.filter(request => !isGardenRequest(request)).length, 2, '残り2枠は従来依頼');
+  assert.equal(new Set(requests.map(request => request.resident)).size, 3, '畑依頼を含めても住人は重複しない');
+  generatedCropItems.push(gardenRequests[0].item);
+}
+assert.deepEqual(generatedCropItems, ['potato', 'carrot', 'wheat'], '3種類の収穫物依頼を生成できる');
+
+let gardenDays = 0;
+for (let roll = 0; roll < 1000; roll++) {
+  const draw = G.restore(postgameRequestSeed, sequence(roll / 1000, 0, 0.2, 0.8));
+  if (G.currentDailyRequests(draw).some(isGardenRequest)) gardenDays++;
+}
+assert.equal(gardenDays, 350, '畑依頼は35%の確率で1枠混ざる');
+
+const gardenDelivery = G.restore(postgameRequestSeed, sequence(0, 0, 0.2, 0.8));
+const potatoRequest = G.currentDailyRequests(gardenDelivery).find(request => request.item === 'potato');
+const nakaCountBeforeGarden = gardenDelivery.dailyRequestCounts.naka;
+gardenDelivery.inventory.potato = 1;
+assert.equal(G.deliverDaily(gardenDelivery, potatoRequest.id), false, '収穫物不足では納品不可');
+assert.equal(gardenDelivery.inventory.potato, 1);
+assert.equal(gardenDelivery.dailyRequestCounts.naka, nakaCountBeforeGarden);
+gardenDelivery.inventory.potato = 2;
+assert.equal(G.deliverDaily(gardenDelivery, potatoRequest.id), true);
+assert.equal(gardenDelivery.inventory.potato, 0, 'じゃがいもを2個だけ消費');
+assert.equal(gardenDelivery.dailyRequestCounts.naka, nakaCountBeforeGarden + 1, '通常依頼と同じキャラクター進捗を加算');
+assert.equal(G.dailyResidentWeight(gardenDelivery, 'naka'), 1, 'お礼済みキャラの抽選重みを維持');
+assert.equal(G.deliverDaily(gardenDelivery, potatoRequest.id), false, '畑依頼も二重納品不可');
+const gardenDeliveryReload = G.restore(JSON.parse(JSON.stringify(gardenDelivery)));
+assert.equal(G.currentDailyRequests(gardenDeliveryReload).find(request => request.id === potatoRequest.id).completed, true, '畑依頼の達成状態を再読込で維持');
+assert.equal(gardenDeliveryReload.dailyRequestCounts.naka, nakaCountBeforeGarden + 1);
+
+const carriedGarden = G.restore(postgameRequestSeed, sequence(0, 0.4, 0.2, 0.8));
+const carriedGardenId = G.currentDailyRequests(carriedGarden).find(isGardenRequest).id;
+for (const slot of carriedGarden.dailyRequests) slot.completed = slot.templateId !== carriedGardenId;
+G.rest(carriedGarden, () => 0);
+assert.equal(G.currentDailyRequests(carriedGarden).filter(isGardenRequest).length, 1, '未達成の畑依頼がある日は追加しない');
+assert.ok(G.currentDailyRequests(carriedGarden).some(request => request.id === carriedGardenId), '未達成の畑依頼を持ち越す');
+assert.equal(G.currentDailyRequests(carriedGarden).filter(request => !isGardenRequest(request)).length, 2);
+console.log('PASS: postgame-only garden daily requests, 35-percent cap, all crops, delivery, character progress and reload');

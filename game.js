@@ -262,6 +262,12 @@
     { id: 'daily-alto-small-shelf', resident: 'alto', item: 'smallShelf', quantity: 1, title: '制作途中の置き場所', message: '小さな棚をひとつ作ってくれる？　制作途中のものを、手の届くところに置いておきたいんだ', thanks: 'いいね。これなら作業の流れを止めずに済みそうだ。ありがとう、美桜' },
     { id: 'daily-kuroko-upholstered-stool', resident: 'kuroko', item: 'upholsteredStool', quantity: 1, title: '観測席にもう一脚', message: '布張りのスツールをひとつ頼めるか、美桜。観測席に、もう一脚くらいあってもいい', thanks: '悪くないな。席が増えたからって、観客を増やすつもりはないけどな' }
   ];
+  const gardenDailyRequestPool = [
+    { id: 'daily-garden-naka-potato', resident: 'naka', item: 'potato', quantity: 2, source: 'garden', title: 'じゃがいもを少し', message: 'じゃがいもを二つ分けてくれる？　少し手元に置いておきたいんだ', thanks: 'わあ、ありがとう！　大事に持って帰るね。' },
+    { id: 'daily-garden-ritsu-carrot', resident: 'ritsu', item: 'carrot', quantity: 2, source: 'garden', title: '保存しておくにんじん', message: 'にんじんを二つ分けてくれるか？　しばらく手元に置いておきたい', thanks: '助かった。これなら必要な時に使える。' },
+    { id: 'daily-garden-aoi-wheat', resident: 'aoiDoctor', item: 'wheat', quantity: 2, source: 'garden', title: '小麦を観察したい', message: '美桜さん、小麦を二つ分けてもらえますか？　育ったものを手元で観察してみたいんです', thanks: 'ありがとうございます！　育ち方の違いまで、じっくり記録してみます' }
+  ];
+  const allDailyRequestPool = [...dailyRequestPool, ...gardenDailyRequestPool];
   // その段階より前の依頼をすべて納品していることを条件にする。
   const stageUnlocked = (state, stage) => requests.filter(r => (r.stage || 1) < stage).every(r => state.completed.includes(r.id));
   const stageTwoUnlocked = state => stageUnlocked(state, 2);
@@ -274,6 +280,7 @@
   const UNLOCKED_DAILY_GATHERS = 5;
   const gatherLimit = state => dailyUnlocked(state) ? UNLOCKED_DAILY_GATHERS : DAILY_GATHERS;
   const DAILY_REQUEST_SLOTS = 3;
+  const GARDEN_REQUEST_CHANCE = 0.35;
   const SAVE_VERSION = 2;
   const fresh = () => ({ saveVersion: SAVE_VERSION, introViewed: false, inventory: Object.fromEntries([...items, ...crops].map(item => [item.id, 0])), plots: [null, null, null], completed: [], unlockedStage: 1, day: 1, gathersLeft: DAILY_GATHERS, gatherLimit: DAILY_GATHERS, dailyRequests: [], dailyHistory: [], dailyRequestCounts: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, 0])), thankYouEventViewed: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, false])), storyProgress: { ...Object.fromEntries(Object.keys(storyMilestones).map(id => [`${id}Viewed`, false])), ...Object.fromEntries(Object.keys(storyRequests).flatMap(id => [[`${id}Completed`, false], [`${id}EventViewed`, false]])) }, discovered: [] });
   const canViewThankYou = (state, id) => !!dailyResidents[id] && state.dailyRequestCounts[id] >= 5 && !state.thankYouEventViewed[id];
@@ -347,7 +354,9 @@
     state.dailyRequests.filter(slot => slot.completed).forEach(slot => includeWithIngredients(dailyTemplate(slot.templateId).item));
     return items.filter(item => found.has(item.id)).map(item => item.id);
   }
-  const dailyTemplate = id => dailyRequestPool.find(request => request.id === id);
+  const dailyTemplate = id => allDailyRequestPool.find(request => request.id === id);
+  const isGardenDailyRequest = request => request?.source === 'garden';
+  const dailyRequestAvailable = (state, request) => !!request && (!isGardenDailyRequest(request) || postgameUnlocked(state));
   const currentDailyRequests = state => state.dailyRequests.map(slot => {
     const request = dailyTemplate(slot.templateId);
     return { ...dailyResidents[request.resident], ...request, completed: slot.completed };
@@ -356,9 +365,9 @@
     state.dailyHistory.push(id);
     state.dailyHistory = state.dailyHistory.slice(-12);
   }
-  function chooseDaily(state, excludedIds, excludedItems, excludedResidents, previousId, random) {
+  function chooseDaily(state, excludedIds, excludedItems, excludedResidents, previousId, random, pool = dailyRequestPool) {
     const recent = new Set(state.dailyHistory.slice(-6));
-    const base = dailyRequestPool.filter(request => request.id !== previousId && !excludedIds.has(request.id));
+    const base = pool.filter(request => request.id !== previousId && !excludedIds.has(request.id));
     const groups = [
       base.filter(request => !recent.has(request.id) && !excludedItems.has(request.item) && !excludedResidents.has(request.resident)),
       base.filter(request => !excludedItems.has(request.item) && !excludedResidents.has(request.resident)),
@@ -369,7 +378,7 @@
       base.filter(request => !recent.has(request.id)),
       base
     ];
-    const candidates = groups.find(group => group.length) || dailyRequestPool;
+    const candidates = groups.find(group => group.length) || pool;
     const requestCounts = Object.create(null);
     for (const request of candidates) requestCounts[request.resident] = (requestCounts[request.resident] || 0) + 1;
     // 依頼数の多い住人が有利にならないよう、各住人の重みを候補依頼へ均等に配る。
@@ -386,13 +395,16 @@
   function ensureDailyRequests(state, random = Math.random) {
     if (!dailyUnlocked(state)) return false;
     const requestIds = new Set(state.dailyRequests.map(slot => slot.templateId));
-    if (state.dailyRequests.length === DAILY_REQUEST_SLOTS && requestIds.size === DAILY_REQUEST_SLOTS && state.dailyRequests.every(slot => dailyTemplate(slot.templateId))) return false;
+    const gardenCount = state.dailyRequests.filter(slot => isGardenDailyRequest(dailyTemplate(slot.templateId))).length;
+    if (state.dailyRequests.length === DAILY_REQUEST_SLOTS && requestIds.size === DAILY_REQUEST_SLOTS && gardenCount <= 1 && state.dailyRequests.every(slot => dailyRequestAvailable(state, dailyTemplate(slot.templateId)))) return false;
     state.dailyRequests = [];
     const usedIds = new Set();
     const usedItems = new Set();
     const usedResidents = new Set();
+    const includeGarden = postgameUnlocked(state) && Number(random()) < GARDEN_REQUEST_CHANCE;
     for (let index = 0; index < DAILY_REQUEST_SLOTS; index++) {
-      const request = chooseDaily(state, usedIds, usedItems, usedResidents, null, random);
+      const pool = includeGarden && index === 0 ? gardenDailyRequestPool : dailyRequestPool;
+      const request = chooseDaily(state, usedIds, usedItems, usedResidents, null, random, pool);
       state.dailyRequests.push({ templateId: request.id, completed: false });
       usedIds.add(request.id);
       usedItems.add(request.item);
@@ -415,11 +427,16 @@
       usedItems.add(request.item);
       usedResidents.add(request.resident);
     }
+    const completedSlots = state.dailyRequests.filter(slot => slot.completed);
+    const hasGardenRequest = state.dailyRequests.some(slot => !slot.completed && isGardenDailyRequest(dailyTemplate(slot.templateId)));
+    let gardenPending = completedSlots.length > 0 && !hasGardenRequest && postgameUnlocked(state) && Number(random()) < GARDEN_REQUEST_CHANCE;
     let changed = false;
     for (const slot of state.dailyRequests) {
       if (!slot.completed) continue;
       const previous = dailyTemplate(slot.templateId);
-      const replacement = chooseDaily(state, usedIds, usedItems, usedResidents, previous.id, random);
+      const pool = gardenPending ? gardenDailyRequestPool : dailyRequestPool;
+      const replacement = chooseDaily(state, usedIds, usedItems, usedResidents, previous.id, random, pool);
+      gardenPending = false;
       slot.templateId = replacement.id;
       slot.completed = false;
       usedIds.add(replacement.id);
@@ -475,7 +492,7 @@
       });
     }
     if (dailyUnlocked(state) && Array.isArray(data.dailyRequests)) {
-      const slots = data.dailyRequests.filter(slot => slot && dailyTemplate(slot.templateId)).map(slot => ({ templateId: slot.templateId, completed: slot.completed === true }));
+      const slots = data.dailyRequests.filter(slot => slot && dailyRequestAvailable(state, dailyTemplate(slot.templateId))).map(slot => ({ templateId: slot.templateId, completed: slot.completed === true }));
       if (slots.length === DAILY_REQUEST_SLOTS && new Set(slots.map(slot => slot.templateId)).size === DAILY_REQUEST_SLOTS) state.dailyRequests = slots;
     }
     state.discovered = Array.isArray(data.discovered)
@@ -531,7 +548,7 @@
     state.dailyRequestCounts[request.resident] = Math.min(Number.MAX_SAFE_INTEGER, state.dailyRequestCounts[request.resident] + 1);
     return true;
   }
-  const game = { items, crops, recipes, requests, dailyResidents, dailyRequestPool, thankYouEvents, storyMilestones, storyRequests, fresh, restore, gather, craft, deliver, deliverDaily, deliverStoryRequest, rest, plantCrop, harvestCrop, cropDaysLeft, completeThankYou, canViewThankYou, completedThankYouCount, dailyResidentWeight, postgameUnlocked, completeStory, canViewStory, storyUnlocked, storyRequestUnlocked, canViewStoryRequestCompletion, completeStoryRequestEvent, SAVE_VERSION, DAILY_GATHERS, DAILY_REQUEST_SLOTS, gatherLimit, ingredients, maxCraft, stageTwoUnlocked, stageUnlocked, unlockedStage, visibleRequests, dailyUnlocked, ensureDailyRequests, refreshDailyRequests, currentDailyRequests };
+  const game = { items, crops, recipes, requests, dailyResidents, dailyRequestPool, gardenDailyRequestPool, thankYouEvents, storyMilestones, storyRequests, fresh, restore, gather, craft, deliver, deliverDaily, deliverStoryRequest, rest, plantCrop, harvestCrop, cropDaysLeft, completeThankYou, canViewThankYou, completedThankYouCount, dailyResidentWeight, postgameUnlocked, completeStory, canViewStory, storyUnlocked, storyRequestUnlocked, canViewStoryRequestCompletion, completeStoryRequestEvent, SAVE_VERSION, DAILY_GATHERS, DAILY_REQUEST_SLOTS, GARDEN_REQUEST_CHANCE, gatherLimit, ingredients, maxCraft, stageTwoUnlocked, stageUnlocked, unlockedStage, visibleRequests, dailyUnlocked, ensureDailyRequests, refreshDailyRequests, currentDailyRequests };
   if (typeof module !== 'undefined' && module.exports) module.exports = game;
   else root.MioGame = game;
 })(typeof window !== 'undefined' ? window : globalThis);
