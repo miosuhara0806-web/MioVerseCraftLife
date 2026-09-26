@@ -100,6 +100,35 @@
       ]
     }
   };
+  const storyRequests = {
+    milestone4: {
+      requiredThankYous: 4,
+      prerequisite: 'milestone2',
+      title: '工房の一角を整える',
+      paragraphs: [
+        '工房には、\n今日も道具や素材が並んでいる。',
+        '誰かのお願いを聞いて、\n作って、届ける。',
+        'そんな日々を重ねるうちに、\nこの場所を訪れる人とのつながりも\n少しずつ増えてきた。',
+        '「作業をするだけじゃなくて、\n少し座ったり、\nゆっくり話したりできる場所があってもいいかもしれない」',
+        '工房の一角を、\nほんの少しだけ整えてみることにした。'
+      ],
+      requirements: [
+        { id: 'smallShelf', quantity: 1 },
+        { id: 'upholsteredStool', quantity: 1 },
+        { id: 'cushion', quantity: 1 }
+      ],
+      completion: {
+        title: '少しだけ、居心地よく',
+        paragraphs: [
+          '小さな棚には、\n工房で使う道具がきれいに収まった。',
+          'そのそばには、\n布張りのスツールとクッション。',
+          '作るためだけだった工房に、\nほんの少しだけ\n「過ごすための場所」が増えた。',
+          '誰かがここを訪れた時、\n少し腰を下ろして、\nゆっくり話せるかもしれない。',
+          '小径の工房は、\nまた少しだけ、\n暮らしの中の場所になった。'
+        ]
+      }
+    }
+  };
   const dailyRequestPool = [
     { id: 'daily-naka-bag', resident: 'naka', item: 'bag', quantity: 1, title: 'お出かけの小さな袋', message: '布袋をひとつお願いしてもいい？　ちょっとした物を入れて歩きたいんだ', thanks: 'ありがとう！　これなら身軽に出かけられそう。' },
     { id: 'daily-naka-dry-flower', resident: 'naka', item: 'dryFlower', quantity: 2, title: '花をそっと飾りたい', message: '乾燥花を二つ分けてくれる？　小さく束ねて飾りたいな', thanks: 'いい色だね。部屋が少し明るくなりそう！' },
@@ -160,11 +189,25 @@
   const gatherLimit = state => dailyUnlocked(state) ? UNLOCKED_DAILY_GATHERS : DAILY_GATHERS;
   const DAILY_REQUEST_SLOTS = 3;
   const SAVE_VERSION = 2;
-  const fresh = () => ({ saveVersion: SAVE_VERSION, inventory: Object.fromEntries(items.map(item => [item.id, 0])), completed: [], unlockedStage: 1, day: 1, gathersLeft: DAILY_GATHERS, gatherLimit: DAILY_GATHERS, dailyRequests: [], dailyHistory: [], dailyRequestCounts: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, 0])), thankYouEventViewed: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, false])), storyProgress: Object.fromEntries(Object.keys(storyMilestones).map(id => [`${id}Viewed`, false])), discovered: [] });
+  const fresh = () => ({ saveVersion: SAVE_VERSION, inventory: Object.fromEntries(items.map(item => [item.id, 0])), completed: [], unlockedStage: 1, day: 1, gathersLeft: DAILY_GATHERS, gatherLimit: DAILY_GATHERS, dailyRequests: [], dailyHistory: [], dailyRequestCounts: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, 0])), thankYouEventViewed: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, false])), storyProgress: { ...Object.fromEntries(Object.keys(storyMilestones).map(id => [`${id}Viewed`, false])), ...Object.fromEntries(Object.keys(storyRequests).flatMap(id => [[`${id}Completed`, false], [`${id}EventViewed`, false]])) }, discovered: [] });
   const canViewThankYou = (state, id) => !!dailyResidents[id] && state.dailyRequestCounts[id] >= 5 && !state.thankYouEventViewed[id];
   const completedThankYouCount = state => Object.keys(dailyResidents).filter(id => state.thankYouEventViewed[id]).length;
   const storyUnlocked = (state, id) => !!storyMilestones[id] && completedThankYouCount(state) >= storyMilestones[id].requiredThankYous;
   const canViewStory = (state, id) => storyUnlocked(state, id) && !state.storyProgress[`${id}Viewed`];
+  const storyRequestUnlocked = (state, id) => !!storyRequests[id] && completedThankYouCount(state) >= storyRequests[id].requiredThankYous && state.storyProgress[`${storyRequests[id].prerequisite}Viewed`] === true;
+  const canViewStoryRequestCompletion = (state, id) => storyRequestUnlocked(state, id) && state.storyProgress[`${id}Completed`] && !state.storyProgress[`${id}EventViewed`];
+  function completeStoryRequestEvent(state, id) {
+    if (!canViewStoryRequestCompletion(state, id)) return false;
+    state.storyProgress[`${id}EventViewed`] = true;
+    return true;
+  }
+  function deliverStoryRequest(state, id) {
+    const request = storyRequests[id];
+    if (!storyRequestUnlocked(state, id) || state.storyProgress[`${id}Completed`] || !request.requirements.every(item => state.inventory[item.id] >= item.quantity)) return false;
+    for (const item of request.requirements) state.inventory[item.id] -= item.quantity;
+    state.storyProgress[`${id}Completed`] = true;
+    return true;
+  }
   function completeStory(state, id) {
     if (!canViewStory(state, id)) return false;
     state.storyProgress[`${id}Viewed`] = true;
@@ -292,6 +335,12 @@
     for (const id of Object.keys(storyMilestones)) {
       if (storyUnlocked(state, id) && data.storyProgress?.[`${id}Viewed`] === true) state.storyProgress[`${id}Viewed`] = true;
     }
+    for (const id of Object.keys(storyRequests)) {
+      if (storyRequestUnlocked(state, id) && data.storyProgress?.[`${id}Completed`] === true) {
+        state.storyProgress[`${id}Completed`] = true;
+        if (data.storyProgress?.[`${id}EventViewed`] === true) state.storyProgress[`${id}EventViewed`] = true;
+      }
+    }
     if (dailyUnlocked(state) && Array.isArray(data.dailyRequests)) {
       const slots = data.dailyRequests.filter(slot => slot && dailyTemplate(slot.templateId)).map(slot => ({ templateId: slot.templateId, completed: slot.completed === true }));
       if (slots.length === DAILY_REQUEST_SLOTS && new Set(slots.map(slot => slot.templateId)).size === DAILY_REQUEST_SLOTS) state.dailyRequests = slots;
@@ -349,7 +398,7 @@
     state.dailyRequestCounts[request.resident] = Math.min(Number.MAX_SAFE_INTEGER, state.dailyRequestCounts[request.resident] + 1);
     return true;
   }
-  const game = { items, recipes, requests, dailyResidents, dailyRequestPool, thankYouEvents, storyMilestones, fresh, restore, gather, craft, deliver, deliverDaily, rest, completeThankYou, canViewThankYou, completedThankYouCount, completeStory, canViewStory, storyUnlocked, SAVE_VERSION, DAILY_GATHERS, DAILY_REQUEST_SLOTS, gatherLimit, ingredients, maxCraft, stageTwoUnlocked, stageUnlocked, unlockedStage, visibleRequests, dailyUnlocked, ensureDailyRequests, refreshDailyRequests, currentDailyRequests };
+  const game = { items, recipes, requests, dailyResidents, dailyRequestPool, thankYouEvents, storyMilestones, storyRequests, fresh, restore, gather, craft, deliver, deliverDaily, deliverStoryRequest, rest, completeThankYou, canViewThankYou, completedThankYouCount, completeStory, canViewStory, storyUnlocked, storyRequestUnlocked, canViewStoryRequestCompletion, completeStoryRequestEvent, SAVE_VERSION, DAILY_GATHERS, DAILY_REQUEST_SLOTS, gatherLimit, ingredients, maxCraft, stageTwoUnlocked, stageUnlocked, unlockedStage, visibleRequests, dailyUnlocked, ensureDailyRequests, refreshDailyRequests, currentDailyRequests };
   if (typeof module !== 'undefined' && module.exports) module.exports = game;
   else root.MioGame = game;
 })(typeof window !== 'undefined' ? window : globalThis);

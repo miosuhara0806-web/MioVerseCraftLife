@@ -512,7 +512,7 @@ for (const id of thankYouIds) {
 console.log('PASS: eight thank-you events, >=5 unlock, independent completion, legacy save preservation and future completion count');
 
 assert.equal(Object.keys(G.storyMilestones).length, 1, '今回は2人達成のみ');
-assert.deepEqual(G.fresh().storyProgress, { milestone2Viewed: false });
+assert.deepEqual(G.fresh().storyProgress, { milestone2Viewed: false, milestone4Completed: false, milestone4EventViewed: false });
 const storyLegacy = G.restore({ completed: allFixedIds, day: 39, inventory: { bag: 2 }, discovered: ['bag'],
   dailyRequestCounts: { towa: 5, shiru: 6 }, thankYouEventViewed: { towa: true } });
 assert.equal(G.completedThankYouCount(storyLegacy), 1);
@@ -543,3 +543,49 @@ G.rest(storyReload, () => 0);
 assert.equal(storyReload.storyProgress.milestone2Viewed, true, '日付進行後も読了を維持');
 assert.equal(G.SAVE_VERSION, 2, 'セーブバージョンを変えない');
 console.log('PASS: two-viewed thank-you milestone, any resident pair, one-time completion, legacy restore and rest persistence');
+
+assert.equal(Object.keys(G.storyRequests).length, 1, '今回は4人達成の特別依頼だけ');
+const special = G.storyRequests.milestone4;
+assert.equal(special.title, '工房の一角を整える');
+assert.deepEqual(special.requirements, [{ id: 'smallShelf', quantity: 1 }, { id: 'upholsteredStool', quantity: 1 }, { id: 'cushion', quantity: 1 }]);
+assert.ok(special.requirements.every(item => G.recipes.some(recipe => recipe.id === item.id)), '要求品はすべて既存レシピに存在');
+const fourIds = ['naka', 'ritsu', 'towa', 'shiru'];
+const fourCounts = Object.fromEntries(fourIds.map(id => [id, 5]));
+const fourViewed = Object.fromEntries(fourIds.map(id => [id, true]));
+const beforeStory = G.restore({ completed: allFixedIds, day: 45, inventory: { smallShelf: 2, upholsteredStool: 1, cushion: 3, bag: 4 }, discovered: ['smallShelf', 'upholsteredStool', 'cushion'], dailyRequestCounts: fourCounts, thankYouEventViewed: fourViewed, storyProgress: { milestone2Viewed: false } });
+assert.equal(G.completedThankYouCount(beforeStory), 4);
+assert.equal(G.storyRequestUnlocked(beforeStory, 'milestone4'), false, '4人お礼済みでも2人イベント未読なら非表示');
+assert.equal(G.deliverStoryRequest(beforeStory, 'milestone4'), false);
+assert.deepEqual([beforeStory.inventory.smallShelf, beforeStory.inventory.upholsteredStool, beforeStory.inventory.cushion], [2, 1, 3]);
+assert.equal(G.completeStory(beforeStory, 'milestone2'), true);
+assert.equal(G.storyRequestUnlocked(beforeStory, 'milestone4'), true, '先行イベント読了で即解放');
+const threeViewed = G.restore({ completed: allFixedIds, dailyRequestCounts: fourCounts, thankYouEventViewed: { naka: true, ritsu: true, towa: true }, storyProgress: { milestone2Viewed: true } });
+assert.equal(G.storyRequestUnlocked(threeViewed, 'milestone4'), false, '5/5だけの4人目は数えない');
+for (const missing of ['smallShelf', 'upholsteredStool', 'cushion']) {
+  const shortage = G.restore(JSON.parse(JSON.stringify(beforeStory)));
+  shortage.inventory[missing] = 0;
+  const stock = { ...shortage.inventory };
+  assert.equal(G.deliverStoryRequest(shortage, 'milestone4'), false, `${missing}不足時は失敗`);
+  assert.deepEqual(shortage.inventory, stock, `${missing}不足時は他も減らさない`);
+  assert.equal(shortage.storyProgress.milestone4Completed, false);
+}
+assert.equal(G.canViewStoryRequestCompletion(beforeStory, 'milestone4'), false, '納品前は完了イベントなし');
+assert.equal(G.deliverStoryRequest(beforeStory, 'milestone4'), true);
+assert.deepEqual([beforeStory.inventory.smallShelf, beforeStory.inventory.upholsteredStool, beforeStory.inventory.cushion], [1, 0, 2]);
+assert.equal(beforeStory.inventory.bag, 4, '関係ない在庫は維持');
+assert.equal(beforeStory.storyProgress.milestone4Completed, true);
+assert.equal(beforeStory.storyProgress.milestone4EventViewed, false);
+assert.equal(G.canViewStoryRequestCompletion(beforeStory, 'milestone4'), true);
+assert.equal(G.deliverStoryRequest(beforeStory, 'milestone4'), false, '連打は二重消費しない');
+const specialReload = G.restore(JSON.parse(JSON.stringify(beforeStory)));
+assert.equal(specialReload.day, 45);
+assert.equal(specialReload.storyProgress.milestone2Viewed, true);
+assert.equal(specialReload.storyProgress.milestone4Completed, true);
+assert.equal(specialReload.storyProgress.milestone4EventViewed, false);
+assert.equal(G.deliverStoryRequest(specialReload, 'milestone4'), false, '再読み込み後も再納品なし');
+assert.equal(G.completeStoryRequestEvent(specialReload, 'milestone4'), true);
+assert.equal(G.completeStoryRequestEvent(specialReload, 'milestone4'), false, '完了イベントも一度だけ');
+G.rest(specialReload, () => 0);
+assert.equal(G.restore(JSON.parse(JSON.stringify(specialReload))).storyProgress.milestone4EventViewed, true, '翌日・再読み込み後も読了を維持');
+assert.equal(G.SAVE_VERSION, 2, 'セーブバージョンを維持');
+console.log('PASS: four-thank-you request order, exact atomic delivery, duplicate guard, completion event and legacy progress');

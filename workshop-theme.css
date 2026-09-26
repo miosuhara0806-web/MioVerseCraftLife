@@ -252,6 +252,20 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
 .story-dialog-actions { display: flex; gap: 10px; margin-top: 22px; }
 .story-dialog-actions button { flex: 1; min-height: 46px; font-size: 12px; }
 @media (max-width: 480px) { #story-dialog { padding: 23px 20px; } .story-dialog-actions { flex-direction: column; } .story-dialog-actions button { width: 100%; } }
+.special-request { min-width: 0; margin: 0 0 30px; padding: 21px 22px; background: var(--paper); border: 1px solid #cdd8c4; border-radius: 17px; box-shadow: inset 0 0 0 4px var(--paper), inset 0 0 0 5px #dbe3d4, var(--card-shadow); }
+.special-request-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.special-request-heading .eyebrow { margin-bottom: 4px; }
+.special-request h2 { color: var(--green); font-family: "Yu Mincho", serif; font-size: 20px; font-weight: 500; line-height: 1.5; }
+.special-request h2::after { content: "❧"; display: block; margin: 5px 0 14px; color: #8fa386; font-size: 17px; text-align: center; font-weight: 400; border-bottom: 1px solid #dbe3d4; line-height: 1; }
+.special-request-story { font-size: 13px; line-height: 1.9; overflow-wrap: anywhere; }
+.special-request-story p { margin: 0 0 14px; }
+.special-request h3 { margin: 18px 0 10px; color: var(--green); font-size: 14px; }
+.special-request-items { margin: 0 0 18px; padding: 0; list-style: none; }
+.special-request-items li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px dashed var(--line); font-size: 13px; }
+.special-request-items strong { color: var(--green); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.special-request-items button { min-height: 44px; padding: 7px 10px; white-space: nowrap; }
+.special-request > button { min-height: 46px; }
+@media (max-width: 480px) { .special-request { padding: 19px 17px; } .special-request-items li { grid-template-columns: minmax(0, 1fr) auto; } .special-request-items button { grid-column: 1 / -1; width: 100%; } .special-request > button { width: 100%; } }
 .fixed-history { border-radius: 17px; background: #f0f1e6; }
 .fixed-history summary { min-height: 58px; }
 .fixed-history summary:hover { background: #e9eddd; }

@@ -39,8 +39,14 @@ const dayStatus = () => `<section class="day-status" aria-label="今日の状態
 const count = id => state.inventory[id];
 const requestTotal = () => G.visibleRequests(state).length;
 const dailyRequests = () => G.dailyUnlocked(state) ? G.currentDailyRequests(state) : [];
-const findRequest = id => G.requests.find(request => request.id === id) || dailyRequests().find(request => request.id === id);
-const requestCompleted = request => request.id.startsWith('daily-') ? request.completed : state.completed.includes(request.id);
+const storyRecipeRequest = id => {
+  const prefix = 'story-recipe-';
+  if (!id?.startsWith(prefix) || !G.storyRequestUnlocked(state, 'milestone4')) return null;
+  const item = id.slice(prefix.length);
+  return G.storyRequests.milestone4.requirements.some(requirement => requirement.id === item) ? { id, item, quantity: 1 } : null;
+};
+const findRequest = id => G.requests.find(request => request.id === id) || dailyRequests().find(request => request.id === id) || storyRecipeRequest(id);
+const requestCompleted = request => request.id.startsWith('story-recipe-') ? state.storyProgress.milestone4Completed : request.id.startsWith('daily-') ? request.completed : state.completed.includes(request.id);
 const recipeHints = {
   wreath: 'ツル草 × 2 ＋ 乾燥花 × 2 ＋ 糸 × 1 → 花のリース',
   linedBox: '小箱 × 1 ＋ 染め布 × 1 → 布張り小箱',
@@ -120,6 +126,14 @@ function storyMilestoneSection() {
   if (!G.storyUnlocked(state, id)) return '';
   return `<section class="story-milestone" aria-labelledby="story-milestone-title"><div><p class="eyebrow">特別な出来事</p><h2 id="story-milestone-title">${G.storyMilestones[id].title}</h2></div>${state.storyProgress[`${id}Viewed`] ? '<span class="story-read">✓ 読了済み</span>' : `<button class="secondary" data-action="story-open" data-id="${id}">読む</button>`}</section>`;
 }
+function storyRequestSection() {
+  const id = 'milestone4';
+  if (!G.storyRequestUnlocked(state, id)) return '';
+  const request = G.storyRequests[id];
+  const completed = state.storyProgress[`${id}Completed`];
+  const ready = request.requirements.every(item => count(item.id) >= item.quantity);
+  return `<section class="special-request" aria-labelledby="special-request-title"><div class="special-request-heading"><div><p class="eyebrow">特別依頼</p><h2 id="special-request-title">${request.title}</h2></div>${completed ? '<span class="story-read">✓ 達成済み</span>' : ''}</div>${completed ? (G.canViewStoryRequestCompletion(state, id) ? '<button class="secondary" data-action="story-request-event" data-id="milestone4">完了の出来事を読む</button>' : '') : `<div class="special-request-story">${request.paragraphs.map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`).join('')}</div><h3>必要なもの</h3><ul class="special-request-items">${request.requirements.map(item => `<li><span>${names[item.id]}</span><strong>${count(item.id)} / ${item.quantity}</strong><button class="secondary" data-action="view-recipe" data-id="story-recipe-${item.id}">作り方を見る</button></li>`).join('')}</ul><button data-action="deliver-story" data-id="${id}" ${ready ? '' : 'disabled'}>${ready ? '3種類を納品する' : '3種類の品物が必要'}</button>`}</section>`;
+}
 function openThankYouDialog(id) {
   if (!G.canViewThankYou(state, id)) return;
   const event = G.thankYouEvents[id];
@@ -127,14 +141,18 @@ function openThankYouDialog(id) {
   document.getElementById('thank-you-dialog-content').innerHTML = `<p class="eyebrow">A SMALL THANK YOU</p><p class="thank-you-resident">${G.dailyResidents[id].name}から</p><h2 id="thank-you-title">${event.title}</h2><div class="thank-you-story">${event.paragraphs.map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`).join('')}</div>`;
   thankYouDialog.showModal();
 }
-function openStoryDialog(id) {
-  if (!G.canViewStory(state, id)) return;
-  const event = G.storyMilestones[id];
+function showStoryDialog(id, event, label) {
   activeStoryMilestoneId = id;
-  document.getElementById('story-dialog-content').innerHTML = `<p class="eyebrow">工房の記録</p><h2 id="story-dialog-title" tabindex="-1">${event.title}</h2><div class="story-dialog-body">${event.paragraphs.map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`).join('')}</div>`;
+  document.getElementById('story-dialog-content').innerHTML = `<p class="eyebrow">${label}</p><h2 id="story-dialog-title" tabindex="-1">${event.title}</h2><div class="story-dialog-body">${event.paragraphs.map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`).join('')}</div>`;
   storyDialog.showModal();
   document.getElementById('story-dialog-title').focus({ preventScroll: true });
   storyDialog.scrollTop = 0;
+}
+function openStoryDialog(id) {
+  if (G.canViewStory(state, id)) showStoryDialog(id, G.storyMilestones[id], '工房の記録');
+}
+function openStoryRequestCompletionDialog(id) {
+  if (G.canViewStoryRequestCompletion(state, id)) showStoryDialog(id, G.storyRequests[id].completion, '特別依頼の達成');
 }
 function requestsPage() {
   const visible = G.visibleRequests(state);
@@ -146,7 +164,7 @@ function requestsPage() {
   });
   if (!G.dailyUnlocked(state)) return fixed;
   return fixed
-    .replace('<div class="requests-list">', `${dailyRequestsSection()}${residentProgressSection()}${storyMilestoneSection()}<details class="fixed-history"><summary><span>固定依頼のお礼</span><small>9件</small></summary><div class="requests-list">`)
+    .replace('<div class="requests-list">', `${dailyRequestsSection()}${residentProgressSection()}${storyMilestoneSection()}${storyRequestSection()}<details class="fixed-history"><summary><span>固定依頼のお礼</span><small>9件</small></summary><div class="requests-list">`)
     .replace('<div class="bottom-note">', '</details><div class="bottom-note">');
 }
 function openRecipeDialog(request) {
@@ -211,14 +229,23 @@ document.addEventListener('click', event => {
     return;
   }
   if (action === 'story-open') { openStoryDialog(id); return; }
+  if (action === 'story-request-event') { openStoryRequestCompletionDialog(id); return; }
   if (action === 'story-close') { storyDialog.close(); activeStoryMilestoneId = null; return; }
   if (action === 'story-complete') {
-    if (!storyDialog.open || !G.completeStory(state, activeStoryMilestoneId)) return;
+    if (!storyDialog.open) return;
+    const completed = activeStoryMilestoneId === 'milestone4' ? G.completeStoryRequestEvent(state, activeStoryMilestoneId) : G.completeStory(state, activeStoryMilestoneId);
+    if (!completed) return;
     storyDialog.close();
     activeStoryMilestoneId = null;
     save();
     location.hash = '#home';
     navigate();
+    return;
+  }
+  if (action === 'deliver-story') {
+    if (!G.deliverStoryRequest(state, id)) return;
+    save(); render();
+    openStoryRequestCompletionDialog(id);
     return;
   }
   if (action === 'view-recipe') {
