@@ -589,3 +589,44 @@ G.rest(specialReload, () => 0);
 assert.equal(G.restore(JSON.parse(JSON.stringify(specialReload))).storyProgress.milestone4EventViewed, true, '翌日・再読み込み後も読了を維持');
 assert.equal(G.SAVE_VERSION, 2, 'セーブバージョンを維持');
 console.log('PASS: four-thank-you request order, exact atomic delivery, duplicate guard, completion event and legacy progress');
+
+const weightedCounts = Object.fromEntries(thankYouIds.map(id => [id, 5]));
+const weightedViewed = Object.fromEntries(thankYouIds.filter(id => id !== 'alto').map(id => [id, true]));
+const weightedSave = G.restore({ completed: allFixedIds, day: 51, inventory: { bag: 3 },
+  dailyRequestCounts: weightedCounts, thankYouEventViewed: weightedViewed,
+  storyProgress: { milestone2Viewed: true, milestone4Completed: true } });
+assert.equal(G.dailyResidentWeight(weightedSave, 'alto'), 2, '5/5でもお礼未閲覧ならweight 2');
+for (const id of thankYouIds.filter(id => id !== 'alto')) assert.equal(G.dailyResidentWeight(weightedSave, id), 1, `${id}: お礼済みはweight 1`);
+assert.equal(weightedSave.day, 51);
+assert.equal(weightedSave.inventory.bag, 3);
+assert.equal(weightedSave.storyProgress.milestone4Completed, true);
+const activeIds = ['daily-naka-bag', 'daily-ritsu-thread', shiruDaily.id];
+const activeReload = G.restore({ ...weightedSave, dailyRequests: activeIds.map(templateId => ({ templateId, completed: false })) });
+assert.deepEqual(activeReload.dailyRequests.map(slot => slot.templateId), activeIds, '既存の3枠は再抽選しない');
+assert.equal(G.ensureDailyRequests(activeReload, () => 0), false, '抽選ウェイト変更で表示中依頼を差し替えない');
+const sampledResidents = save => {
+  const counts = Object.fromEntries(thankYouIds.map(id => [id, 0]));
+  for (let i = 0; i < 9000; i++) {
+    const draw = G.restore({ ...save, dailyRequests: [], dailyHistory: [] });
+    G.ensureDailyRequests(draw, () => (i + 0.5) / 9000);
+    const first = G.dailyRequestPool.find(request => request.id === draw.dailyRequests[0].templateId);
+    counts[first.resident]++;
+  }
+  return counts;
+};
+const weightedSamples = sampledResidents(weightedSave);
+assert.ok(weightedSamples.alto > 1800 && weightedSamples.alto < 2200, '未閲覧は全候補中weight 2');
+for (const id of thankYouIds.filter(id => id !== 'alto')) {
+  assert.ok(weightedSamples[id] > 900 && weightedSamples[id] < 1100, `${id}: お礼済みもweight 1で抽選対象`);
+}
+assert.equal(G.completeThankYou(weightedSave, 'alto'), true);
+assert.equal(G.dailyResidentWeight(weightedSave, 'alto'), 1, 'お礼を見終えた時点でweight 1');
+const allViewedReload = G.restore(JSON.parse(JSON.stringify(weightedSave)));
+assert.equal(allViewedReload.thankYouEventViewed.alto, true, '再読み込み後もお礼済み');
+assert.equal(allViewedReload.day, 51, '日数を維持');
+assert.equal(allViewedReload.inventory.bag, 3, '在庫を維持');
+assert.equal(allViewedReload.storyProgress.milestone4Completed, true, 'ストーリー進行を維持');
+const equalSamples = sampledResidents(allViewedReload);
+for (const id of thankYouIds) assert.ok(equalSamples[id] > 1050 && equalSamples[id] < 1200, `${id}: 全員お礼済み後は同率`);
+assert.equal(G.SAVE_VERSION, 2, '抽選変更でセーブバージョンを変えない');
+console.log('PASS: per-resident thank-you weights, 5/5 unseen status, 9000 weighted/equal draws and existing save preservation');

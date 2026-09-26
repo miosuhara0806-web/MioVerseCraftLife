@@ -192,6 +192,7 @@
   const fresh = () => ({ saveVersion: SAVE_VERSION, inventory: Object.fromEntries(items.map(item => [item.id, 0])), completed: [], unlockedStage: 1, day: 1, gathersLeft: DAILY_GATHERS, gatherLimit: DAILY_GATHERS, dailyRequests: [], dailyHistory: [], dailyRequestCounts: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, 0])), thankYouEventViewed: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, false])), storyProgress: { ...Object.fromEntries(Object.keys(storyMilestones).map(id => [`${id}Viewed`, false])), ...Object.fromEntries(Object.keys(storyRequests).flatMap(id => [[`${id}Completed`, false], [`${id}EventViewed`, false]])) }, discovered: [] });
   const canViewThankYou = (state, id) => !!dailyResidents[id] && state.dailyRequestCounts[id] >= 5 && !state.thankYouEventViewed[id];
   const completedThankYouCount = state => Object.keys(dailyResidents).filter(id => state.thankYouEventViewed[id]).length;
+  const dailyResidentWeight = (state, id) => state.thankYouEventViewed[id] ? 1 : 2;
   const storyUnlocked = (state, id) => !!storyMilestones[id] && completedThankYouCount(state) >= storyMilestones[id].requiredThankYous;
   const canViewStory = (state, id) => storyUnlocked(state, id) && !state.storyProgress[`${id}Viewed`];
   const storyRequestUnlocked = (state, id) => !!storyRequests[id] && completedThankYouCount(state) >= storyRequests[id].requiredThankYous && state.storyProgress[`${storyRequests[id].prerequisite}Viewed`] === true;
@@ -255,9 +256,18 @@
       base
     ];
     const candidates = groups.find(group => group.length) || dailyRequestPool;
+    const requestCounts = Object.create(null);
+    for (const request of candidates) requestCounts[request.resident] = (requestCounts[request.resident] || 0) + 1;
+    // 依頼数の多い住人が有利にならないよう、各住人の重みを候補依頼へ均等に配る。
+    const weights = candidates.map(request => dailyResidentWeight(state, request.resident) / requestCounts[request.resident]);
+    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
     const roll = Number(random());
-    const index = Number.isFinite(roll) ? Math.min(candidates.length - 1, Math.max(0, Math.floor(roll * candidates.length))) : 0;
-    return candidates[index];
+    let position = (Number.isFinite(roll) ? Math.min(1 - Number.EPSILON, Math.max(0, roll)) : 0) * totalWeight;
+    for (let index = 0; index < candidates.length; index++) {
+      position -= weights[index];
+      if (position < 0) return candidates[index];
+    }
+    return candidates[candidates.length - 1];
   }
   function ensureDailyRequests(state, random = Math.random) {
     if (!dailyUnlocked(state)) return false;
@@ -398,7 +408,7 @@
     state.dailyRequestCounts[request.resident] = Math.min(Number.MAX_SAFE_INTEGER, state.dailyRequestCounts[request.resident] + 1);
     return true;
   }
-  const game = { items, recipes, requests, dailyResidents, dailyRequestPool, thankYouEvents, storyMilestones, storyRequests, fresh, restore, gather, craft, deliver, deliverDaily, deliverStoryRequest, rest, completeThankYou, canViewThankYou, completedThankYouCount, completeStory, canViewStory, storyUnlocked, storyRequestUnlocked, canViewStoryRequestCompletion, completeStoryRequestEvent, SAVE_VERSION, DAILY_GATHERS, DAILY_REQUEST_SLOTS, gatherLimit, ingredients, maxCraft, stageTwoUnlocked, stageUnlocked, unlockedStage, visibleRequests, dailyUnlocked, ensureDailyRequests, refreshDailyRequests, currentDailyRequests };
+  const game = { items, recipes, requests, dailyResidents, dailyRequestPool, thankYouEvents, storyMilestones, storyRequests, fresh, restore, gather, craft, deliver, deliverDaily, deliverStoryRequest, rest, completeThankYou, canViewThankYou, completedThankYouCount, dailyResidentWeight, completeStory, canViewStory, storyUnlocked, storyRequestUnlocked, canViewStoryRequestCompletion, completeStoryRequestEvent, SAVE_VERSION, DAILY_GATHERS, DAILY_REQUEST_SLOTS, gatherLimit, ingredients, maxCraft, stageTwoUnlocked, stageUnlocked, unlockedStage, visibleRequests, dailyUnlocked, ensureDailyRequests, refreshDailyRequests, currentDailyRequests };
   if (typeof module !== 'undefined' && module.exports) module.exports = game;
   else root.MioGame = game;
 })(typeof window !== 'undefined' ? window : globalThis);
