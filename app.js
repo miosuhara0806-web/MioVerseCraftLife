@@ -156,6 +156,16 @@ function storyRequestSection(id) {
   const final = id === 'milestone8';
   return `<section class="special-request" aria-labelledby="story-${id}-request-title"><div class="special-request-heading"><div><p class="eyebrow">${final ? '最終特別依頼' : '特別依頼'}</p><h2 id="story-${id}-request-title">${request.title}</h2></div>${completed ? '<span class="story-read">✓ 達成済み</span>' : ''}</div>${completed ? (G.canViewStoryRequestCompletion(state, id) ? `<button class="secondary" data-action="story-request-event" data-id="${id}">${final ? 'エンディングを見る' : '完了の出来事を読む'}</button>` : '') : `<div class="special-request-story">${request.paragraphs.map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`).join('')}</div><h3>必要なもの</h3><ul class="special-request-items">${request.requirements.map(item => `<li><span>${names[item.id]}</span><strong>${count(item.id)} / ${item.quantity}</strong><button class="secondary" data-action="view-recipe" data-id="${final ? 'story-recipe-milestone8-' : 'story-recipe-'}${item.id}">作り方を見る</button></li>`).join('')}</ul><button data-action="deliver-story" data-id="${id}" ${ready ? '' : 'disabled'}>${final ? (ready ? '看板を仕上げる' : '5種類の材料が必要') : (ready ? '3種類を納品する' : '3種類の品物が必要')}</button>`}</section>`;
 }
+function requestHistorySections() {
+  const milestones = Object.keys(G.storyMilestones).filter(id => G.storyUnlocked(state, id));
+  const unread = milestones.filter(id => !state.storyProgress[`${id}Viewed`]).length;
+  const specialRequests = Object.keys(G.storyRequests).filter(id => G.storyRequestUnlocked(state, id));
+  const completed = specialRequests.filter(id => state.storyProgress[`${id}Completed`]).length;
+  const pendingCompletion = specialRequests.some(id => G.canViewStoryRequestCompletion(state, id));
+  return `<details class="request-history-fold"><summary><span>みんなとの記録</span><small>${G.completedThankYouCount(state)}/8 お礼済み</small></summary>${residentProgressSection()}</details>`
+    + (milestones.length ? `<details class="request-history-fold" ${unread ? 'open' : ''}><summary><span>特別な出来事</span><small>${milestones.length}件${unread ? ' · 未読あり' : ''}</small></summary><div class="request-history-content">${milestones.map(storyMilestoneSection).join('')}</div></details>` : '')
+    + (specialRequests.length ? `<details class="request-history-fold" ${completed < specialRequests.length || pendingCompletion ? 'open' : ''}><summary><span>特別依頼</span><small>${completed}/${specialRequests.length} 達成済み${pendingCompletion ? ' · 未読あり' : ''}</small></summary><div class="request-history-content">${specialRequests.map(storyRequestSection).join('')}</div></details>` : '');
+}
 function openThankYouDialog(id) {
   if (!G.canViewThankYou(state, id)) return;
   const event = G.thankYouEvents[id];
@@ -188,7 +198,7 @@ function requestsPage() {
   });
   if (!G.dailyUnlocked(state)) return fixed;
   return fixed
-    .replace('<div class="requests-list">', `${dailyRequestsSection()}${residentProgressSection()}${storyMilestoneSection('milestone2')}${storyRequestSection('milestone4')}${storyMilestoneSection('milestone6')}${storyRequestSection('milestone8')}${G.postgameUnlocked(state) ? '<section class="story-milestone"><div><p class="eyebrow">本編</p><h2>小径の工房</h2></div><span class="story-read">✓ 本編クリア</span></section>' : ''}<details class="fixed-history"><summary><span>固定依頼のお礼</span><small>9件</small></summary><div class="requests-list">`)
+    .replace('<div class="requests-list">', `${dailyRequestsSection()}${requestHistorySections()}${G.postgameUnlocked(state) ? '<section class="story-milestone"><div><p class="eyebrow">本編</p><h2>小径の工房</h2></div><span class="story-read">✓ 本編クリア</span></section>' : ''}<details class="fixed-history"><summary><span>固定依頼のお礼</span><small>9件</small></summary><div class="requests-list">`)
     .replace('<div class="bottom-note">', '</details><div class="bottom-note">');
 }
 function openRecipeDialog(request) {

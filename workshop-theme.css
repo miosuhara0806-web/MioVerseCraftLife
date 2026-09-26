@@ -390,3 +390,22 @@ footer { border-top-style: dashed; color: var(--muted); }
   button, .button, nav a { transition: none; }
   button:active:not(:disabled), .button:active { transform: none; }
 }
+
+.request-history-fold { min-width: 0; margin: 0 0 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 17px; box-shadow: var(--card-shadow); overflow: hidden; }
+.request-history-fold > summary { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 15px 20px; cursor: pointer; list-style: none; color: var(--green); }
+.request-history-fold > summary::-webkit-details-marker { display: none; }
+.request-history-fold > summary span { min-width: 0; font-family: "Yu Mincho", serif; font-size: 16px; font-weight: 600; }
+.request-history-fold > summary small { margin-left: auto; color: var(--muted); font-size: 11px; white-space: nowrap; }
+.request-history-fold > summary::after { content: "⌄"; color: var(--green); font-size: 18px; line-height: 1; }
+.request-history-fold[open] > summary::after { content: "⌃"; }
+.request-history-fold[open] > summary { border-bottom: 1px solid var(--line); }
+.request-history-fold > .residents-record { margin: 0; padding: 17px 20px 20px; border: 0; border-radius: 0; box-shadow: none; }
+.request-history-content { display: grid; gap: 12px; padding: 16px; }
+.request-history-content > .story-milestone, .request-history-content > .special-request { margin: 0; }
+@media (max-width: 380px) {
+  .request-history-fold > summary { gap: 7px; padding: 13px 14px; }
+  .request-history-fold > summary span { font-size: 14px; }
+  .request-history-fold > summary small { font-size: 10px; }
+  .request-history-fold > .residents-record { padding: 14px; }
+  .request-history-content { padding: 12px; }
+}
