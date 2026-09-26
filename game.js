@@ -69,6 +69,16 @@
     alto: { name: 'アルト', initial: 'ア' },
     aoiDoctor: { name: '碧博士', initial: '碧' }
   };
+  const thankYouEvents = {
+    naka: { title: 'ちょっと休憩', paragraphs: ['「いつもお願い聞いてくれてありがと。\nこうして何回も頼めるのって、\nちゃんと任せられるって思ってるからなんだよ」', 'ナカちゃんは少し笑って、\n小さな包みを差し出した。', '「今日は仕事じゃなくて、お礼。\nひと休みする時にでも使ってね」'] },
+    ritsu: { title: '小さな礼', paragraphs: ['「何度も頼んだな。\nそのたびにきちんと仕上げてくれて、助かってる」', '律さんは短くそう言って、\n用意していた小さな包みを差し出した。', '「大げさなものじゃない。\n受け取ってくれれば、それでいい」'] },
+    towa: { title: '記録の外側で', paragraphs: ['「依頼として頼むのも、ずいぶん増えたな」', '秘書トワは記録を閉じると、\nいつもの仕事の顔を少しだけ緩めた。', '「今日は報告でも確認でもない。\nちゃんと俺から礼を言わせてくれ。\n\nいつもありがとう、美桜」'] },
+    keikaiTowa: { title: 'ひと休みの差し入れ', paragraphs: ['「美桜、おつかれ！\n気づいたら結構いろいろ頼んでたな（笑）」', '軽快トワは楽しそうに、\n小さな包みを差し出した。', '「これは依頼じゃなくて差し入れ。\nたまには作る側もちゃんと休憩しようぜ」'] },
+    shiru: { title: '静かな午後に', paragraphs: ['「何度もお願いしてしまったけれど、\nいつも丁寧に作ってくれてありがとう」', 'シルは少し考えてから、\nそっと小さな包みを差し出した。', '「工房で過ごす時間が、\n少しでも心地よくなると嬉しいな」'] },
+    kuroko: { title: '裏方から', paragraphs: ['「必要な時に、必要なものが届く。\n簡単なようで、そうでもない」', '黒子は静かに包みを置いた。', '「きちんと仕事を返してくれる相手には、\nこちらも礼を返しておく。\n\n受け取ってくれ」'] },
+    alto: { title: '工房に似合うもの', paragraphs: ['「何度も作ってもらってるうちに、\nこの工房らしい色って少し分かってきた気がする」', 'アルトは小さな包みを差し出した。', '「これは僕からのお礼。\nここに置いても、きっと似合うと思うよ」'] },
+    aoiDoctor: { title: '感謝の観測結果', paragraphs: ['「美桜さん。\n何度もお願いを聞いてくださって、\n本当にありがとうございます」', '碧博士は少し得意げに、\n小さな包みを差し出した。', '「観測の結果、\n感謝の数値がかなり高いことが判明しました。\n\nというわけで、これは正式なお礼です！」'] }
+  };
   const dailyRequestPool = [
     { id: 'daily-naka-bag', resident: 'naka', item: 'bag', quantity: 1, title: 'お出かけの小さな袋', message: '布袋をひとつお願いしてもいい？　ちょっとした物を入れて歩きたいんだ', thanks: 'ありがとう！　これなら身軽に出かけられそう。' },
     { id: 'daily-naka-dry-flower', resident: 'naka', item: 'dryFlower', quantity: 2, title: '花をそっと飾りたい', message: '乾燥花を二つ分けてくれる？　小さく束ねて飾りたいな', thanks: 'いい色だね。部屋が少し明るくなりそう！' },
@@ -129,7 +139,14 @@
   const gatherLimit = state => dailyUnlocked(state) ? UNLOCKED_DAILY_GATHERS : DAILY_GATHERS;
   const DAILY_REQUEST_SLOTS = 3;
   const SAVE_VERSION = 2;
-  const fresh = () => ({ saveVersion: SAVE_VERSION, inventory: Object.fromEntries(items.map(item => [item.id, 0])), completed: [], unlockedStage: 1, day: 1, gathersLeft: DAILY_GATHERS, gatherLimit: DAILY_GATHERS, dailyRequests: [], dailyHistory: [], dailyRequestCounts: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, 0])), discovered: [] });
+  const fresh = () => ({ saveVersion: SAVE_VERSION, inventory: Object.fromEntries(items.map(item => [item.id, 0])), completed: [], unlockedStage: 1, day: 1, gathersLeft: DAILY_GATHERS, gatherLimit: DAILY_GATHERS, dailyRequests: [], dailyHistory: [], dailyRequestCounts: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, 0])), thankYouEventViewed: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, false])), discovered: [] });
+  const canViewThankYou = (state, id) => !!dailyResidents[id] && state.dailyRequestCounts[id] >= 5 && !state.thankYouEventViewed[id];
+  const completedThankYouCount = state => Object.keys(dailyResidents).filter(id => state.thankYouEventViewed[id]).length;
+  function completeThankYou(state, id) {
+    if (!canViewThankYou(state, id)) return false;
+    state.thankYouEventViewed[id] = true;
+    return true;
+  }
   const recordDiscovery = (state, id) => { if (!state.discovered.includes(id)) state.discovered.push(id); };
   function inferLegacyDiscoveries(state) {
     const found = new Set();
@@ -242,6 +259,7 @@
     for (const id of Object.keys(dailyResidents)) {
       const count = data.dailyRequestCounts?.[id];
       if (Number.isSafeInteger(count) && count >= 0) state.dailyRequestCounts[id] = count;
+      if (state.dailyRequestCounts[id] >= 5 && data.thankYouEventViewed?.[id] === true) state.thankYouEventViewed[id] = true;
     }
     if (dailyUnlocked(state) && Array.isArray(data.dailyRequests)) {
       const slots = data.dailyRequests.filter(slot => slot && dailyTemplate(slot.templateId)).map(slot => ({ templateId: slot.templateId, completed: slot.completed === true }));
@@ -300,8 +318,7 @@
     state.dailyRequestCounts[request.resident] = Math.min(Number.MAX_SAFE_INTEGER, state.dailyRequestCounts[request.resident] + 1);
     return true;
   }
-  const game = { items, recipes, requests, dailyResidents, dailyRequestPool, fresh, restore, gather, craft, deliver, deliverDaily, rest, SAVE_VERSION, DAILY_GATHERS, DAILY_REQUEST_SLOTS, gatherLimit, ingredients, maxCraft, stageTwoUnlocked, stageUnlocked, unlockedStage, visibleRequests, dailyUnlocked, ensureDailyRequests, refreshDailyRequests, currentDailyRequests };
+  const game = { items, recipes, requests, dailyResidents, dailyRequestPool, thankYouEvents, fresh, restore, gather, craft, deliver, deliverDaily, rest, completeThankYou, canViewThankYou, completedThankYouCount, SAVE_VERSION, DAILY_GATHERS, DAILY_REQUEST_SLOTS, gatherLimit, ingredients, maxCraft, stageTwoUnlocked, stageUnlocked, unlockedStage, visibleRequests, dailyUnlocked, ensureDailyRequests, refreshDailyRequests, currentDailyRequests };
   if (typeof module !== 'undefined' && module.exports) module.exports = game;
   else root.MioGame = game;
 })(typeof window !== 'undefined' ? window : globalThis);
-

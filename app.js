@@ -27,8 +27,11 @@ let toastTimer;
 let highlightedRecipeId = null;
 let recipeHighlightTimer;
 let activeRecipeRequestId = null;
+let activeThankYouResidentId = null;
 const restDialog = document.getElementById('rest-dialog');
 const recipeDialog = document.getElementById('recipe-dialog');
+const thankYouDialog = document.getElementById('thank-you-dialog');
+thankYouDialog.addEventListener?.('close', () => { activeThankYouResidentId = null; });
 const dayStatus = () => `<section class="day-status" aria-label="今日の状態"><div><strong>${state.day}日目</strong><span>今日の採集（残り） ${state.gathersLeft} / ${G.gatherLimit(state)}</span></div>${currentPage === 'home' ? '<button data-action="rest">今日は休む</button>' : ''}</section>`;
 const count = id => state.inventory[id];
 const requestTotal = () => G.visibleRequests(state).length;
@@ -107,7 +110,14 @@ function dailyRequestsSection() {
 }
 function residentProgressSection() {
   if (!G.dailyUnlocked(state)) return '';
-  return `<section class="residents-record" aria-labelledby="residents-record-title"><p class="eyebrow">WORKSHOP RECORD</p><h2 id="residents-record-title">みんなとの記録</h2><div class="residents-record-list">${Object.entries(G.dailyResidents).map(([id, resident]) => `<div class="residents-record-row"><span>${resident.name}</span><strong>${Math.min(state.dailyRequestCounts[id], 5)} / 5</strong></div>`).join('')}</div></section>`;
+  return `<section class="residents-record" aria-labelledby="residents-record-title"><p class="eyebrow">WORKSHOP RECORD</p><h2 id="residents-record-title">みんなとの記録</h2><div class="residents-record-list">${Object.entries(G.dailyResidents).map(([id, resident]) => `<div class="residents-record-row"><span>${resident.name}</span><strong>${Math.min(state.dailyRequestCounts[id], 5)} / 5</strong>${state.thankYouEventViewed[id] ? '<span class="thank-you-done">✓ お礼済み</span>' : G.canViewThankYou(state, id) ? `<button class="secondary thank-you-open" data-action="thank-you-open" data-id="${id}">お礼を見る</button>` : ''}</div>`).join('')}</div></section>`;
+}
+function openThankYouDialog(id) {
+  if (!G.canViewThankYou(state, id)) return;
+  const event = G.thankYouEvents[id];
+  activeThankYouResidentId = id;
+  document.getElementById('thank-you-dialog-content').innerHTML = `<p class="eyebrow">A SMALL THANK YOU</p><p class="thank-you-resident">${G.dailyResidents[id].name}から</p><h2 id="thank-you-title">${event.title}</h2><div class="thank-you-story">${event.paragraphs.map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`).join('')}</div>`;
+  thankYouDialog.showModal();
 }
 function requestsPage() {
   const visible = G.visibleRequests(state);
@@ -174,6 +184,15 @@ document.addEventListener('click', event => {
     notify(`${state.day}日目になりました。今日の採集は${G.gatherLimit(state)}回。好きなペースで過ごしましょう。`);
     return;
   }
+  if (action === 'thank-you-open') { openThankYouDialog(id); return; }
+  if (action === 'thank-you-close') { thankYouDialog.close(); activeThankYouResidentId = null; return; }
+  if (action === 'thank-you-complete') {
+    if (!thankYouDialog.open || !G.completeThankYou(state, activeThankYouResidentId)) return;
+    thankYouDialog.close();
+    activeThankYouResidentId = null;
+    save(); render();
+    return;
+  }
   if (action === 'view-recipe') {
     const request = findRequest(id);
     if (!request || requestCompleted(request) || !G.recipes.some(r => r.id === request.item)) return;
@@ -222,4 +241,3 @@ window.addEventListener('hashchange', () => {
   else { document.getElementById('main').focus({ preventScroll: true }); window.scrollTo(0, 0); }
 });
 navigate();
-

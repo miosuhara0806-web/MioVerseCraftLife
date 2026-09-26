@@ -478,3 +478,35 @@ assert.equal(aboveGoal.dailyRequestCounts.towa, 0, '不正な小数は無視');
 assert.equal(Object.hasOwn(aboveGoal.dailyRequestCounts, 'unknown'), false, '未知の依頼主は保存しない');
 console.log('PASS: eight independent daily completion counts, fixed exclusion, failed and duplicate delivery guards, reload/rest persistence, uncapped total');
 
+const thankYouIds = Object.keys(G.dailyResidents);
+assert.equal(Object.keys(G.thankYouEvents).length, 8);
+assert.deepEqual(G.fresh().thankYouEventViewed, Object.fromEntries(thankYouIds.map(id => [id, false])));
+const thankYouLegacy = G.restore({ completed: allFixedIds, day: 23, dailyRequestCounts: { towa: 5, shiru: 6, naka: 4 } });
+assert.equal(thankYouLegacy.saveVersion, G.SAVE_VERSION, 'セーブバージョンを変えない');
+assert.equal(G.canViewThankYou(thankYouLegacy, 'naka'), false);
+assert.equal(G.canViewThankYou(thankYouLegacy, 'towa'), true);
+assert.equal(G.canViewThankYou(thankYouLegacy, 'shiru'), true);
+assert.equal(G.completedThankYouCount(thankYouLegacy), 0, '解放だけでは達成人数に含めない');
+assert.equal(G.completeThankYou(thankYouLegacy, 'naka'), false, '未解放を拒否');
+assert.equal(G.completeThankYou(thankYouLegacy, 'shiru'), true);
+assert.equal(G.completeThankYou(thankYouLegacy, 'shiru'), false, '二重完了を拒否');
+assert.equal(G.completedThankYouCount(thankYouLegacy), 1);
+assert.equal(G.canViewThankYou(thankYouLegacy, 'towa'), true, 'ほかのキャラは未閲覧');
+const thankYouReload = G.restore(JSON.parse(JSON.stringify(thankYouLegacy)));
+assert.equal(thankYouReload.thankYouEventViewed.shiru, true);
+assert.equal(thankYouReload.dailyRequestCounts.shiru, 6, '累計は保持');
+assert.equal(G.completedThankYouCount(thankYouReload), 1);
+G.rest(thankYouReload, () => 0);
+assert.equal(thankYouReload.thankYouEventViewed.shiru, true, '日付進行でも保持');
+const shiruDaily = G.dailyRequestPool.find(request => request.resident === 'shiru');
+const continuedThankYou = G.restore({ completed: allFixedIds, dailyRequestCounts: { shiru: 5 }, thankYouEventViewed: { shiru: true },
+  dailyRequests: [shiruDaily.id, 'daily-naka-bag', 'daily-ritsu-thread'].map(templateId => ({ templateId, completed: false })) });
+continuedThankYou.inventory[shiruDaily.item] = shiruDaily.quantity;
+assert.equal(G.deliverDaily(continuedThankYou, shiruDaily.id), true, 'お礼後も同キャラへ納品できる');
+assert.equal(continuedThankYou.dailyRequestCounts.shiru, 6, '内部累計は増える');
+assert.equal(continuedThankYou.thankYouEventViewed.shiru, true);
+for (const id of thankYouIds) {
+  const event = G.thankYouEvents[id];
+  assert.ok(event.title && event.paragraphs.length >= 3, `${id}: タイトルと本文`);
+}
+console.log('PASS: eight thank-you events, >=5 unlock, independent completion, legacy save preservation and future completion count');

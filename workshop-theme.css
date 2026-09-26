@@ -221,8 +221,22 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
 .residents-record .eyebrow { margin-bottom: 6px; }
 .residents-record h2 { margin-bottom: 16px; font-family: "Yu Mincho", serif; color: var(--green); }
 .residents-record-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 24px; }
-.residents-record-row { display: flex; justify-content: space-between; gap: 10px; min-width: 0; padding: 8px 0; border-top: 1px dashed var(--line); font-size: 13px; }
+.residents-record-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; padding: 8px 0; border-top: 1px dashed var(--line); font-size: 13px; }
 .residents-record-row strong { flex: 0 0 auto; color: var(--green); font-variant-numeric: tabular-nums; }
+.residents-record-row > span:first-child { margin-right: auto; }
+.thank-you-open { min-height: 44px; padding: 7px 11px; white-space: nowrap; }
+.thank-you-done { color: var(--green); font-size: 11px; white-space: nowrap; }
+#thank-you-dialog { width: 510px; max-width: calc(100% - 24px); max-height: calc(100dvh - 24px); overflow: auto; padding: 28px; color: var(--ink); background: var(--paper); border: 1px solid #cdd8c4; border-radius: 20px; box-shadow: inset 0 0 0 5px var(--paper), inset 0 0 0 6px #dbe3d4, 0 18px 60px #253b3033; }
+#thank-you-dialog::backdrop { background: #293c3280; }
+#thank-you-dialog .eyebrow { margin-bottom: 5px; }
+.thank-you-resident { margin: 0; color: var(--muted); font-size: 12px; }
+#thank-you-dialog h2 { margin: 4px 0 18px; color: var(--green); font-family: "Yu Mincho", serif; font-size: 25px; font-weight: 500; line-height: 1.5; }
+#thank-you-dialog h2::after { content: "❧"; display: block; width: 100%; margin-top: 8px; color: #8fa386; text-align: center; font-size: 17px; font-weight: 400; border-bottom: 1px solid #dbe3d4; line-height: 1; }
+.thank-you-story { font-size: 13px; line-height: 1.9; overflow-wrap: anywhere; }
+.thank-you-story p { margin: 0 0 16px; }
+.thank-you-actions { display: flex; gap: 10px; margin-top: 22px; }
+.thank-you-actions button { flex: 1; min-height: 46px; font-size: 12px; }
+@media (max-width: 480px) { #thank-you-dialog { padding: 23px 20px; } .thank-you-actions { flex-direction: column; } .thank-you-actions button { width: 100%; } }
 .fixed-history { border-radius: 17px; background: #f0f1e6; }
 .fixed-history summary { min-height: 58px; }
 .fixed-history summary:hover { background: #e9eddd; }

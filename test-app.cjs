@@ -27,7 +27,9 @@ function launch() {
     state() { return saved.has('mioverse-craft-v1') ? JSON.parse(saved.get('mioverse-craft-v1')) : G.fresh(); },
     dialogOpen() { return node('rest-dialog').open; },
     recipeDialogOpen() { return node('recipe-dialog').open; },
-    recipeDialogHtml() { return node('recipe-dialog-content').innerHTML; }
+    recipeDialogHtml() { return node('recipe-dialog-content').innerHTML; },
+    thankYouDialogOpen() { return node('thank-you-dialog').open; },
+    thankYouDialogHtml() { return node('thank-you-dialog-content').innerHTML; }
   };
 }
 let app = launch();
@@ -675,3 +677,41 @@ assert.equal(app.state().dailyRequestCounts.naka, 7);
 assert.ok(app.page('requests').includes('<span>ナカちゃん</span><strong>5 / 5</strong>'));
 console.log('PASS: eight-person record UI, failed and duplicate click guards, daily success, reload/rest persistence, display cap at five');
 
+const thankYouLegacy = G.restore({ saveVersion: G.SAVE_VERSION, completed: G.requests.map(request => request.id), day: 28, gatherLimit: 5, gathersLeft: 2,
+  inventory: { bag: 3 }, discovered: ['bag'], dailyHistory: ['daily-naka-bag'],
+  dailyRequests: [{ templateId: 'daily-naka-bag', completed: false }, { templateId: 'daily-ritsu-thread', completed: false }, { templateId: 'daily-towa-box', completed: false }],
+  dailyRequestCounts: { towa: 5, shiru: 6, naka: 4 } });
+const unchangedProgress = { day: thankYouLegacy.day, inventory: { ...thankYouLegacy.inventory }, completed: [...thankYouLegacy.completed], dailyRequests: thankYouLegacy.dailyRequests.map(slot => ({ ...slot })), dailyRequestCounts: { ...thankYouLegacy.dailyRequestCounts }, discovered: [...thankYouLegacy.discovered] };
+saved.set('mioverse-craft-v1', JSON.stringify(thankYouLegacy));
+app = launch();
+recordHtml = app.page('requests');
+assert.ok(!recordHtml.includes('data-action="thank-you-open" data-id="naka"'), '5回未満は非表示');
+for (const id of ['towa', 'shiru']) assert.ok(recordHtml.includes(`data-action="thank-you-open" data-id="${id}"`), `${id} は旧セーブから解放`);
+app.click('thank-you-open', 'shiru');
+assert.equal(app.thankYouDialogOpen(), true);
+assert.ok(app.thankYouDialogHtml().includes('静かな午後に'));
+assert.equal(app.state().thankYouEventViewed.shiru, false, '開いただけでは未閲覧');
+app.click('thank-you-close');
+assert.equal(app.thankYouDialogOpen(), false);
+assert.equal(app.state().thankYouEventViewed.shiru, false, '途中で閉じても未閲覧');
+app.click('thank-you-open', 'shiru');
+app.click('thank-you-complete');
+assert.equal(app.state().thankYouEventViewed.shiru, true);
+assert.equal(app.state().thankYouEventViewed.towa, false, '閲覧状態はキャラごとに独立');
+assert.ok(app.page('requests').includes('✓ お礼済み'));
+assert.ok(!app.page('requests').includes('data-action="thank-you-open" data-id="shiru"'));
+assert.ok(app.page('requests').includes('data-action="thank-you-open" data-id="towa"'));
+assert.equal(app.state().day, unchangedProgress.day);
+assert.deepEqual(app.state().inventory, unchangedProgress.inventory);
+assert.deepEqual(app.state().completed, unchangedProgress.completed);
+assert.deepEqual(app.state().dailyRequests, unchangedProgress.dailyRequests);
+assert.deepEqual(app.state().dailyRequestCounts, unchangedProgress.dailyRequestCounts);
+assert.deepEqual(app.state().discovered, unchangedProgress.discovered);
+app = launch();
+assert.equal(app.state().thankYouEventViewed.shiru, true, '再読み込み後も保持');
+app.page('home'); app.page('requests');
+assert.ok(app.page('requests').includes('✓ お礼済み'), 'ホームから戻っても保持');
+app.page('home'); app.click('rest'); app.click('rest-confirm');
+assert.equal(app.state().thankYouEventViewed.shiru, true, '翌日も保持');
+assert.equal(app.state().dailyRequestCounts.shiru, 6, '累計は6を維持');
+console.log('PASS: thank-you modal, close without completion, independent flags, legacy progress, reload/home/rest persistence');
