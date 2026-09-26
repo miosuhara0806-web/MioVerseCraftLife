@@ -511,8 +511,8 @@ for (const id of thankYouIds) {
 }
 console.log('PASS: eight thank-you events, >=5 unlock, independent completion, legacy save preservation and future completion count');
 
-assert.equal(Object.keys(G.storyMilestones).length, 1, '今回は2人達成のみ');
-assert.deepEqual(G.fresh().storyProgress, { milestone2Viewed: false, milestone4Completed: false, milestone4EventViewed: false });
+assert.equal(Object.keys(G.storyMilestones).length, 2, '2人・6人達成イベント');
+assert.deepEqual(G.fresh().storyProgress, { milestone2Viewed: false, milestone6Viewed: false, milestone4Completed: false, milestone4EventViewed: false });
 const storyLegacy = G.restore({ completed: allFixedIds, day: 39, inventory: { bag: 2 }, discovered: ['bag'],
   dailyRequestCounts: { towa: 5, shiru: 6 }, thankYouEventViewed: { towa: true } });
 assert.equal(G.completedThankYouCount(storyLegacy), 1);
@@ -630,3 +630,53 @@ const equalSamples = sampledResidents(allViewedReload);
 for (const id of thankYouIds) assert.ok(equalSamples[id] > 1050 && equalSamples[id] < 1200, `${id}: 全員お礼済み後は同率`);
 assert.equal(G.SAVE_VERSION, 2, '抽選変更でセーブバージョンを変えない');
 console.log('PASS: per-resident thank-you weights, 5/5 unseen status, 9000 weighted/equal draws and existing save preservation');
+
+const sixIds = thankYouIds.slice(0, 6);
+const sixCounts = Object.fromEntries(thankYouIds.map(id => [id, 5]));
+const sixViewed = Object.fromEntries(sixIds.map(id => [id, true]));
+const sixBase = { completed: allFixedIds, day: 64, gatherLimit: 5, gathersLeft: 2,
+  inventory: { thread: 3, cloth: 4, dye: 5, plank: 6, bag: 7, smallShelf: 1, upholsteredStool: 1, cushion: 1 },
+  discovered: ['bag'], dailyRequestCounts: sixCounts, thankYouEventViewed: sixViewed,
+  dailyRequests: ['daily-naka-bag', 'daily-ritsu-thread', shiruDaily.id].map(templateId => ({ templateId, completed: false })),
+  storyProgress: { milestone2Viewed: true, milestone4Completed: false } };
+assert.deepEqual(G.storyMilestones.milestone6.reward, [
+  { id: 'thread', quantity: 2 }, { id: 'cloth', quantity: 1 }, { id: 'dye', quantity: 2 }, { id: 'plank', quantity: 1 }
+]);
+assert.equal(G.storyMilestones.milestone6.title, '棚に増えたもの');
+const fiveViewedSave = G.restore({ ...sixBase, thankYouEventViewed: Object.fromEntries(sixIds.slice(0, 5).map(id => [id, true])), storyProgress: { milestone2Viewed: true, milestone4Completed: true } });
+assert.equal(G.storyUnlocked(fiveViewedSave, 'milestone6'), false, '5/5が8人でもお礼済み5人なら未解放');
+const sixBefore = G.restore(sixBase);
+assert.equal(G.storyUnlocked(sixBefore, 'milestone6'), false, 'お礼済み6人でも4人特別依頼未達なら未解放');
+assert.equal(G.completeStory(sixBefore, 'milestone6'), false, '未解放では材料を受け取れない');
+assert.equal(sixBefore.inventory.thread, 3);
+assert.equal(G.deliverStoryRequest(sixBefore, 'milestone4'), true);
+assert.equal(G.storyUnlocked(sixBefore, 'milestone6'), true, '特別依頼納品後すぐ解放');
+assert.equal(sixBefore.storyProgress.milestone6Viewed, false, '解放だけでは受取済みにしない');
+const sixLegacy = G.restore({ ...sixBase, storyProgress: { milestone2Viewed: true, milestone4Completed: true } });
+assert.equal(G.storyUnlocked(sixLegacy, 'milestone6'), true, '旧セーブの達成状態から即解放');
+assert.equal(sixLegacy.storyProgress.milestone6Viewed, false, '旧セーブの新フラグは未完了');
+const priorInventory = { ...sixLegacy.inventory };
+const priorDaily = JSON.stringify(sixLegacy.dailyRequests);
+assert.equal(G.completeStory(sixLegacy, 'milestone6'), true);
+for (const { id, quantity } of G.storyMilestones.milestone6.reward) {
+  assert.equal(sixLegacy.inventory[id], priorInventory[id] + quantity, `${id}だけ正確に加算`);
+  assert.ok(sixLegacy.discovered.includes(id), `${id}を図鑑に登録`);
+}
+for (const id of ['bag', 'smallShelf', 'upholsteredStool', 'cushion']) assert.equal(sixLegacy.inventory[id], priorInventory[id], `${id}は変化なし`);
+assert.equal(sixLegacy.storyProgress.milestone6Viewed, true);
+assert.equal(G.completeStory(sixLegacy, 'milestone6'), false, '連打で二重付与しない');
+const sixReload = G.restore(JSON.parse(JSON.stringify(sixLegacy)));
+assert.equal(G.completeStory(sixReload, 'milestone6'), false, '再読み込み後も再付与しない');
+assert.deepEqual(sixReload.inventory, sixLegacy.inventory);
+assert.equal(sixReload.day, 64);
+assert.equal(sixReload.gathersLeft, 2);
+assert.equal(JSON.stringify(sixReload.dailyRequests), priorDaily);
+assert.equal(sixReload.storyProgress.milestone4Completed, true);
+G.rest(sixReload, () => 0);
+assert.equal(sixReload.storyProgress.milestone6Viewed, true, '日付進行後も受取済み');
+const overflowGift = G.restore({ ...sixBase, inventory: { ...sixBase.inventory, thread: Number.MAX_SAFE_INTEGER }, storyProgress: { milestone2Viewed: true, milestone4Completed: true } });
+assert.equal(G.completeStory(overflowGift, 'milestone6'), false, '在庫上限では部分付与しない');
+assert.equal(overflowGift.inventory.cloth, 4);
+assert.equal(overflowGift.storyProgress.milestone6Viewed, false);
+assert.equal(G.SAVE_VERSION, 2, 'セーブバージョンを維持');
+console.log('PASS: six-thank-you milestone, prerequisite order, exact one-time gift, legacy restore, discovery and rest persistence');

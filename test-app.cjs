@@ -31,7 +31,8 @@ function launch() {
     thankYouDialogOpen() { return node('thank-you-dialog').open; },
     thankYouDialogHtml() { return node('thank-you-dialog-content').innerHTML; },
     storyDialogOpen() { return node('story-dialog').open; },
-    storyDialogHtml() { return node('story-dialog-content').innerHTML; }
+    storyDialogHtml() { return node('story-dialog-content').innerHTML; },
+    storyCompleteLabel() { return node('story-complete-button').textContent; }
   };
 }
 let app = launch();
@@ -843,3 +844,64 @@ app.page('home'); app.click('rest'); app.click('rest-confirm');
 assert.equal(app.state().storyProgress.milestone4Completed, true);
 assert.equal(app.state().storyProgress.milestone4EventViewed, true, '翌日も読了を維持');
 console.log('PASS: four-thank-you request gating, recipe reuse/highlight, exact delivery, completion modal, legacy save and reload/rest persistence');
+
+const sixIds = Object.keys(G.dailyResidents).slice(0, 6);
+const sixCounts = Object.fromEntries(Object.keys(G.dailyResidents).map(id => [id, 5]));
+const sixStorySave = G.restore({ completed: G.requests.map(request => request.id), day: 72, gatherLimit: 5, gathersLeft: 1,
+  inventory: { thread: 3, cloth: 4, dye: 5, plank: 6, bag: 7 }, discovered: ['bag'],
+  dailyRequestCounts: sixCounts, thankYouEventViewed: Object.fromEntries(sixIds.map(id => [id, true])),
+  dailyRequests: [{ templateId: 'daily-naka-bag', completed: false }, { templateId: 'daily-ritsu-thread', completed: false }, { templateId: 'daily-towa-box', completed: false }],
+  storyProgress: { milestone2Viewed: true, milestone4Completed: true, milestone4EventViewed: true } });
+for (const [viewed, specialDone] of [[5, true], [6, false]]) {
+  const locked = JSON.parse(JSON.stringify(sixStorySave));
+  if (viewed === 5) locked.thankYouEventViewed[sixIds[5]] = false;
+  if (!specialDone) locked.storyProgress.milestone4Completed = false;
+  saved.set('mioverse-craft-v1', JSON.stringify(locked));
+  app = launch();
+  assert.ok(!app.page('requests').includes('棚に増えたもの'), '条件未達ならイベントは非表示');
+  app.click('story-open', 'milestone6');
+  assert.equal(app.storyDialogOpen(), false);
+}
+saved.set('mioverse-craft-v1', JSON.stringify(sixStorySave));
+app = launch();
+recordHtml = app.page('requests');
+assert.ok(recordHtml.includes('data-action="story-open" data-id="milestone6"'), '既存セーブの条件達成で即解放');
+assert.equal(app.state().storyProgress.milestone6Viewed, false);
+const giftBefore = app.state();
+app.click('story-open', 'milestone6');
+assert.equal(app.storyDialogOpen(), true);
+assert.ok(app.storyDialogHtml().includes('棚に増えたもの'));
+assert.ok(app.storyDialogHtml().includes('少しずつ一方通行ではなくなっていることに気づいた。'));
+for (const text of ['糸 ×2', '布 ×1', '染料 ×2', '板材 ×1']) assert.ok(app.storyDialogHtml().includes(text), `${text}を表示`);
+assert.equal(app.storyCompleteLabel(), '受け取る');
+assert.deepEqual(app.state().inventory, giftBefore.inventory, '開くだけでは付与しない');
+app.click('story-close');
+assert.equal(app.state().storyProgress.milestone6Viewed, false);
+app.click('story-open', 'milestone6');
+app.page('home');
+assert.equal(app.storyDialogOpen(), false, '画面移動で閉じる');
+assert.deepEqual(app.state().inventory, giftBefore.inventory, '画面移動でも付与しない');
+app.page('requests');
+app.click('story-open', 'milestone6');
+app.click('story-complete');
+assert.equal(app.storyDialogOpen(), false);
+assert.equal(app.state().storyProgress.milestone6Viewed, true);
+for (const { id, quantity } of G.storyMilestones.milestone6.reward) assert.equal(app.state().inventory[id], giftBefore.inventory[id] + quantity, `${id}を正確に付与`);
+assert.equal(app.state().inventory.bag, giftBefore.inventory.bag, '無関係な在庫を維持');
+assert.equal(app.state().day, giftBefore.day);
+assert.deepEqual(app.state().dailyRequests, giftBefore.dailyRequests);
+assert.deepEqual(app.state().dailyRequestCounts, giftBefore.dailyRequestCounts);
+assert.deepEqual(app.state().thankYouEventViewed, giftBefore.thankYouEventViewed);
+assert.equal(app.state().storyProgress.milestone4Completed, true);
+const giftAfter = JSON.stringify(app.state());
+app.click('story-complete');
+assert.equal(JSON.stringify(app.state()), giftAfter, '受取ボタン連打で二重付与しない');
+assert.ok(app.page('requests').includes('✓ 受取済み'));
+assert.ok(!app.page('requests').includes('data-action="story-open" data-id="milestone6"'));
+app = launch();
+app.page('home'); app.page('requests');
+assert.equal(JSON.stringify(app.state()), giftAfter, '再起動後も材料は一度だけ');
+app.page('home'); app.click('rest'); app.click('rest-confirm');
+assert.equal(app.state().storyProgress.milestone6Viewed, true, '翌日も受取済み');
+for (const { id, quantity } of G.storyMilestones.milestone6.reward) assert.equal(app.state().inventory[id], giftBefore.inventory[id] + quantity, '翌日も付与数を維持');
+console.log('PASS: six-thank-you story UI, voluntary one-time gift, exact stock, closed/reload/home/rest persistence');

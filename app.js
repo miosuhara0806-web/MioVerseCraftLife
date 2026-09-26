@@ -121,10 +121,9 @@ function residentProgressSection() {
   if (!G.dailyUnlocked(state)) return '';
   return `<section class="residents-record" aria-labelledby="residents-record-title"><p class="eyebrow">WORKSHOP RECORD</p><h2 id="residents-record-title">みんなとの記録</h2><div class="residents-record-list">${Object.entries(G.dailyResidents).map(([id, resident]) => `<div class="residents-record-row"><span>${resident.name}</span><strong>${Math.min(state.dailyRequestCounts[id], 5)} / 5</strong>${state.thankYouEventViewed[id] ? '<span class="thank-you-done">✓ お礼済み</span>' : G.canViewThankYou(state, id) ? `<button class="secondary thank-you-open" data-action="thank-you-open" data-id="${id}">お礼を見る</button>` : ''}</div>`).join('')}</div></section>`;
 }
-function storyMilestoneSection() {
-  const id = 'milestone2';
+function storyMilestoneSection(id) {
   if (!G.storyUnlocked(state, id)) return '';
-  return `<section class="story-milestone" aria-labelledby="story-milestone-title"><div><p class="eyebrow">特別な出来事</p><h2 id="story-milestone-title">${G.storyMilestones[id].title}</h2></div>${state.storyProgress[`${id}Viewed`] ? '<span class="story-read">✓ 読了済み</span>' : `<button class="secondary" data-action="story-open" data-id="${id}">読む</button>`}</section>`;
+  return `<section class="story-milestone" aria-labelledby="story-${id}-title"><div><p class="eyebrow">特別な出来事</p><h2 id="story-${id}-title">${G.storyMilestones[id].title}</h2></div>${state.storyProgress[`${id}Viewed`] ? `<span class="story-read">✓ ${id === 'milestone6' ? '受取済み' : '読了済み'}</span>` : `<button class="secondary" data-action="story-open" data-id="${id}">読む</button>`}</section>`;
 }
 function storyRequestSection() {
   const id = 'milestone4';
@@ -143,7 +142,8 @@ function openThankYouDialog(id) {
 }
 function showStoryDialog(id, event, label) {
   activeStoryMilestoneId = id;
-  document.getElementById('story-dialog-content').innerHTML = `<p class="eyebrow">${label}</p><h2 id="story-dialog-title" tabindex="-1">${event.title}</h2><div class="story-dialog-body">${event.paragraphs.map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`).join('')}</div>`;
+  document.getElementById('story-dialog-content').innerHTML = `<p class="eyebrow">${label}</p><h2 id="story-dialog-title" tabindex="-1">${event.title}</h2><div class="story-dialog-body">${event.paragraphs.map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`).join('')}</div>${event.reward ? `<div class="story-reward"><h3>住人たちからの差し入れ</h3><ul>${event.reward.map(item => `<li>${names[item.id]} ×${item.quantity}</li>`).join('')}</ul></div>` : ''}`;
+  document.getElementById('story-complete-button').textContent = event.reward ? '受け取る' : '工房へ戻る';
   storyDialog.showModal();
   document.getElementById('story-dialog-title').focus({ preventScroll: true });
   storyDialog.scrollTop = 0;
@@ -164,7 +164,7 @@ function requestsPage() {
   });
   if (!G.dailyUnlocked(state)) return fixed;
   return fixed
-    .replace('<div class="requests-list">', `${dailyRequestsSection()}${residentProgressSection()}${storyMilestoneSection()}${storyRequestSection()}<details class="fixed-history"><summary><span>固定依頼のお礼</span><small>9件</small></summary><div class="requests-list">`)
+    .replace('<div class="requests-list">', `${dailyRequestsSection()}${residentProgressSection()}${storyMilestoneSection('milestone2')}${storyRequestSection()}${storyMilestoneSection('milestone6')}<details class="fixed-history"><summary><span>固定依頼のお礼</span><small>9件</small></summary><div class="requests-list">`)
     .replace('<div class="bottom-note">', '</details><div class="bottom-note">');
 }
 function openRecipeDialog(request) {

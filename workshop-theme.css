@@ -249,6 +249,9 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
 #story-dialog h2::after { content: "❧"; display: block; margin-top: 8px; color: #8fa386; text-align: center; font-size: 17px; font-weight: 400; border-bottom: 1px solid #dbe3d4; line-height: 1; }
 .story-dialog-body { font-size: 13px; line-height: 1.9; overflow-wrap: anywhere; }
 .story-dialog-body p { margin: 0 0 17px; }
+.story-reward { padding: 12px 16px; background: #f2f2e8; border: 1px solid #dbe3d4; border-radius: 12px; }
+.story-reward h3 { margin: 0 0 8px; color: var(--green); font-size: 13px; }
+.story-reward ul { margin: 0; padding-left: 1.4em; font-size: 13px; line-height: 1.8; }
 .story-dialog-actions { display: flex; gap: 10px; margin-top: 22px; }
 .story-dialog-actions button { flex: 1; min-height: 46px; font-size: 12px; }
 @media (max-width: 480px) { #story-dialog { padding: 23px 20px; } .story-dialog-actions { flex-direction: column; } .story-dialog-actions button { width: 100%; } }

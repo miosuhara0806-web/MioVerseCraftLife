@@ -98,6 +98,29 @@
         '小径の工房には、\n今日も誰かのお願いが届く。',
         'でも今は、\nそれだけではない気がしていた。'
       ]
+    },
+    milestone6: {
+      requiredThankYous: 6,
+      prerequisite: 'milestone4Completed',
+      title: '棚に増えたもの',
+      paragraphs: [
+        '工房の棚に、\n見覚えのない材料が増えていた。',
+        'きれいにまとめられた糸。\n使いやすそうな布。\nいくつかの染料と、\n加工済みの板材。',
+        '誰が何を持ってきたのかは分からない。',
+        'けれど、\n何度もこの工房を訪れるうちに、',
+        '今度は自分たちから何か返したいと\n思ってくれたらしい。',
+        'これまでは、\nお願いを聞いて、\n作って、\n渡すことの方が多かった。',
+        'けれど今は、\n工房を行き来するものが\n少しずつ増えている。',
+        '頼まれたものだけではなく、\n言葉や、お礼や、\nこうした小さな差し入れも。',
+        '工房の棚に増えた材料を見ながら、',
+        'ここで続いてきたやりとりが、\n少しずつ一方通行ではなくなっていることに気づいた。'
+      ],
+      reward: [
+        { id: 'thread', quantity: 2 },
+        { id: 'cloth', quantity: 1 },
+        { id: 'dye', quantity: 2 },
+        { id: 'plank', quantity: 1 }
+      ]
     }
   };
   const storyRequests = {
@@ -193,7 +216,7 @@
   const canViewThankYou = (state, id) => !!dailyResidents[id] && state.dailyRequestCounts[id] >= 5 && !state.thankYouEventViewed[id];
   const completedThankYouCount = state => Object.keys(dailyResidents).filter(id => state.thankYouEventViewed[id]).length;
   const dailyResidentWeight = (state, id) => state.thankYouEventViewed[id] ? 1 : 2;
-  const storyUnlocked = (state, id) => !!storyMilestones[id] && completedThankYouCount(state) >= storyMilestones[id].requiredThankYous;
+  const storyUnlocked = (state, id) => !!storyMilestones[id] && completedThankYouCount(state) >= storyMilestones[id].requiredThankYous && (!storyMilestones[id].prerequisite || state.storyProgress[storyMilestones[id].prerequisite] === true);
   const canViewStory = (state, id) => storyUnlocked(state, id) && !state.storyProgress[`${id}Viewed`];
   const storyRequestUnlocked = (state, id) => !!storyRequests[id] && completedThankYouCount(state) >= storyRequests[id].requiredThankYous && state.storyProgress[`${storyRequests[id].prerequisite}Viewed`] === true;
   const canViewStoryRequestCompletion = (state, id) => storyRequestUnlocked(state, id) && state.storyProgress[`${id}Completed`] && !state.storyProgress[`${id}EventViewed`];
@@ -211,6 +234,12 @@
   }
   function completeStory(state, id) {
     if (!canViewStory(state, id)) return false;
+    const reward = storyMilestones[id].reward || [];
+    if (!reward.every(item => Number.isSafeInteger(state.inventory[item.id]) && state.inventory[item.id] <= Number.MAX_SAFE_INTEGER - item.quantity)) return false;
+    for (const item of reward) {
+      state.inventory[item.id] += item.quantity;
+      recordDiscovery(state, item.id);
+    }
     state.storyProgress[`${id}Viewed`] = true;
     return true;
   }
@@ -342,14 +371,17 @@
       if (Number.isSafeInteger(count) && count >= 0) state.dailyRequestCounts[id] = count;
       if (state.dailyRequestCounts[id] >= 5 && data.thankYouEventViewed?.[id] === true) state.thankYouEventViewed[id] = true;
     }
-    for (const id of Object.keys(storyMilestones)) {
-      if (storyUnlocked(state, id) && data.storyProgress?.[`${id}Viewed`] === true) state.storyProgress[`${id}Viewed`] = true;
+    for (const [id, milestone] of Object.entries(storyMilestones)) {
+      if (!milestone.prerequisite && storyUnlocked(state, id) && data.storyProgress?.[`${id}Viewed`] === true) state.storyProgress[`${id}Viewed`] = true;
     }
     for (const id of Object.keys(storyRequests)) {
       if (storyRequestUnlocked(state, id) && data.storyProgress?.[`${id}Completed`] === true) {
         state.storyProgress[`${id}Completed`] = true;
         if (data.storyProgress?.[`${id}EventViewed`] === true) state.storyProgress[`${id}EventViewed`] = true;
       }
+    }
+    for (const [id, milestone] of Object.entries(storyMilestones)) {
+      if (milestone.prerequisite && storyUnlocked(state, id) && data.storyProgress?.[`${id}Viewed`] === true) state.storyProgress[`${id}Viewed`] = true;
     }
     if (dailyUnlocked(state) && Array.isArray(data.dailyRequests)) {
       const slots = data.dailyRequests.filter(slot => slot && dailyTemplate(slot.templateId)).map(slot => ({ templateId: slot.templateId, completed: slot.completed === true }));
