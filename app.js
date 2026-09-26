@@ -28,10 +28,13 @@ let highlightedRecipeId = null;
 let recipeHighlightTimer;
 let activeRecipeRequestId = null;
 let activeThankYouResidentId = null;
+let activeStoryMilestoneId = null;
 const restDialog = document.getElementById('rest-dialog');
 const recipeDialog = document.getElementById('recipe-dialog');
 const thankYouDialog = document.getElementById('thank-you-dialog');
+const storyDialog = document.getElementById('story-dialog');
 thankYouDialog.addEventListener?.('close', () => { activeThankYouResidentId = null; });
+storyDialog.addEventListener?.('close', () => { activeStoryMilestoneId = null; });
 const dayStatus = () => `<section class="day-status" aria-label="今日の状態"><div><strong>${state.day}日目</strong><span>今日の採集（残り） ${state.gathersLeft} / ${G.gatherLimit(state)}</span></div>${currentPage === 'home' ? '<button data-action="rest">今日は休む</button>' : ''}</section>`;
 const count = id => state.inventory[id];
 const requestTotal = () => G.visibleRequests(state).length;
@@ -112,12 +115,26 @@ function residentProgressSection() {
   if (!G.dailyUnlocked(state)) return '';
   return `<section class="residents-record" aria-labelledby="residents-record-title"><p class="eyebrow">WORKSHOP RECORD</p><h2 id="residents-record-title">みんなとの記録</h2><div class="residents-record-list">${Object.entries(G.dailyResidents).map(([id, resident]) => `<div class="residents-record-row"><span>${resident.name}</span><strong>${Math.min(state.dailyRequestCounts[id], 5)} / 5</strong>${state.thankYouEventViewed[id] ? '<span class="thank-you-done">✓ お礼済み</span>' : G.canViewThankYou(state, id) ? `<button class="secondary thank-you-open" data-action="thank-you-open" data-id="${id}">お礼を見る</button>` : ''}</div>`).join('')}</div></section>`;
 }
+function storyMilestoneSection() {
+  const id = 'milestone2';
+  if (!G.storyUnlocked(state, id)) return '';
+  return `<section class="story-milestone" aria-labelledby="story-milestone-title"><div><p class="eyebrow">特別な出来事</p><h2 id="story-milestone-title">${G.storyMilestones[id].title}</h2></div>${state.storyProgress[`${id}Viewed`] ? '<span class="story-read">✓ 読了済み</span>' : `<button class="secondary" data-action="story-open" data-id="${id}">読む</button>`}</section>`;
+}
 function openThankYouDialog(id) {
   if (!G.canViewThankYou(state, id)) return;
   const event = G.thankYouEvents[id];
   activeThankYouResidentId = id;
   document.getElementById('thank-you-dialog-content').innerHTML = `<p class="eyebrow">A SMALL THANK YOU</p><p class="thank-you-resident">${G.dailyResidents[id].name}から</p><h2 id="thank-you-title">${event.title}</h2><div class="thank-you-story">${event.paragraphs.map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`).join('')}</div>`;
   thankYouDialog.showModal();
+}
+function openStoryDialog(id) {
+  if (!G.canViewStory(state, id)) return;
+  const event = G.storyMilestones[id];
+  activeStoryMilestoneId = id;
+  document.getElementById('story-dialog-content').innerHTML = `<p class="eyebrow">工房の記録</p><h2 id="story-dialog-title" tabindex="-1">${event.title}</h2><div class="story-dialog-body">${event.paragraphs.map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`).join('')}</div>`;
+  storyDialog.showModal();
+  document.getElementById('story-dialog-title').focus({ preventScroll: true });
+  storyDialog.scrollTop = 0;
 }
 function requestsPage() {
   const visible = G.visibleRequests(state);
@@ -129,7 +146,7 @@ function requestsPage() {
   });
   if (!G.dailyUnlocked(state)) return fixed;
   return fixed
-    .replace('<div class="requests-list">', `${dailyRequestsSection()}${residentProgressSection()}<details class="fixed-history"><summary><span>固定依頼のお礼</span><small>9件</small></summary><div class="requests-list">`)
+    .replace('<div class="requests-list">', `${dailyRequestsSection()}${residentProgressSection()}${storyMilestoneSection()}<details class="fixed-history"><summary><span>固定依頼のお礼</span><small>9件</small></summary><div class="requests-list">`)
     .replace('<div class="bottom-note">', '</details><div class="bottom-note">');
 }
 function openRecipeDialog(request) {
@@ -193,6 +210,17 @@ document.addEventListener('click', event => {
     save(); render();
     return;
   }
+  if (action === 'story-open') { openStoryDialog(id); return; }
+  if (action === 'story-close') { storyDialog.close(); activeStoryMilestoneId = null; return; }
+  if (action === 'story-complete') {
+    if (!storyDialog.open || !G.completeStory(state, activeStoryMilestoneId)) return;
+    storyDialog.close();
+    activeStoryMilestoneId = null;
+    save();
+    location.hash = '#home';
+    navigate();
+    return;
+  }
   if (action === 'view-recipe') {
     const request = findRequest(id);
     if (!request || requestCompleted(request) || !G.recipes.some(r => r.id === request.item)) return;
@@ -231,6 +259,7 @@ document.addEventListener('click', event => {
   if (message) { save(); render(); notify(message); }
 });
 function navigate() {
+  if (storyDialog.open) { storyDialog.close(); activeStoryMilestoneId = null; }
   const hash = location.hash.slice(1);
   currentPage = pages.some(p => p[0] === hash) ? hash : 'home';
   render();

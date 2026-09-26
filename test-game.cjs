@@ -510,3 +510,36 @@ for (const id of thankYouIds) {
   assert.ok(event.title && event.paragraphs.length >= 3, `${id}: タイトルと本文`);
 }
 console.log('PASS: eight thank-you events, >=5 unlock, independent completion, legacy save preservation and future completion count');
+
+assert.equal(Object.keys(G.storyMilestones).length, 1, '今回は2人達成のみ');
+assert.deepEqual(G.fresh().storyProgress, { milestone2Viewed: false });
+const storyLegacy = G.restore({ completed: allFixedIds, day: 39, inventory: { bag: 2 }, discovered: ['bag'],
+  dailyRequestCounts: { towa: 5, shiru: 6 }, thankYouEventViewed: { towa: true } });
+assert.equal(G.completedThankYouCount(storyLegacy), 1);
+assert.equal(G.storyUnlocked(storyLegacy, 'milestone2'), false, '5/5でもお礼を見ていなければ数えない');
+assert.equal(G.canViewStory(storyLegacy, 'milestone2'), false);
+assert.equal(G.completeStory(storyLegacy, 'milestone2'), false, '未解放の完了を拒否');
+assert.equal(G.completeThankYou(storyLegacy, 'shiru'), true);
+assert.equal(G.completedThankYouCount(storyLegacy), 2);
+assert.equal(G.storyUnlocked(storyLegacy, 'milestone2'), true);
+assert.equal(G.canViewStory(storyLegacy, 'milestone2'), true);
+assert.equal(storyLegacy.storyProgress.milestone2Viewed, false, '2人達成時に自動読了しない');
+for (const [first, second] of [['naka', 'ritsu'], ['keikaiTowa', 'aoiDoctor'], ['kuroko', 'alto']]) {
+  const pair = G.restore({ completed: allFixedIds, dailyRequestCounts: { [first]: 5, [second]: 5 }, thankYouEventViewed: { [first]: true, [second]: true } });
+  assert.equal(G.storyUnlocked(pair, 'milestone2'), true, `${first} と ${second} でも解放`);
+  assert.equal(G.canViewStory(pair, 'milestone2'), true);
+}
+assert.equal(G.completeStory(storyLegacy, 'milestone2'), true);
+assert.equal(G.completeStory(storyLegacy, 'milestone2'), false, '読了の二重処理を拒否');
+assert.equal(storyLegacy.storyProgress.milestone2Viewed, true);
+const storyReload = G.restore(JSON.parse(JSON.stringify(storyLegacy)));
+assert.equal(storyReload.storyProgress.milestone2Viewed, true);
+assert.equal(storyReload.day, 39);
+assert.equal(storyReload.inventory.bag, 2);
+assert.ok(storyReload.discovered.includes('bag'));
+assert.equal(storyReload.dailyRequestCounts.shiru, 6);
+assert.equal(G.canViewStory(storyReload, 'milestone2'), false);
+G.rest(storyReload, () => 0);
+assert.equal(storyReload.storyProgress.milestone2Viewed, true, '日付進行後も読了を維持');
+assert.equal(G.SAVE_VERSION, 2, 'セーブバージョンを変えない');
+console.log('PASS: two-viewed thank-you milestone, any resident pair, one-time completion, legacy restore and rest persistence');

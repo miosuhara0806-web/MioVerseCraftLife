@@ -29,7 +29,9 @@ function launch() {
     recipeDialogOpen() { return node('recipe-dialog').open; },
     recipeDialogHtml() { return node('recipe-dialog-content').innerHTML; },
     thankYouDialogOpen() { return node('thank-you-dialog').open; },
-    thankYouDialogHtml() { return node('thank-you-dialog-content').innerHTML; }
+    thankYouDialogHtml() { return node('thank-you-dialog-content').innerHTML; },
+    storyDialogOpen() { return node('story-dialog').open; },
+    storyDialogHtml() { return node('story-dialog-content').innerHTML; }
   };
 }
 let app = launch();
@@ -698,6 +700,7 @@ app.click('thank-you-open', 'shiru');
 app.click('thank-you-complete');
 assert.equal(app.state().thankYouEventViewed.shiru, true);
 assert.equal(app.state().thankYouEventViewed.towa, false, '閲覧状態はキャラごとに独立');
+assert.ok(!app.page('requests').includes('工房に残るもの'), 'お礼済み1人では全体イベントを表示しない');
 assert.ok(app.page('requests').includes('✓ お礼済み'));
 assert.ok(!app.page('requests').includes('data-action="thank-you-open" data-id="shiru"'));
 assert.ok(app.page('requests').includes('data-action="thank-you-open" data-id="towa"'));
@@ -715,3 +718,51 @@ app.page('home'); app.click('rest'); app.click('rest-confirm');
 assert.equal(app.state().thankYouEventViewed.shiru, true, '翌日も保持');
 assert.equal(app.state().dailyRequestCounts.shiru, 6, '累計は6を維持');
 console.log('PASS: thank-you modal, close without completion, independent flags, legacy progress, reload/home/rest persistence');
+
+const storyLegacy = G.restore({ saveVersion: G.SAVE_VERSION, completed: G.requests.map(request => request.id), day: 34, gatherLimit: 5, gathersLeft: 2,
+  inventory: { bag: 3, box: 1 }, discovered: ['bag', 'box'], dailyHistory: ['daily-naka-bag'],
+  dailyRequests: [{ templateId: 'daily-naka-bag', completed: false }, { templateId: 'daily-ritsu-thread', completed: false }, { templateId: 'daily-towa-box', completed: false }],
+  dailyRequestCounts: { towa: 5, shiru: 6 }, thankYouEventViewed: { towa: true, shiru: true } });
+const storyOriginal = { day: storyLegacy.day, inventory: { ...storyLegacy.inventory }, completed: [...storyLegacy.completed], dailyRequests: storyLegacy.dailyRequests.map(slot => ({ ...slot })), dailyRequestCounts: { ...storyLegacy.dailyRequestCounts }, thankYouEventViewed: { ...storyLegacy.thankYouEventViewed }, discovered: [...storyLegacy.discovered] };
+saved.set('mioverse-craft-v1', JSON.stringify(storyLegacy));
+app = launch();
+recordHtml = app.page('requests');
+assert.ok(recordHtml.includes('工房に残るもの'));
+assert.ok(recordHtml.includes('data-action="story-open" data-id="milestone2"'), '既存のお礼済み2人で即解放');
+assert.equal(app.state().storyProgress.milestone2Viewed, false);
+app.click('story-open', 'milestone2');
+assert.equal(app.storyDialogOpen(), true);
+assert.ok(app.storyDialogHtml().includes('工房に残るもの'));
+assert.ok(app.storyDialogHtml().includes('工房の作業台には'));
+assert.ok(app.storyDialogHtml().includes('それだけではない気がしていた。'));
+assert.equal(app.state().storyProgress.milestone2Viewed, false, '開くだけでは未閲覧');
+app.click('story-close');
+assert.equal(app.storyDialogOpen(), false);
+assert.equal(app.state().storyProgress.milestone2Viewed, false, '途中で閉じても未閲覧');
+app.click('story-complete');
+assert.equal(app.state().storyProgress.milestone2Viewed, false, '閉じた後の完了操作は無効');
+app.click('story-open', 'milestone2');
+app.page('home');
+assert.equal(app.storyDialogOpen(), false, '画面を離れるとモーダルを閉じる');
+assert.equal(app.state().storyProgress.milestone2Viewed, false, '画面移動では読了しない');
+app.page('requests');
+app.click('story-open', 'milestone2');
+app.click('story-complete');
+assert.equal(app.storyDialogOpen(), false);
+assert.equal(app.state().storyProgress.milestone2Viewed, true);
+assert.deepEqual(app.state().inventory, storyOriginal.inventory);
+assert.deepEqual(app.state().completed, storyOriginal.completed);
+assert.deepEqual(app.state().dailyRequests, storyOriginal.dailyRequests);
+assert.deepEqual(app.state().dailyRequestCounts, storyOriginal.dailyRequestCounts);
+assert.deepEqual(app.state().thankYouEventViewed, storyOriginal.thankYouEventViewed);
+assert.deepEqual(app.state().discovered, storyOriginal.discovered);
+assert.equal(app.state().day, storyOriginal.day);
+assert.ok(app.page('requests').includes('✓ 読了済み'));
+assert.ok(!app.page('requests').includes('data-action="story-open"'));
+app = launch();
+assert.equal(app.state().storyProgress.milestone2Viewed, true, '再読み込み後も読了を復元');
+app.page('home'); app.page('requests');
+assert.ok(app.page('requests').includes('✓ 読了済み'), '工房から戻っても読了を表示');
+app.page('home'); app.click('rest'); app.click('rest-confirm');
+assert.equal(app.state().storyProgress.milestone2Viewed, true, '翌日も読了を維持');
+console.log('PASS: two-thank-you story UI, voluntary read, close guard, legacy data preservation, reload/rest persistence');
