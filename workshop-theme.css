@@ -252,6 +252,9 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
 .story-reward { padding: 12px 16px; background: #f2f2e8; border: 1px solid #dbe3d4; border-radius: 12px; }
 .story-reward h3 { margin: 0 0 8px; color: var(--green); font-size: 13px; }
 .story-reward ul { margin: 0; padding-left: 1.4em; font-size: 13px; line-height: 1.8; }
+.workshop-sign { display: inline-flex; flex-direction: column; align-items: center; max-width: 100%; margin: 16px 0 0; padding: 8px 25px; color: var(--green); background: #f2e9dc; border: 1px solid #c9bda5; border-radius: 7px; box-shadow: inset 0 0 0 3px #f2e9dc, inset 0 0 0 4px #ded2ba; }
+.workshop-sign small { font-family: Georgia, serif; font-size: 10px; letter-spacing: 1px; }
+.workshop-sign strong { font-family: "Yu Mincho", serif; font-size: 18px; font-weight: 500; letter-spacing: 2px; }
 .story-dialog-actions { display: flex; gap: 10px; margin-top: 22px; }
 .story-dialog-actions button { flex: 1; min-height: 46px; font-size: 12px; }
 @media (max-width: 480px) { #story-dialog { padding: 23px 20px; } .story-dialog-actions { flex-direction: column; } .story-dialog-actions button { width: 100%; } }

@@ -512,7 +512,7 @@ for (const id of thankYouIds) {
 console.log('PASS: eight thank-you events, >=5 unlock, independent completion, legacy save preservation and future completion count');
 
 assert.equal(Object.keys(G.storyMilestones).length, 2, '2人・6人達成イベント');
-assert.deepEqual(G.fresh().storyProgress, { milestone2Viewed: false, milestone6Viewed: false, milestone4Completed: false, milestone4EventViewed: false });
+assert.deepEqual(G.fresh().storyProgress, { milestone2Viewed: false, milestone6Viewed: false, milestone4Completed: false, milestone4EventViewed: false, milestone8Completed: false, milestone8EventViewed: false });
 const storyLegacy = G.restore({ completed: allFixedIds, day: 39, inventory: { bag: 2 }, discovered: ['bag'],
   dailyRequestCounts: { towa: 5, shiru: 6 }, thankYouEventViewed: { towa: true } });
 assert.equal(G.completedThankYouCount(storyLegacy), 1);
@@ -544,7 +544,7 @@ assert.equal(storyReload.storyProgress.milestone2Viewed, true, '日付進行後�
 assert.equal(G.SAVE_VERSION, 2, 'セーブバージョンを変えない');
 console.log('PASS: two-viewed thank-you milestone, any resident pair, one-time completion, legacy restore and rest persistence');
 
-assert.equal(Object.keys(G.storyRequests).length, 1, '今回は4人達成の特別依頼だけ');
+assert.equal(Object.keys(G.storyRequests).length, 2, '4人・8人達成の特別依頼');
 const special = G.storyRequests.milestone4;
 assert.equal(special.title, '工房の一角を整える');
 assert.deepEqual(special.requirements, [{ id: 'smallShelf', quantity: 1 }, { id: 'upholsteredStool', quantity: 1 }, { id: 'cushion', quantity: 1 }]);
@@ -680,3 +680,70 @@ assert.equal(overflowGift.inventory.cloth, 4);
 assert.equal(overflowGift.storyProgress.milestone6Viewed, false);
 assert.equal(G.SAVE_VERSION, 2, 'セーブバージョンを維持');
 console.log('PASS: six-thank-you milestone, prerequisite order, exact one-time gift, legacy restore, discovery and rest persistence');
+
+const finalRequest = G.storyRequests.milestone8;
+assert.equal(finalRequest.title, '工房の看板を掛ける');
+assert.deepEqual(finalRequest.requirements, [
+  { id: 'woodFrame', quantity: 1 }, { id: 'plank', quantity: 2 }, { id: 'dyedCloth', quantity: 1 },
+  { id: 'thread', quantity: 1 }, { id: 'dryFlower', quantity: 1 }
+]);
+assert.ok(finalRequest.requirements.every(item => G.recipes.some(recipe => recipe.id === item.id)), '新レシピを使わない');
+assert.equal(finalRequest.completion.title, '小径の工房');
+assert.ok(finalRequest.completion.paragraphs.join('\n').includes('Mio Verseのひとつになっていた。'));
+const finalCounts = Object.fromEntries(thankYouIds.map(id => [id, 5]));
+const finalViewed = Object.fromEntries(thankYouIds.map(id => [id, true]));
+const finalStock = { woodFrame: 2, plank: 4, dyedCloth: 3, thread: 4, dryFlower: 2, bag: 7 };
+const finalSlots = ['daily-naka-bag', 'daily-ritsu-thread', shiruDaily.id].map(templateId => ({ templateId, completed: false }));
+const finalBase = { completed: allFixedIds, day: 88, gatherLimit: 5, gathersLeft: 2, inventory: finalStock,
+  discovered: ['bag', 'woodFrame'], dailyRequestCounts: finalCounts, thankYouEventViewed: finalViewed,
+  dailyRequests: finalSlots, storyProgress: { milestone2Viewed: true, milestone4Completed: true, milestone4EventViewed: true, milestone6Viewed: true } };
+const sevenThanks = G.restore({ ...finalBase, thankYouEventViewed: { ...finalViewed, aoiDoctor: false } });
+assert.equal(G.storyRequestUnlocked(sevenThanks, 'milestone8'), false, '7人お礼済みでは未解放');
+assert.equal(G.postgameUnlocked(sevenThanks), false);
+assert.equal(G.completeThankYou(sevenThanks, 'aoiDoctor'), true);
+assert.equal(G.storyRequestUnlocked(sevenThanks, 'milestone8'), true, '8人目のお礼完了で解放');
+const sixUnread = G.restore({ ...finalBase, storyProgress: { ...finalBase.storyProgress, milestone6Viewed: false } });
+assert.equal(G.storyRequestUnlocked(sixUnread, 'milestone8'), false, '6人イベント未完了なら8人でも未解放');
+assert.equal(G.deliverStoryRequest(sixUnread, 'milestone8'), false);
+const finalLegacy = G.restore(finalBase);
+assert.equal(G.storyRequestUnlocked(finalLegacy, 'milestone8'), true, '旧セーブから即解放');
+assert.equal(finalLegacy.storyProgress.milestone8Completed, false);
+assert.equal(finalLegacy.day, 88);
+assert.deepEqual(finalLegacy.dailyRequests, finalSlots);
+assert.equal(finalLegacy.inventory.bag, 7);
+for (const item of finalRequest.requirements) {
+  const shortage = G.restore({ ...finalBase, inventory: { ...finalStock, [item.id]: item.quantity - 1 } });
+  const stock = { ...shortage.inventory };
+  assert.equal(G.deliverStoryRequest(shortage, 'milestone8'), false, `${item.id}不足では納品不可`);
+  assert.deepEqual(shortage.inventory, stock, `${item.id}不足で他の素材も消費しない`);
+  assert.equal(shortage.storyProgress.milestone8Completed, false);
+}
+assert.equal(G.deliverStoryRequest(finalLegacy, 'milestone8'), true);
+for (const item of finalRequest.requirements) assert.equal(finalLegacy.inventory[item.id], finalStock[item.id] - item.quantity, `${item.id}を指定数だけ消費`);
+assert.equal(finalLegacy.inventory.bag, 7, '無関係な在庫を維持');
+assert.equal(finalLegacy.storyProgress.milestone8Completed, true);
+assert.equal(finalLegacy.storyProgress.milestone8EventViewed, false, '納品だけでは本編クリアにしない');
+assert.equal(G.postgameUnlocked(finalLegacy), false);
+assert.equal(G.canViewStoryRequestCompletion(finalLegacy, 'milestone8'), true);
+assert.equal(G.deliverStoryRequest(finalLegacy, 'milestone8'), false, '連打による二重消費なし');
+const finalReload = G.restore(JSON.parse(JSON.stringify(finalLegacy)));
+assert.equal(finalReload.storyProgress.milestone8Completed, true);
+assert.equal(finalReload.storyProgress.milestone8EventViewed, false);
+assert.equal(G.deliverStoryRequest(finalReload, 'milestone8'), false, '再読み込み後も再納品不可');
+assert.equal(G.completeStoryRequestEvent(finalReload, 'milestone8'), true, '最後のボタンでクリア');
+assert.equal(G.postgameUnlocked(finalReload), true);
+assert.equal(G.completeStoryRequestEvent(finalReload, 'milestone8'), false, 'エンディングを二重完了しない');
+const clearReload = G.restore(JSON.parse(JSON.stringify(finalReload)));
+assert.equal(G.postgameUnlocked(clearReload), true, '本編クリアを復元');
+assert.deepEqual(clearReload.dailyRequests, finalSlots, '表示中の日常依頼を維持');
+assert.equal(clearReload.day, 88);
+assert.equal(clearReload.gathersLeft, 2);
+assert.equal(clearReload.discovered.includes('bag'), true);
+for (const id of thankYouIds) assert.equal(G.dailyResidentWeight(clearReload, id), 1, '全員お礼済み後は同率');
+const craftAmount = clearReload.inventory.thread;
+G.rest(clearReload, () => 0);
+assert.equal(G.postgameUnlocked(clearReload), true, '翌日も本編クリア');
+assert.equal(clearReload.inventory.thread, craftAmount, '日付進行で在庫を変更しない');
+assert.equal(clearReload.dailyRequests.length, 3, 'クリア後も日常依頼が継続');
+assert.equal(G.SAVE_VERSION, 2, 'セーブバージョンを変更しない');
+console.log('PASS: eight-thank-you final request, exact atomic delivery, ending read state, restored clear and continuing daily play');

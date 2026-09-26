@@ -150,6 +150,64 @@
           '小径の工房は、\nまた少しだけ、\n暮らしの中の場所になった。'
         ]
       }
+    },
+    milestone8: {
+      requiredThankYous: 8,
+      prerequisite: 'milestone6',
+      title: '工房の看板を掛ける',
+      paragraphs: [
+        '工房を訪れる人が増えて、\nここで交わす言葉も、\n残るものも増えてきた。',
+        'ある日、作業台の端に\n何枚かの小さな紙が置かれていた。',
+        '葉のような印。\n本を思わせる印。\nカップや封筒を思わせる印。',
+        '形の違う、\n八つの小さな印。',
+        '誰が置いたのかは、\n考えるまでもなかった。',
+        'この工房を行き来してきた\nみんなの気配が、\nそこに残っていた。',
+        '「せっかくなら、\nこの場所の名前をちゃんと形にしておこう」',
+        '工房の入口に掛ける、\nひとつの看板を作ることにした。'
+      ],
+      requirements: [
+        { id: 'woodFrame', quantity: 1 },
+        { id: 'plank', quantity: 2 },
+        { id: 'dyedCloth', quantity: 1 },
+        { id: 'thread', quantity: 1 },
+        { id: 'dryFlower', quantity: 1 }
+      ],
+      completion: {
+        title: '小径の工房',
+        paragraphs: [
+          '工房の入口に、\n新しい木の看板を掛けた。',
+          'そこには、',
+          '「小径の工房」',
+          'という名前。',
+          'その下には小さく、',
+          '「MioVerse」',
+          'と刻まれている。',
+          '看板の端には、\n形の違う八つの小さな印。',
+          'これまでこの場所を訪れてきた、\n八人の気配を残すための印だった。',
+          '最初はただ、',
+          '森で集めて、\n工房で作って、\n必要としている人へ届ける。',
+          'それだけの場所だった。',
+          'けれど、\nお願いを重ねるうちに、',
+          '言葉が残った。',
+          'お礼が残った。',
+          '誰かが腰を下ろす場所ができた。',
+          '棚には差し入れが増えた。',
+          '作って渡すだけだったやりとりは、',
+          'いつの間にか、\n行ったり来たりするものになっていた。',
+          '看板を見上げる。',
+          '誰かひとりのためだけでもなく、',
+          'ただ物を作るためだけでもない。',
+          'ここで過ごした時間ごと、\nこの名前の中に残っている。',
+          '森の小径の先にある、\n小さな工房。',
+          'ここもいつの間にか、',
+          'みんなが行き来する\nMio Verseのひとつになっていた。',
+          'そして明日もきっと、',
+          '誰かのお願いが届く。',
+          '工房での暮らしは、\nこれからも続いていく。',
+          'ふと工房の裏手を見る。',
+          'そこにはまだ、\nほとんど手を入れていない\n小さな庭が残っていた。'
+        ]
+      }
     }
   };
   const dailyRequestPool = [
@@ -216,6 +274,7 @@
   const canViewThankYou = (state, id) => !!dailyResidents[id] && state.dailyRequestCounts[id] >= 5 && !state.thankYouEventViewed[id];
   const completedThankYouCount = state => Object.keys(dailyResidents).filter(id => state.thankYouEventViewed[id]).length;
   const dailyResidentWeight = (state, id) => state.thankYouEventViewed[id] ? 1 : 2;
+  const postgameUnlocked = state => state.storyProgress.milestone8EventViewed === true;
   const storyUnlocked = (state, id) => !!storyMilestones[id] && completedThankYouCount(state) >= storyMilestones[id].requiredThankYous && (!storyMilestones[id].prerequisite || state.storyProgress[storyMilestones[id].prerequisite] === true);
   const canViewStory = (state, id) => storyUnlocked(state, id) && !state.storyProgress[`${id}Viewed`];
   const storyRequestUnlocked = (state, id) => !!storyRequests[id] && completedThankYouCount(state) >= storyRequests[id].requiredThankYous && state.storyProgress[`${storyRequests[id].prerequisite}Viewed`] === true;
@@ -371,17 +430,14 @@
       if (Number.isSafeInteger(count) && count >= 0) state.dailyRequestCounts[id] = count;
       if (state.dailyRequestCounts[id] >= 5 && data.thankYouEventViewed?.[id] === true) state.thankYouEventViewed[id] = true;
     }
-    for (const [id, milestone] of Object.entries(storyMilestones)) {
-      if (!milestone.prerequisite && storyUnlocked(state, id) && data.storyProgress?.[`${id}Viewed`] === true) state.storyProgress[`${id}Viewed`] = true;
-    }
-    for (const id of Object.keys(storyRequests)) {
-      if (storyRequestUnlocked(state, id) && data.storyProgress?.[`${id}Completed`] === true) {
+    const storyIds = [...Object.keys(storyMilestones), ...Object.keys(storyRequests)]
+      .sort((a, b) => Number(a.slice('milestone'.length)) - Number(b.slice('milestone'.length)));
+    for (const id of storyIds) {
+      if (storyMilestones[id] && storyUnlocked(state, id) && data.storyProgress?.[`${id}Viewed`] === true) state.storyProgress[`${id}Viewed`] = true;
+      if (storyRequests[id] && storyRequestUnlocked(state, id) && data.storyProgress?.[`${id}Completed`] === true) {
         state.storyProgress[`${id}Completed`] = true;
         if (data.storyProgress?.[`${id}EventViewed`] === true) state.storyProgress[`${id}EventViewed`] = true;
       }
-    }
-    for (const [id, milestone] of Object.entries(storyMilestones)) {
-      if (milestone.prerequisite && storyUnlocked(state, id) && data.storyProgress?.[`${id}Viewed`] === true) state.storyProgress[`${id}Viewed`] = true;
     }
     if (dailyUnlocked(state) && Array.isArray(data.dailyRequests)) {
       const slots = data.dailyRequests.filter(slot => slot && dailyTemplate(slot.templateId)).map(slot => ({ templateId: slot.templateId, completed: slot.completed === true }));
@@ -440,7 +496,7 @@
     state.dailyRequestCounts[request.resident] = Math.min(Number.MAX_SAFE_INTEGER, state.dailyRequestCounts[request.resident] + 1);
     return true;
   }
-  const game = { items, recipes, requests, dailyResidents, dailyRequestPool, thankYouEvents, storyMilestones, storyRequests, fresh, restore, gather, craft, deliver, deliverDaily, deliverStoryRequest, rest, completeThankYou, canViewThankYou, completedThankYouCount, dailyResidentWeight, completeStory, canViewStory, storyUnlocked, storyRequestUnlocked, canViewStoryRequestCompletion, completeStoryRequestEvent, SAVE_VERSION, DAILY_GATHERS, DAILY_REQUEST_SLOTS, gatherLimit, ingredients, maxCraft, stageTwoUnlocked, stageUnlocked, unlockedStage, visibleRequests, dailyUnlocked, ensureDailyRequests, refreshDailyRequests, currentDailyRequests };
+  const game = { items, recipes, requests, dailyResidents, dailyRequestPool, thankYouEvents, storyMilestones, storyRequests, fresh, restore, gather, craft, deliver, deliverDaily, deliverStoryRequest, rest, completeThankYou, canViewThankYou, completedThankYouCount, dailyResidentWeight, postgameUnlocked, completeStory, canViewStory, storyUnlocked, storyRequestUnlocked, canViewStoryRequestCompletion, completeStoryRequestEvent, SAVE_VERSION, DAILY_GATHERS, DAILY_REQUEST_SLOTS, gatherLimit, ingredients, maxCraft, stageTwoUnlocked, stageUnlocked, unlockedStage, visibleRequests, dailyUnlocked, ensureDailyRequests, refreshDailyRequests, currentDailyRequests };
   if (typeof module !== 'undefined' && module.exports) module.exports = game;
   else root.MioGame = game;
 })(typeof window !== 'undefined' ? window : globalThis);
