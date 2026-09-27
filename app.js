@@ -1,7 +1,7 @@
 'use strict';
 const G = window.MioGame;
 const SAVE_KEY = 'mioverse-craft-v1';
-const names = Object.fromEntries([...G.items, ...G.crops, ...G.foods, ...G.backyardMaterials].map(i => [i.id, i.name]));
+const names = Object.fromEntries([...G.items, ...G.crops, ...G.foods, ...G.backyardMaterials, ...G.merchantMaterials].map(i => [i.id, i.name]));
 const pages = [['home', '工房', '01'], ['gather', '採集', '02'], ['craft', '加工', '03'], ['inventory', '在庫', '04'], ['requests', '依頼', '05'], ['encyclopedia', '図鑑', '06'], ['backyard', '裏庭', '07']];
 const introEvent = {
   title: '小径の工房',
@@ -44,6 +44,7 @@ let selectedGardenPlot = null;
 const restDialog = document.getElementById('rest-dialog');
 const recipeDialog = document.getElementById('recipe-dialog');
 const gratitudeDialog = document.getElementById('gratitude-dialog');
+const merchantDialog = document.getElementById('merchant-dialog');
 const thankYouDialog = document.getElementById('thank-you-dialog');
 const storyDialog = document.getElementById('story-dialog');
 thankYouDialog.addEventListener?.('close', () => { activeThankYouResidentId = null; });
@@ -92,8 +93,11 @@ function notify(message) {
 }
 function home() {
   const done = state.completed.length;
+  const merchant = G.merchantStatus(state);
+  const merchantCard = merchant ? `<section class="merchant-card ${merchant.present ? 'present' : ''}" aria-labelledby="merchant-card-title"><div><p class="eyebrow">TRAVELING MERCHANT</p><h2 id="merchant-card-title">行商人</h2><p>${merchant.present ? 'レガトワが来ています' : `次の来訪まで あと${merchant.daysUntil}日`}</p>${merchant.present ? '<small>「美桜ーーー！今日はいいもん持ってきたぞ！！」</small>' : '<small>日付が進むと、3日ごとに工房へ立ち寄ります。</small>'}</div>${merchant.present ? '<button data-action="merchant-open">品物を見る</button>' : '<span class="merchant-away">旅の途中</span>'}</section>` : '';
   return `${dayStatus()}<section class="hero"><p class="eyebrow">A LITTLE WORKSHOP IN THE WOODS</p><h1>森の恵みで、<br>暮らしをひとつ。</h1><p>小径で集めて、工房でつくる。<br>あなたの手仕事を、住人たちが待っています。</p>${link('gather', '森の小径へ')}<span class="hero-stamp" aria-hidden="true">森<br>と<br>暮らす</span></section>${state.storyProgress.milestone8Completed ? '<div class="workshop-sign"><small>Mio Verse</small><strong>小径の工房</strong></div>' : ''}
     <div class="stats"><div><span>在庫の合計</span><strong>${total()} <small>個</small></strong></div><div><span>住人へのお届け</span><strong>${done} <small>/ ${requestTotal()} 件</small></strong></div><div><span>今日のペース</span><strong class="slow">のんびり</strong></div></div>
+    ${merchantCard}
     <section><div class="section-title"><h2>工房での過ごし方</h2><span>急がず、ひとつずつ</span></div><div class="steps"><a href="#gather"><span class="step-number">01 / GATHER</span><h3>森で集める</h3><p>枝、ツル草、野花。<br>好きな素材を選んで採集。</p><span class="text-link">採集へ →</span></a><a href="#craft"><span class="step-number">02 / CRAFT</span><h3>手を動かす</h3><p>素材を少しずつ加工して、<br>暮らしの道具をつくる。</p><span class="text-link">加工へ →</span></a><a href="#requests"><span class="step-number">03 / GIVE</span><h3>住人へ届ける</h3><p>できあがった品物で、<br>小さなお願いを叶える。</p><span class="text-link">依頼へ →</span></a></div></section>
     <section class="note"><span class="note-icon" aria-hidden="true">✳</span><div><h3>${done === G.requests.length ? '日常のお願いが届いています' : G.stageTwoUnlocked(state) ? '新しい3件のお願いが届いています' : 'はじめのひと品に、布袋はいかが？'}</h3><p>${done === G.requests.length ? '8人の住人から届く日常のお願いのうち、3件を受け付けます。お届け済みの枠は「今日は休む」と翌日に入れ替わります。' : G.stageTwoUnlocked(state) ? (state.unlockedStage === 3 ? '乾燥花はリースに、小箱は布張りに。素材の使い道を選びながら、新しい品物をつくってみましょう。' : '布と染料、そして木材。素材を組み合わせて、窓辺や壁を彩る品物をつくってみましょう。') : 'ツル草を1回採集 → 植物繊維を2個 → 糸を2個 → 布を1個 → 布袋を1個。ナカちゃんに届けてみましょう。'}</p></div></section>`;
 }
@@ -124,7 +128,7 @@ function inventoryPage() {
   const inventoryItem = item => `<div class="inventory-item ${count(item.id) === 0 ? 'empty' : ''}"><span class="small-mark" aria-hidden="true">${item.mark}</span><span>${item.name}</span><strong>${count(item.id)} <small>個</small></strong></div>`;
   const harvests = [...G.crops, ...G.backyardMaterials.filter(item => item.category === '収穫物')];
   const livestock = G.backyardMaterials.filter(item => item.category === '畜産物');
-  return heading('STOCK / 03', '工房の棚', `採集素材から料理まで、いま持っているもの。合計 ${total()} 個。`) + ['採集素材', '中間素材', '完成品'].map(category => `<section class="inventory-section"><h2>${category}</h2><div class="inventory-grid">${G.items.filter(i => i.category === category).map(inventoryItem).join('')}</div></section>`).join('') + (G.postgameUnlocked(state) ? `<section class="inventory-section"><h2>収穫物</h2><div class="inventory-grid">${harvests.map(inventoryItem).join('')}</div></section><section class="inventory-section livestock-inventory"><h2>畜産物</h2><div class="inventory-grid">${livestock.map(inventoryItem).join('')}</div></section><section class="inventory-section cooking-inventory"><h2>料理</h2><div class="inventory-grid">${G.foods.map(inventoryItem).join('')}</div></section>` : '') + `<p class="muted">在庫の上限はありません。加工・納品・料理に使った素材はここから減ります。</p>`;
+  return heading('STOCK / 03', '工房の棚', `採集素材から料理まで、いま持っているもの。合計 ${total()} 個。`) + ['採集素材', '中間素材', '完成品'].map(category => `<section class="inventory-section"><h2>${category}</h2><div class="inventory-grid">${G.items.filter(i => i.category === category).map(inventoryItem).join('')}</div></section>`).join('') + (G.postgameUnlocked(state) ? `<section class="inventory-section"><h2>収穫物</h2><div class="inventory-grid">${harvests.map(inventoryItem).join('')}</div></section><section class="inventory-section livestock-inventory"><h2>畜産物</h2><div class="inventory-grid">${livestock.map(inventoryItem).join('')}</div></section><section class="inventory-section merchant-inventory"><h2>外来食材</h2><div class="inventory-grid">${G.merchantMaterials.map(inventoryItem).join('')}</div></section><section class="inventory-section cooking-inventory"><h2>料理</h2><div class="inventory-grid">${G.foods.map(inventoryItem).join('')}</div></section>` : '') + `<p class="muted">在庫の上限はありません。加工・納品・料理に使った素材はここから減ります。</p>`;
 }
 function backyardPage() {
   const garden = `<div class="garden-grid">${state.plots.map((plot, index) => {
@@ -231,6 +235,16 @@ function requestsPage() {
 function renderGratitudeDialog() {
   document.getElementById('gratitude-dialog-content').innerHTML = `<p class="eyebrow">MATERIAL EXCHANGE</p><div class="gratitude-dialog-heading"><h2 id="gratitude-dialog-title" tabindex="-1">素材と交換する</h2><p>お礼のしるし <strong>${G.gratitudePointText(state)}</strong></p></div><div class="gratitude-exchanges">${G.gratitudeExchanges.map(exchange => { const ready = G.canExchangeGratitude(state, exchange.id); return `<article><div><h3>${exchange.name}</h3><p>${exchange.rewards.map(reward => `${names[reward.id]} ×${reward.quantity}`).join('・')}</p></div><div><strong>${exchange.cost} pt</strong><button data-action="gratitude-exchange" data-id="${exchange.id}" ${ready ? '' : 'disabled'}>${ready ? '交換する' : 'お礼のしるしが足りません'}</button></div></article>`; }).join('')}</div>`;
 }
+function renderMerchantDialog() {
+  const status = G.merchantStatus(state);
+  if (!status?.present) return false;
+  document.getElementById('merchant-dialog-content').innerHTML = `<p class="eyebrow">REGATOWA’S BARTER</p><div class="merchant-dialog-heading"><h2 id="merchant-dialog-title" tabindex="-1">レガトワの品物</h2><p>「交換するものある！？　俺はいろいろ持ってきた！」</p></div><div class="merchant-trades">${G.merchantTrades.map(trade => {
+    const exchanged = status.exchanged.includes(trade.id);
+    const ready = G.canTradeMerchant(state, trade.id);
+    return `<article class="${exchanged ? 'exchanged' : ''}"><div><h3>${names[trade.id]}</h3><p class="merchant-reward">受け取るもの：<strong>${names[trade.id]} ×${trade.quantity}</strong></p><p>渡すもの：${trade.costs.map(cost => `${names[cost.id]} ×${cost.quantity}（在庫 ${count(cost.id)}）`).join('・')}</p></div><button data-action="merchant-trade" data-id="${trade.id}" ${ready ? '' : 'disabled'}>${exchanged ? '交換済み' : ready ? '交換する' : '交換材料が足りません'}</button></article>`;
+  }).join('')}</div>`;
+  return true;
+}
 function openRecipeDialog(request) {
   const recipe = G.recipes.find(r => r.id === request.item);
   if (!recipe) return;
@@ -272,6 +286,21 @@ document.addEventListener('click', event => {
   const button = event.target.closest('button[data-action]');
   if (!button || button.disabled) return;
   const { action, id } = button.dataset;
+  if (action === 'merchant-open') {
+    if (!renderMerchantDialog()) return;
+    merchantDialog.showModal();
+    document.getElementById('merchant-dialog-title').focus({ preventScroll: true });
+    merchantDialog.scrollTop = 0;
+    return;
+  }
+  if (action === 'merchant-close') { merchantDialog.close(); return; }
+  if (action === 'merchant-trade') {
+    const trade = G.merchantTrades.find(entry => entry.id === id);
+    if (!trade || !G.tradeMerchant(state, id)) return;
+    save(); render(); renderMerchantDialog();
+    notify(`レガトワ「よっしゃ、交換成立！」 ${names[id]}を${trade.quantity}個受け取りました。`);
+    return;
+  }
   if (action === 'gratitude-open') {
     if (!G.postgameUnlocked(state)) return;
     renderGratitudeDialog();

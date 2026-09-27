@@ -1111,3 +1111,80 @@ assert.equal(G.collectFacility(fullEggFacility, 'chickenCoop'), false, '在庫�
 assert.equal(JSON.stringify(fullEggFacility), fullEggSnapshot, '上限時は周期も変更しない');
 assert.equal(G.SAVE_VERSION, 2, '設備追加でも既存セーブバージョンを維持');
 console.log('PASS: three postgame facilities, exact game-day cycles, collection quantities, restart timing, save reload, no real-time progress and guards');
+
+assert.deepEqual(G.merchantMaterials.map(item => [item.id, item.name, item.category]), [
+  ['sugar', '砂糖', '外来食材'],
+  ['salt', '塩', '外来食材'],
+  ['butter', 'バター', '外来食材'],
+  ['cheese', 'チーズ', '外来食材'],
+  ['meat', '肉', '外来食材'],
+  ['fish', '魚', '外来食材']
+]);
+assert.deepEqual(G.merchantTrades.map(trade => [trade.id, trade.quantity, trade.costs.map(cost => [cost.id, cost.quantity])]), [
+  ['sugar', 2, [['flower', 2]]],
+  ['salt', 2, [['branch', 2]]],
+  ['butter', 1, [['thread', 1]]],
+  ['cheese', 1, [['dye', 1]]],
+  ['meat', 1, [['box', 1]]],
+  ['fish', 1, [['bag', 1]]]
+]);
+assert.equal(G.MERCHANT_VISIT_INTERVAL, 3);
+assert.ok(G.merchantTrades.every(trade => trade.costs.every(cost => G.items.some(item => item.id === cost.id))), '交換材料は既存アイテムだけ');
+assert.ok(G.merchantTrades.every(trade => !trade.costs.some(cost => G.merchantMaterials.some(item => item.id === cost.id))), '外来食材を交換材料にしない');
+assert.ok(G.cookingRecipes.every(recipe => G.ingredients(recipe).every(input => !G.merchantMaterials.some(item => item.id === input.id))), '今回は外来食材の料理レシピを追加しない');
+assert.equal(G.merchantStatus(finalReload).present, true, '本編クリア完了日から行商人を利用可能');
+const preClearMerchant = G.fresh();
+assert.equal(G.merchantStatus(preClearMerchant), null, '本編未クリアでは行商人を無効化');
+assert.equal(G.tradeMerchant(preClearMerchant, 'sugar'), false);
+
+const oldClearMerchant = G.restore({ ...postgameRequestSeed, merchantVisit: undefined, inventory: {} });
+assert.deepEqual(G.merchantStatus(oldClearMerchant), { present: true, daysUntil: 0, exchanged: [] }, 'クリア済み旧セーブは初回即来訪');
+assert.equal(oldClearMerchant.merchantVisit.anchorDay, oldClearMerchant.day, '旧セーブ読込日を3日周期の基準日にする');
+assert.ok(G.merchantMaterials.every(item => oldClearMerchant.inventory[item.id] === 0), '旧セーブの外来食材は0で初期化');
+
+for (const trade of G.merchantTrades) {
+  const inventory = Object.fromEntries(trade.costs.map(cost => [cost.id, cost.quantity]));
+  const tradeState = G.restore({ ...postgameRequestSeed, merchantVisit: undefined, inventory });
+  const before = { ...tradeState.inventory };
+  assert.equal(G.canTradeMerchant(tradeState, trade.id), true, `${trade.id}は材料充足時に交換可能`);
+  assert.equal(G.tradeMerchant(tradeState, trade.id), true);
+  for (const cost of trade.costs) assert.equal(tradeState.inventory[cost.id], before[cost.id] - cost.quantity, `${cost.id}を正確に消費`);
+  assert.equal(tradeState.inventory[trade.id], trade.quantity, `${trade.id}を指定数受取`);
+  const completedSnapshot = JSON.stringify(tradeState);
+  assert.equal(G.tradeMerchant(tradeState, trade.id), false, '同じ来訪中の二重交換を防止');
+  assert.equal(JSON.stringify(tradeState), completedSnapshot, '二重操作で在庫を変更しない');
+  const tradeReload = G.restore(JSON.parse(JSON.stringify(tradeState)));
+  assert.ok(G.merchantStatus(tradeReload).exchanged.includes(trade.id), '交換済み状態を再読込で保持');
+  assert.equal(G.tradeMerchant(tradeReload, trade.id), false, '再読込後も二重交換不可');
+
+  const shortInventory = Object.fromEntries(trade.costs.map(cost => [cost.id, Math.max(0, cost.quantity - 1)]));
+  const shortTrade = G.restore({ ...postgameRequestSeed, merchantVisit: undefined, inventory: shortInventory });
+  const shortSnapshot = JSON.stringify(shortTrade);
+  assert.equal(G.tradeMerchant(shortTrade, trade.id), false, '交換材料不足では交換不可');
+  assert.equal(JSON.stringify(shortTrade), shortSnapshot, '不足時は材料も受取品も変更しない');
+}
+
+const merchantCycle = G.restore({ ...postgameRequestSeed, merchantVisit: undefined, inventory: { flower: 4 } });
+const merchantAnchor = merchantCycle.merchantVisit.anchorDay;
+assert.equal(G.tradeMerchant(merchantCycle, 'sugar'), true);
+G.rest(merchantCycle, () => 0.9);
+assert.deepEqual(G.merchantStatus(merchantCycle), { present: false, daysUntil: 2, exchanged: [] }, '来訪翌日は次回まで2日');
+G.rest(merchantCycle, () => 0.9);
+assert.deepEqual(G.merchantStatus(merchantCycle), { present: false, daysUntil: 1, exchanged: [] }, '来訪2日後は次回まで1日');
+G.rest(merchantCycle, () => 0.9);
+assert.deepEqual(G.merchantStatus(merchantCycle), { present: true, daysUntil: 0, exchanged: [] }, '3日後に再来訪し交換制限をリセット');
+assert.equal(merchantCycle.merchantVisit.anchorDay, merchantAnchor, '周期の基準日を維持');
+assert.equal(G.tradeMerchant(merchantCycle, 'sugar'), true, '次回来訪では同じ商品を再交換可能');
+assert.equal(merchantCycle.inventory.sugar, 4);
+const cycleReload = G.restore(JSON.parse(JSON.stringify(merchantCycle)));
+assert.deepEqual(cycleReload.merchantVisit, merchantCycle.merchantVisit, '来訪周期と交換済み商品を保存');
+const hugeDayMerchant = G.restore({ ...postgameRequestSeed, day: '9007199254740993', merchantVisit: undefined });
+G.rest(hugeDayMerchant, () => 0.9);
+assert.equal(hugeDayMerchant.day, '9007199254740994');
+assert.equal(G.merchantStatus(hugeDayMerchant).daysUntil, 2, '安全整数を超える日数でも3日周期を維持');
+const fullSugarMerchant = G.restore({ ...postgameRequestSeed, merchantVisit: undefined, inventory: { flower: 2, sugar: Number.MAX_SAFE_INTEGER } });
+const fullSugarSnapshot = JSON.stringify(fullSugarMerchant);
+assert.equal(G.tradeMerchant(fullSugarMerchant, 'sugar'), false, '受取在庫上限時は交換不可');
+assert.equal(JSON.stringify(fullSugarMerchant), fullSugarSnapshot, '上限時も原子的に状態を保つ');
+assert.equal(G.SAVE_VERSION, 2, '行商人追加でも既存セーブバージョンを維持');
+console.log('PASS: Regatowa postgame gating, immediate legacy visit, six atomic barter trades, one-per-visit persistence, exact three-day game cycle and reload');

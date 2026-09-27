@@ -46,6 +46,14 @@
     { id: 'milk', name: '牛乳', category: '畜産物', mark: '乳' },
     { id: 'mushroom', name: 'きのこ', category: '収穫物', mark: '茸' }
   ];
+  const merchantMaterials = [
+    { id: 'sugar', name: '砂糖', category: '外来食材', mark: '糖' },
+    { id: 'salt', name: '塩', category: '外来食材', mark: '塩' },
+    { id: 'butter', name: 'バター', category: '外来食材', mark: '酪' },
+    { id: 'cheese', name: 'チーズ', category: '外来食材', mark: '乳' },
+    { id: 'meat', name: '肉', category: '外来食材', mark: '肉' },
+    { id: 'fish', name: '魚', category: '外来食材', mark: '魚' }
+  ];
   const backyardFacilities = [
     { id: 'chickenCoop', name: '小さな鶏小屋', product: 'egg', cycleDays: 2, quantity: 2 },
     { id: 'cowBarn', name: '小さな牛舎', product: 'milk', cycleDays: 3, quantity: 1 },
@@ -57,6 +65,15 @@
     { id: 'cloth-materials', name: '布の素材セット', cost: 3, rewards: [{ id: 'fiber', quantity: 2 }, { id: 'thread', quantity: 1 }] },
     { id: 'color-materials', name: '色の素材セット', cost: 3, rewards: [{ id: 'dryFlower', quantity: 2 }, { id: 'dyedCloth', quantity: 1 }] },
     { id: 'workshop-materials', name: '工房素材のおまかせセット', cost: 5, rewards: [{ id: 'plank', quantity: 2 }, { id: 'thread', quantity: 2 }, { id: 'cloth', quantity: 1 }] }
+  ];
+  // 行商人の品揃え。外来食材を増やす時は、受取品と交換材料をここへ追加する。
+  const merchantTrades = [
+    { id: 'sugar', quantity: 2, costs: [{ id: 'flower', quantity: 2 }] },
+    { id: 'salt', quantity: 2, costs: [{ id: 'branch', quantity: 2 }] },
+    { id: 'butter', quantity: 1, costs: [{ id: 'thread', quantity: 1 }] },
+    { id: 'cheese', quantity: 1, costs: [{ id: 'dye', quantity: 1 }] },
+    { id: 'meat', quantity: 1, costs: [{ id: 'box', quantity: 1 }] },
+    { id: 'fish', quantity: 1, costs: [{ id: 'bag', quantity: 1 }] }
   ];
   const recipes = [
     { id: 'wood', input: 'branch', cost: 2, group: '木のしごと' },
@@ -334,8 +351,9 @@
   const gatherLimit = state => dailyUnlocked(state) ? UNLOCKED_DAILY_GATHERS : DAILY_GATHERS;
   const DAILY_REQUEST_SLOTS = 3;
   const GARDEN_REQUEST_CHANCE = 0.35;
+  const MERCHANT_VISIT_INTERVAL = 3;
   const SAVE_VERSION = 2;
-  const fresh = () => ({ saveVersion: SAVE_VERSION, introViewed: false, inventory: Object.fromEntries([...items, ...crops, ...foods, ...backyardMaterials].map(item => [item.id, 0])), plots: [null, null, null], facilityProduction: Object.fromEntries(backyardFacilities.map(facility => [facility.id, null])), completed: [], unlockedStage: 1, day: 1, gathersLeft: DAILY_GATHERS, gatherLimit: DAILY_GATHERS, dailyRequests: [], gardenRequest: null, gratitudePoints: 0, dailyHistory: [], dailyRequestCounts: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, 0])), thankYouEventViewed: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, false])), storyProgress: { ...Object.fromEntries(Object.keys(storyMilestones).map(id => [`${id}Viewed`, false])), ...Object.fromEntries(Object.keys(storyRequests).flatMap(id => [[`${id}Completed`, false], [`${id}EventViewed`, false]])) }, discovered: [] });
+  const fresh = () => ({ saveVersion: SAVE_VERSION, introViewed: false, inventory: Object.fromEntries([...items, ...crops, ...foods, ...backyardMaterials, ...merchantMaterials].map(item => [item.id, 0])), plots: [null, null, null], facilityProduction: Object.fromEntries(backyardFacilities.map(facility => [facility.id, null])), merchantVisit: null, completed: [], unlockedStage: 1, day: 1, gathersLeft: DAILY_GATHERS, gatherLimit: DAILY_GATHERS, dailyRequests: [], gardenRequest: null, gratitudePoints: 0, dailyHistory: [], dailyRequestCounts: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, 0])), thankYouEventViewed: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, false])), storyProgress: { ...Object.fromEntries(Object.keys(storyMilestones).map(id => [`${id}Viewed`, false])), ...Object.fromEntries(Object.keys(storyRequests).flatMap(id => [[`${id}Completed`, false], [`${id}EventViewed`, false]])) }, discovered: [] });
   const canViewThankYou = (state, id) => !!dailyResidents[id] && state.dailyRequestCounts[id] >= 5 && !state.thankYouEventViewed[id];
   const completedThankYouCount = state => Object.keys(dailyResidents).filter(id => state.thankYouEventViewed[id]).length;
   const dailyResidentWeight = (state, id) => state.thankYouEventViewed[id] ? 1 : 2;
@@ -343,6 +361,44 @@
   const recipeUnlocked = (state, recipe) => !!recipe && (recipe.kind !== 'cooking' || postgameUnlocked(state));
   const availableRecipes = state => recipes.filter(recipe => recipeUnlocked(state, recipe));
   const validDay = value => Number.isSafeInteger(value) && value >= 1 || typeof value === 'string' && /^[1-9][0-9]*$/.test(value);
+  function ensureMerchant(state) {
+    if (!postgameUnlocked(state)) { state.merchantVisit = null; return false; }
+    const savedAnchor = state.merchantVisit?.anchorDay;
+    const anchorDay = validDay(savedAnchor) && BigInt(savedAnchor) <= BigInt(state.day) ? savedAnchor : state.day;
+    const present = (BigInt(state.day) - BigInt(anchorDay)) % BigInt(MERCHANT_VISIT_INTERVAL) === 0n;
+    const sameVisit = present && validDay(state.merchantVisit?.exchangedDay) && BigInt(state.merchantVisit.exchangedDay) === BigInt(state.day);
+    const exchanged = sameVisit && Array.isArray(state.merchantVisit?.exchanged)
+      ? [...new Set(state.merchantVisit.exchanged.filter(id => merchantTrades.some(trade => trade.id === id)))]
+      : [];
+    const exchangedDay = exchanged.length ? state.day : null;
+    const next = { anchorDay, exchangedDay, exchanged };
+    const changed = JSON.stringify(state.merchantVisit) !== JSON.stringify(next);
+    state.merchantVisit = next;
+    return changed;
+  }
+  function merchantStatus(state) {
+    if (!postgameUnlocked(state)) return null;
+    ensureMerchant(state);
+    const elapsed = (BigInt(state.day) - BigInt(state.merchantVisit.anchorDay)) % BigInt(MERCHANT_VISIT_INTERVAL);
+    const daysUntil = elapsed === 0n ? 0 : Number(BigInt(MERCHANT_VISIT_INTERVAL) - elapsed);
+    return { present: daysUntil === 0, daysUntil, exchanged: [...state.merchantVisit.exchanged] };
+  }
+  function canTradeMerchant(state, id) {
+    const trade = merchantTrades.find(entry => entry.id === id);
+    const status = merchantStatus(state);
+    return !!trade && !!status?.present && !status.exchanged.includes(id)
+      && trade.costs.every(cost => Number.isSafeInteger(state.inventory[cost.id]) && state.inventory[cost.id] >= cost.quantity)
+      && Number.isSafeInteger(state.inventory[id]) && state.inventory[id] <= Number.MAX_SAFE_INTEGER - trade.quantity;
+  }
+  function tradeMerchant(state, id) {
+    const trade = merchantTrades.find(entry => entry.id === id);
+    if (!trade || !canTradeMerchant(state, id)) return false;
+    for (const cost of trade.costs) state.inventory[cost.id] -= cost.quantity;
+    state.inventory[id] += trade.quantity;
+    state.merchantVisit.exchangedDay = state.day;
+    state.merchantVisit.exchanged.push(id);
+    return true;
+  }
   function ensureFacilities(state) {
     if (!postgameUnlocked(state)) return false;
     if (!state.facilityProduction || typeof state.facilityProduction !== 'object') state.facilityProduction = {};
@@ -431,6 +487,7 @@
   function completeStoryRequestEvent(state, id) {
     if (!canViewStoryRequestCompletion(state, id)) return false;
     state.storyProgress[`${id}EventViewed`] = true;
+    if (id === 'milestone8') ensureMerchant(state);
     return true;
   }
   function deliverStoryRequest(state, id) {
@@ -597,7 +654,7 @@
     if (Number.isSafeInteger(data.day) && data.day >= 1) state.day = data.day;
     // 非常に大きい日数も文字列として保存し、上限を設けずに進められる。
     else if (typeof data.day === 'string' && /^[1-9][0-9]*$/.test(data.day)) state.day = data.day;
-    for (const item of [...items, ...crops, ...foods, ...backyardMaterials]) {
+    for (const item of [...items, ...crops, ...foods, ...backyardMaterials, ...merchantMaterials]) {
       const n = data.inventory?.[item.id];
       if (Number.isSafeInteger(n) && n >= 0) state.inventory[item.id] = n;
     }
@@ -632,6 +689,14 @@
         if (validDay(startedDay) && BigInt(startedDay) <= BigInt(state.day)) state.facilityProduction[facility.id] = { startedDay };
       }
       ensureFacilities(state);
+      if (data.merchantVisit && typeof data.merchantVisit === 'object') {
+        state.merchantVisit = {
+          anchorDay: data.merchantVisit.anchorDay,
+          exchangedDay: data.merchantVisit.exchangedDay,
+          exchanged: Array.isArray(data.merchantVisit.exchanged) ? data.merchantVisit.exchanged : []
+        };
+      }
+      ensureMerchant(state);
     }
     // クリア済みセーブだけ値を引き継ぐ。旧セーブや未クリアデータは0から始める。
     if (postgameUnlocked(state) && validGratitudePoints(data.gratitudePoints)) state.gratitudePoints = data.gratitudePoints;
@@ -669,8 +734,10 @@
   }
   function rest(state, random = Math.random) {
     ensureFacilities(state);
+    ensureMerchant(state);
     const nextDay = BigInt(state.day) + 1n;
     state.day = nextDay <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(nextDay) : String(nextDay);
+    ensureMerchant(state);
     state.gathersLeft = gatherLimit(state);
     state.gatherLimit = gatherLimit(state);
     refreshDailyRequests(state, random);
@@ -719,7 +786,7 @@
     addGratitudePoint(state);
     return true;
   }
-  const game = { items, crops, foods, backyardMaterials, backyardFacilities, recipes, cookingRecipes, requests, dailyResidents, dailyRequestPool, gardenDailyRequestPool, gratitudeExchanges, thankYouEvents, storyMilestones, storyRequests, fresh, restore, gather, craft, deliver, deliverDaily, deliverGardenRequest, deliverStoryRequest, exchangeGratitude, canExchangeGratitude, gratitudePointText, rest, plantCrop, harvestCrop, cropDaysLeft, ensureFacilities, facilityDaysLeft, currentFacilities, collectFacility, completeThankYou, canViewThankYou, completedThankYouCount, dailyResidentWeight, postgameUnlocked, recipeUnlocked, availableRecipes, completeStory, canViewStory, storyUnlocked, storyRequestUnlocked, canViewStoryRequestCompletion, completeStoryRequestEvent, SAVE_VERSION, DAILY_GATHERS, DAILY_REQUEST_SLOTS, GARDEN_REQUEST_CHANCE, gatherLimit, ingredients, maxCraft, stageTwoUnlocked, stageUnlocked, unlockedStage, visibleRequests, dailyUnlocked, ensureDailyRequests, refreshDailyRequests, refreshGardenRequest, currentDailyRequests, currentGardenRequest };
+  const game = { items, crops, foods, backyardMaterials, backyardFacilities, merchantMaterials, merchantTrades, recipes, cookingRecipes, requests, dailyResidents, dailyRequestPool, gardenDailyRequestPool, gratitudeExchanges, thankYouEvents, storyMilestones, storyRequests, fresh, restore, gather, craft, deliver, deliverDaily, deliverGardenRequest, deliverStoryRequest, exchangeGratitude, canExchangeGratitude, gratitudePointText, merchantStatus, canTradeMerchant, tradeMerchant, rest, plantCrop, harvestCrop, cropDaysLeft, ensureFacilities, facilityDaysLeft, currentFacilities, collectFacility, completeThankYou, canViewThankYou, completedThankYouCount, dailyResidentWeight, postgameUnlocked, recipeUnlocked, availableRecipes, completeStory, canViewStory, storyUnlocked, storyRequestUnlocked, canViewStoryRequestCompletion, completeStoryRequestEvent, SAVE_VERSION, DAILY_GATHERS, DAILY_REQUEST_SLOTS, GARDEN_REQUEST_CHANCE, MERCHANT_VISIT_INTERVAL, gatherLimit, ingredients, maxCraft, stageTwoUnlocked, stageUnlocked, unlockedStage, visibleRequests, dailyUnlocked, ensureDailyRequests, refreshDailyRequests, refreshGardenRequest, currentDailyRequests, currentGardenRequest };
   if (typeof module !== 'undefined' && module.exports) module.exports = game;
   else root.MioGame = game;
 })(typeof window !== 'undefined' ? window : globalThis);

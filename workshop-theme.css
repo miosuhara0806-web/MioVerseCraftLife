@@ -347,6 +347,27 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
 .gratitude-exchanges button { min-height: 42px; min-width: 105px; padding: 8px 12px; font-size: 11px; }
 .gratitude-dialog-actions { display: flex; justify-content: flex-end; margin-top: 18px; }
 .gratitude-dialog-actions button { min-height: 44px; }
+.merchant-card { display: flex; align-items: center; justify-content: space-between; gap: 22px; min-width: 0; margin: 0 0 26px; padding: 18px 20px; background: #f1eee1; border: 1px solid #d9d1bb; border-radius: 16px; }
+.merchant-card.present { background: linear-gradient(110deg, #edf0e2, #f4eadc); border-color: #cbd5bd; }
+.merchant-card h2, .merchant-dialog-heading h2 { margin: 2px 0 5px; color: var(--green); font-family: "Yu Mincho", serif; font-size: 20px; font-weight: 500; }
+.merchant-card p:not(.eyebrow) { margin: 0; color: var(--ink); font-size: 13px; }
+.merchant-card small { display: block; margin-top: 5px; color: var(--muted); line-height: 1.7; }
+.merchant-card button { flex: 0 0 auto; min-height: 42px; padding: 9px 17px; font-size: 12px; }
+.merchant-away { flex: 0 0 auto; padding: 6px 11px; color: var(--muted); background: #e6e4d8; border-radius: 20px; font-size: 11px; }
+#merchant-dialog { width: 650px; max-width: calc(100% - 24px); max-height: calc(100dvh - 24px); overflow: auto; padding: 26px; color: var(--ink); background: var(--paper); border: 1px solid #cdd8c4; border-radius: 20px; box-shadow: 0 18px 60px #253b3033; }
+#merchant-dialog::backdrop { background: #293c3280; }
+.merchant-dialog-heading { margin-bottom: 17px; }
+.merchant-dialog-heading h2:focus { outline: none; }
+.merchant-dialog-heading p { margin: 4px 0 0; color: #80583f; font-size: 12px; line-height: 1.7; }
+.merchant-trades { display: grid; gap: 10px; }
+.merchant-trades article { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-width: 0; padding: 14px 15px; background: #f4f3e9; border: 1px solid #d9dece; border-radius: 13px; }
+.merchant-trades article.exchanged { background: #eeeee4; }
+.merchant-trades h3 { margin: 0 0 6px; color: var(--green); font-size: 15px; }
+.merchant-trades p { margin: 2px 0; color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.merchant-trades .merchant-reward strong { color: var(--ink); }
+.merchant-trades button { flex: 0 0 auto; min-width: 132px; min-height: 42px; padding: 8px 12px; font-size: 11px; }
+.merchant-dialog-actions { display: flex; justify-content: flex-end; margin-top: 18px; }
+.merchant-dialog-actions button { min-height: 44px; }
 @media (max-width: 520px) {
   .gratitude-card, .gratitude-dialog-heading, .gratitude-exchanges article { align-items: stretch; flex-direction: column; }
   .gratitude-balance { align-self: stretch; }
@@ -356,6 +377,12 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
   .gratitude-exchanges article > div:last-child { justify-content: space-between; }
   .gratitude-exchanges button { min-width: 0; max-width: 190px; }
   .gratitude-dialog-actions button { width: 100%; }
+  .merchant-card, .merchant-trades article { align-items: stretch; flex-direction: column; }
+  .merchant-card button { width: 100%; }
+  .merchant-away { align-self: flex-start; }
+  #merchant-dialog { padding: 21px 17px; }
+  .merchant-trades button { width: 100%; min-width: 0; }
+  .merchant-dialog-actions button { width: 100%; }
 }
 #rest-dialog { max-height: calc(100dvh - 32px); overflow: auto; }
 #rest-dialog::backdrop, #recipe-dialog::backdrop { background: #293c3280; }

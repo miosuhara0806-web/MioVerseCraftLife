@@ -30,6 +30,8 @@ function launch() {
     recipeDialogHtml() { return node('recipe-dialog-content').innerHTML; },
     gratitudeDialogOpen() { return node('gratitude-dialog').open; },
     gratitudeDialogHtml() { return node('gratitude-dialog-content').innerHTML; },
+    merchantDialogOpen() { return node('merchant-dialog').open; },
+    merchantDialogHtml() { return node('merchant-dialog-content').innerHTML; },
     toastText() { return node('toast').textContent; },
     thankYouDialogOpen() { return node('thank-you-dialog').open; },
     thankYouDialogHtml() { return node('thank-you-dialog-content').innerHTML; },
@@ -1363,3 +1365,83 @@ assert.equal(app.state().inventory.milk, 1);
 assert.equal(app.state().inventory.mushroom, 2, '設備素材を再読込で保持');
 assert.ok(app.state().facilityProduction.cowBarn.startedDay > facilityInitialDay, '受取後の周期開始日を保持');
 console.log('PASS: backyard facility UI gating, three timers, exact collection, next cycle, inventory categories, reload and existing-system isolation');
+
+saved.set('mioverse-craft-v1', JSON.stringify({ ...G.fresh(), introViewed: true }));
+app = launch();
+assert.ok(!app.page('home').includes('行商人'), '本編未クリアではレガトワを表示しない');
+app.click('merchant-open');
+assert.equal(app.merchantDialogOpen(), false, '未クリアでは交換画面を直接開けない');
+
+const merchantUiSave = JSON.parse(JSON.stringify(clearEnding));
+delete merchantUiSave.merchantVisit;
+for (const item of G.merchantMaterials) delete merchantUiSave.inventory[item.id];
+Object.assign(merchantUiSave.inventory, { flower: 4, branch: 0, thread: 0, dye: 0, box: 0, bag: 0 });
+saved.set('mioverse-craft-v1', JSON.stringify(merchantUiSave));
+app = launch();
+let merchantHomeHtml = app.page('home');
+assert.ok(merchantHomeHtml.includes('レガトワが来ています'), 'クリア済み旧セーブでは初回即来訪');
+assert.ok(merchantHomeHtml.includes('美桜ーーー！今日はいいもん持ってきたぞ！！'));
+assert.ok(merchantHomeHtml.includes('data-action="merchant-open">品物を見る</button>'));
+assert.ok(G.merchantMaterials.every(item => app.state().inventory[item.id] === 0), '旧セーブの外来食材は0から開始');
+const merchantInitialDay = app.state().day;
+app.click('merchant-open');
+assert.equal(app.merchantDialogOpen(), true);
+let merchantDialogHtml = app.merchantDialogHtml();
+assert.ok(merchantDialogHtml.includes('交換するものある！？　俺はいろいろ持ってきた！'));
+for (const trade of G.merchantTrades) {
+  assert.ok(merchantDialogHtml.includes(G.merchantMaterials.find(item => item.id === trade.id).name), `${trade.id}を表示`);
+  for (const cost of trade.costs) assert.ok(merchantDialogHtml.includes(`${G.items.find(item => item.id === cost.id).name} ×${cost.quantity}`));
+}
+assert.match(merchantDialogHtml, /data-action="merchant-trade" data-id="sugar" >交換する<\/button>/);
+assert.match(merchantDialogHtml, /data-action="merchant-trade" data-id="salt" disabled>交換材料が足りません<\/button>/);
+const shortageMerchantUi = JSON.stringify(app.state());
+app.click('merchant-trade', 'salt');
+assert.equal(JSON.stringify(app.state()), shortageMerchantUi, '材料不足の画面操作では状態を変えない');
+app.click('merchant-trade', 'sugar');
+assert.equal(app.state().inventory.flower, 2);
+assert.equal(app.state().inventory.sugar, 2);
+assert.ok(app.state().merchantVisit.exchanged.includes('sugar'));
+assert.ok(app.merchantDialogHtml().includes('data-id="sugar" disabled>交換済み</button>'));
+assert.ok(app.toastText().includes('レガトワ「よっしゃ、交換成立！」 砂糖を2個受け取りました。'));
+const duplicateMerchantUi = JSON.stringify(app.state());
+app.click('merchant-trade', 'sugar');
+assert.equal(JSON.stringify(app.state()), duplicateMerchantUi, '同じ来訪中の連打で二重取得しない');
+app.click('merchant-close');
+assert.equal(app.merchantDialogOpen(), false);
+
+app = launch();
+assert.equal(app.state().inventory.sugar, 2, '交換品を再読込で保持');
+assert.ok(app.state().merchantVisit.exchanged.includes('sugar'), '交換済み状態を再読込で保持');
+app.page('home');
+app.click('merchant-open');
+assert.ok(app.merchantDialogHtml().includes('data-id="sugar" disabled>交換済み</button>'));
+app.click('merchant-close');
+let merchantInventoryHtml = app.page('inventory');
+assert.ok(merchantInventoryHtml.includes('<h2>外来食材</h2>'));
+for (const item of G.merchantMaterials) assert.ok(merchantInventoryHtml.includes(`<span>${item.name}</span>`));
+assert.ok(merchantInventoryHtml.includes('<span>砂糖</span><strong>2 '));
+
+app.page('home'); app.click('rest'); app.click('rest-confirm');
+merchantHomeHtml = app.page('home');
+assert.equal(app.state().day, merchantInitialDay + 1);
+assert.ok(merchantHomeHtml.includes('次の来訪まで あと2日'));
+assert.ok(!merchantHomeHtml.includes('data-action="merchant-open"'));
+app.click('merchant-open');
+assert.equal(app.merchantDialogOpen(), false, '不在時は交換画面を直接開けない');
+app.click('rest'); app.click('rest-confirm');
+merchantHomeHtml = app.page('home');
+assert.ok(merchantHomeHtml.includes('次の来訪まで あと1日'));
+app.click('rest'); app.click('rest-confirm');
+merchantHomeHtml = app.page('home');
+assert.equal(app.state().day, merchantInitialDay + 3);
+assert.ok(merchantHomeHtml.includes('レガトワが来ています'), '3日後に再来訪');
+assert.deepEqual(app.state().merchantVisit.exchanged, [], '次回来訪時に交換制限をリセット');
+app.click('merchant-open');
+merchantDialogHtml = app.merchantDialogHtml();
+assert.match(merchantDialogHtml, /data-action="merchant-trade" data-id="sugar" >交換する<\/button>/);
+app.click('merchant-trade', 'sugar');
+assert.equal(app.state().inventory.sugar, 4, '次回来訪では同じ商品を再交換可能');
+assert.ok(app.page('craft').includes('きのこオムレツ'), '既存料理を維持');
+assert.ok(app.page('backyard').includes('小さな鶏小屋'), '既存の畑・設備を維持');
+assert.ok(app.page('requests').includes('お礼のしるし'), '既存依頼とお礼のしるしを維持');
+console.log('PASS: Regatowa workshop card/dialog gating, six trades, shortage and duplicate guards, three-day visit UI, inventory, reload and existing-system isolation');
