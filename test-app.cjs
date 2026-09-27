@@ -1516,3 +1516,56 @@ assert.ok(app.page('craft').includes('きのこオムレツ'), '既存料理を�
 assert.ok(app.page('backyard').includes('小さな鶏小屋'), '既存の畑・設備を維持');
 assert.ok(app.page('requests').includes('お礼のしるし'), '既存依頼とお礼のしるしを維持');
 console.log('PASS: Regatowa workshop card/dialog gating, six trades, shortage and duplicate guards, three-day visit UI, inventory, reload and existing-system isolation');
+
+const cookingRequestUiSave = JSON.parse(JSON.stringify(clearEnding));
+cookingRequestUiSave.gratitudePoints = 6;
+cookingRequestUiSave.inventory.butterCookies = 0;
+cookingRequestUiSave.gardenRequest = { resident: 'ritsu', cropId: 'potato', completed: false };
+cookingRequestUiSave.dailyRequests = [
+  { templateId: 'daily-cooking-naka-butterCookies', completed: false },
+  { templateId: 'daily-ritsu-thread', completed: false },
+  { templateId: 'daily-towa-box', completed: false }
+];
+saved.set('mioverse-craft-v1', JSON.stringify(cookingRequestUiSave));
+app = launch();
+let cookingRequestHtml = app.page('requests');
+assert.equal((cookingRequestHtml.match(/class="request-card daily-request/g) || []).length, 3, '料理依頼も通常の3枠内に表示');
+assert.ok(cookingRequestHtml.includes('バタークッキーをひと皿'));
+assert.ok(cookingRequestHtml.includes('バタークッキー × 1'));
+assert.match(cookingRequestHtml, /data-action="deliver-daily" data-id="daily-cooking-naka-butterCookies" disabled>料理が必要<\/button>/);
+assert.ok(cookingRequestHtml.includes('裏庭からのお届け'), '裏庭依頼を独立表示のまま維持');
+app.click('view-recipe', 'daily-cooking-naka-butterCookies');
+assert.equal(app.recipeDialogOpen(), true);
+assert.ok(app.recipeDialogHtml().includes('id="recipe-dialog-title">バタークッキー</h2>'));
+assert.ok(app.recipeDialogHtml().includes('<span>小麦</span><strong>× 2</strong>'));
+assert.ok(app.recipeDialogHtml().includes('<span>砂糖</span><strong>× 1</strong>'));
+assert.ok(app.recipeDialogHtml().includes('<span>バター</span><strong>× 1</strong>'));
+app.click('recipe-close');
+const shortageCookingRequestState = JSON.stringify(app.state());
+app.click('deliver-daily', 'daily-cooking-naka-butterCookies');
+assert.equal(JSON.stringify(app.state()), shortageCookingRequestState, '料理不足時は画面操作からも状態を変更しない');
+
+const readyCookingRequestUiSave = app.state();
+readyCookingRequestUiSave.inventory.butterCookies = 1;
+saved.set('mioverse-craft-v1', JSON.stringify(readyCookingRequestUiSave));
+app = launch();
+const cookingProgressBefore = app.state().dailyRequestCounts.naka;
+cookingRequestHtml = app.page('requests');
+assert.match(cookingRequestHtml, /data-action="deliver-daily" data-id="daily-cooking-naka-butterCookies" >1個届ける<\/button>/);
+app.click('deliver-daily', 'daily-cooking-naka-butterCookies');
+assert.equal(app.state().inventory.butterCookies, 0);
+assert.equal(app.state().gratitudePoints, 7);
+assert.equal(app.state().dailyRequestCounts.naka, cookingProgressBefore + 1);
+assert.ok(app.toastText().includes('お礼のしるし +1（所持：7）'));
+cookingRequestHtml = app.page('requests');
+assert.match(cookingRequestHtml, /data-action="deliver-daily" data-id="daily-cooking-naka-butterCookies" disabled>お届け済み<\/button>/);
+assert.ok(cookingRequestHtml.includes('5 / 5'), '表示上の進捗上限5\/5を維持');
+assert.equal((cookingRequestHtml.match(/class="request-card daily-request/g) || []).length, 3);
+app = launch();
+assert.equal(app.state().inventory.butterCookies, 0, '料理在庫の消費を再読込後も維持');
+assert.equal(app.state().gratitudePoints, 7, 'しるし加算を再読込後も維持');
+assert.equal(app.state().dailyRequests[0].completed, true, '料理依頼の達成状態を再読込後も維持');
+assert.ok(app.page('requests').includes('裏庭からのお届け'));
+assert.ok(app.page('craft').includes('バタークッキー'), '料理レシピ16種の既存UIを維持');
+assert.ok(app.page('home').includes('行商人'), 'レガトワの表示を維持');
+console.log('PASS: cooking request UI, recipe route, shortage guard, exact delivery, gratitude, 5/5 cap, garden independence and reload');

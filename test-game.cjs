@@ -1243,3 +1243,78 @@ assert.equal(G.tradeMerchant(fullSugarMerchant, 'sugar'), false, '受取在庫�
 assert.equal(JSON.stringify(fullSugarMerchant), fullSugarSnapshot, '上限時も原子的に状態を保つ');
 assert.equal(G.SAVE_VERSION, 2, '行商人追加でも既存セーブバージョンを維持');
 console.log('PASS: Regatowa postgame gating, immediate legacy visit, six atomic barter trades, one-per-visit persistence, exact three-day game cycle and reload');
+
+const cookingRequestIds = new Set(G.cookingDailyRequestPool.map(request => request.id));
+const cookingRequestItems = new Set(G.cookingDailyRequestPool.map(request => request.item));
+assert.equal(G.COOKING_REQUEST_CHANCE, 0.35);
+assert.equal(G.cookingDailyRequestPool.length, Object.keys(G.dailyResidents).length * G.foods.length, '料理と住人の組み合わせをデータ生成');
+assert.deepEqual(cookingRequestItems, new Set(G.foods.map(food => food.id)), '16種類すべてを依頼候補に含む');
+assert.ok(G.cookingDailyRequestPool.every(request => request.source === 'cooking' && request.quantity === 1));
+for (const food of G.foods.slice(0, 10)) assert.equal(G.cookingRequestWeight(food.id), 2, `${food.name}は自給素材中心の重み2`);
+for (const food of G.foods.slice(10)) assert.equal(G.cookingRequestWeight(food.id), 1, `${food.name}は外来食材使用の重み1`);
+
+const preClearCooking = G.restore({ ...oldCompleteSave, dailyRequests: [
+  { templateId: 'daily-naka-bag', completed: true },
+  { templateId: 'daily-ritsu-thread', completed: true },
+  { templateId: 'daily-towa-box', completed: true }
+] });
+G.refreshDailyRequests(preClearCooking, sequence(0, 0, 0, 0));
+assert.ok(G.currentDailyRequests(preClearCooking).every(request => request.source !== 'cooking'), '本編未クリアでは料理依頼を生成しない');
+
+const cookingDrawSeed = { ...postgameRequestSeed, dailyRequests: [
+  { templateId: 'daily-naka-bag', completed: true },
+  { templateId: 'daily-ritsu-thread', completed: true },
+  { templateId: 'daily-towa-box', completed: true }
+] };
+const cookingDraw = G.restore(cookingDrawSeed);
+G.refreshDailyRequests(cookingDraw, sequence(0.34, 0, 0, 0));
+assert.equal(G.currentDailyRequests(cookingDraw).filter(request => request.source === 'cooking').length, 1, '35%判定成功時に料理依頼を1件生成');
+assert.equal(G.currentDailyRequests(cookingDraw).filter(request => request.source !== 'cooking').length, 2, '残りは従来の日常依頼');
+
+const noCookingDraw = G.restore(cookingDrawSeed);
+G.refreshDailyRequests(noCookingDraw, sequence(0.35, 0, 0));
+assert.ok(G.currentDailyRequests(noCookingDraw).every(request => request.source !== 'cooking'), '35%外では従来依頼だけを生成');
+
+let cookingRequestDays = 0;
+for (let roll = 0; roll < 1000; roll++) {
+  const draw = G.restore(cookingDrawSeed);
+  G.refreshDailyRequests(draw, sequence(roll / 1000, 0, 0, 0));
+  if (G.currentDailyRequests(draw).some(request => request.source === 'cooking')) cookingRequestDays++;
+}
+assert.equal(cookingRequestDays, 350, '新規枝生成日の35%で料理依頼を1件混ぜる');
+
+const carriedCookingId = 'daily-cooking-ritsu-mushroomCreamPasta';
+const carriedCooking = G.restore({ ...postgameRequestSeed, dailyRequests: [
+  { templateId: carriedCookingId, completed: false },
+  { templateId: 'daily-naka-bag', completed: true },
+  { templateId: 'daily-towa-box', completed: true }
+] });
+G.refreshDailyRequests(carriedCooking, sequence(0, 0, 0, 0));
+assert.ok(carriedCooking.dailyRequests.some(slot => slot.templateId === carriedCookingId && !slot.completed), '未達成の料理依頼を持ち越す');
+assert.equal(G.currentDailyRequests(carriedCooking).filter(request => request.source === 'cooking').length, 1, '持ち越し中は新しい料理依頼を追加しない');
+
+const duplicateCookingSave = G.restore({ ...postgameRequestSeed, dailyRequests: [
+  { templateId: 'daily-cooking-naka-steamedPotato', completed: false },
+  { templateId: 'daily-cooking-ritsu-boiledEgg', completed: false },
+  { templateId: 'daily-towa-box', completed: false }
+] }, sequence(0, 0));
+assert.equal(G.currentDailyRequests(duplicateCookingSave).filter(request => request.source === 'cooking').length, 1, '不正な旧セーブでも最大1件へ補正');
+
+const cookingDelivery = G.restore({ ...postgameRequestSeed, gratitudePoints: 4, inventory: {}, dailyRequests: [
+  { templateId: 'daily-cooking-naka-butterCookies', completed: false },
+  { templateId: 'daily-ritsu-thread', completed: false },
+  { templateId: 'daily-towa-box', completed: false }
+] });
+const cookingCountBefore = cookingDelivery.dailyRequestCounts.naka;
+assert.equal(G.deliverDaily(cookingDelivery, 'daily-cooking-naka-butterCookies'), false, '料理在庫不足では納品不可');
+cookingDelivery.inventory.butterCookies = 1;
+assert.equal(G.deliverDaily(cookingDelivery, 'daily-cooking-naka-butterCookies'), true);
+assert.equal(cookingDelivery.inventory.butterCookies, 0, '料理1個を消費');
+assert.equal(cookingDelivery.gratitudePoints, 5, 'お礼のしるしを1加算');
+assert.equal(cookingDelivery.dailyRequestCounts.naka, cookingCountBefore + 1, '依頼主の進捗を加算');
+assert.equal(G.deliverDaily(cookingDelivery, 'daily-cooking-naka-butterCookies'), false, '同じ料理依頼を二重達成しない');
+const cookingDeliveryReload = G.restore(JSON.parse(JSON.stringify(cookingDelivery)));
+assert.equal(cookingDeliveryReload.dailyRequests.find(slot => cookingRequestIds.has(slot.templateId)).completed, true, '料理依頼の達成状態を再読込で維持');
+assert.equal(cookingDeliveryReload.gratitudePoints, 5);
+assert.equal(G.currentGardenRequest(cookingDeliveryReload), null, '裏庭依頼と独立したまま');
+console.log('PASS: sixteen weighted cooking requests, postgame 35-percent draw, max-one carryover, delivery, gratitude, resident progress and reload');

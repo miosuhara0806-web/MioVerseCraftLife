@@ -146,6 +146,16 @@
     alto: { name: 'アルト', initial: 'ア' },
     aoiDoctor: { name: '碧博士', initial: '碧' }
   };
+  const cookingRequestVoices = {
+    naka: { message: food => `${food}をひと皿お願いしてもいい？　作ったものが残っていたら、少し分けてほしいな`, thanks: 'わあ、ありがとう！　ゆっくり味わってくるね。' },
+    ritsu: { message: food => `今日は少し温かいものが欲しくてな。${food}をひと皿頼めるか？`, thanks: '助かった。落ち着いていただくよ。' },
+    towa: { message: food => `${food}をひと皿、作ってもらえるか？　手が空いた時で構わない`, thanks: 'ありがとう、美桜。これでひと息つけそうだ。' },
+    keikaiTowa: { message: food => `${food}、ひと皿分けてくれない？　それ、一度食べてみたかったんだよね（笑）`, thanks: 'うん、いい香り！　ありがと、美桜！' },
+    shiru: { message: food => `${food}をひと皿お願いできる？　作ったものが残っていたら、少し分けてほしいの`, thanks: 'ありがとう。ゆっくりいただくね。' },
+    kuroko: { message: food => `${food}をひと皿頼めるか、美桜。少し腹を落ち着かせたくてな`, thanks: '助かった。舞台裏で、ゆっくりいただくよ。' },
+    alto: { message: food => `${food}をひと皿作ってくれる？　色も形も、一度ゆっくり見てみたいんだ`, thanks: 'ありがとう、美桜。見た目もいいし、食べるのが楽しみだ。' },
+    aoiDoctor: { message: food => `美桜さん、${food}をひと皿お願いできますか？　その料理、一度食べてみたかったんです`, thanks: 'ありがとうございます！　味わいの変化まで、しっかり観測しますね。' }
+  };
   const thankYouEvents = {
     naka: { title: 'ちょっと休憩', paragraphs: ['「いつもお願い聞いてくれてありがと。\nこうして何回も頼めるのって、\nちゃんと任せられるって思ってるからなんだよ」', 'ナカちゃんは少し笑って、\n小さな包みを差し出した。', '「今日は仕事じゃなくて、お礼。\nひと休みする時にでも使ってね」'] },
     ritsu: { title: '小さな礼', paragraphs: ['「何度も頼んだな。\nそのたびにきちんと仕上げてくれて、助かってる」', '律さんは短くそう言って、\n用意していた小さな包みを差し出した。', '「大げさなものじゃない。\n受け取ってくれれば、それでいい」'] },
@@ -339,7 +349,27 @@
     { id: 'daily-garden-ritsu-carrot', resident: 'ritsu', item: 'carrot', quantity: 2, source: 'garden', title: '保存しておくにんじん', message: 'にんじんを二つ分けてくれるか？　しばらく手元に置いておきたい', thanks: '助かった。これなら必要な時に使える。' },
     { id: 'daily-garden-aoi-wheat', resident: 'aoiDoctor', item: 'wheat', quantity: 2, source: 'garden', title: '小麦を観察したい', message: '美桜さん、小麦を二つ分けてもらえますか？　育ったものを手元で観察してみたいんです', thanks: 'ありがとうございます！　育ち方の違いまで、じっくり記録してみます' }
   ];
-  const allDailyRequestPool = [...dailyRequestPool, ...gardenDailyRequestPool];
+  const merchantMaterialIds = new Set(merchantMaterials.map(item => item.id));
+  const cookingRequestWeight = foodId => {
+    const recipe = cookingRecipes.find(entry => entry.id === foodId);
+    return recipe && recipe.inputs.some(input => merchantMaterialIds.has(input.id)) ? 1 : 2;
+  };
+  // 料理側のデータ追加だけで、依頼候補も同期する。
+  const cookingDailyRequestPool = Object.keys(dailyResidents).flatMap(resident => foods.map(food => {
+    const voice = cookingRequestVoices[resident];
+    return {
+      id: `daily-cooking-${resident}-${food.id}`,
+      resident,
+      item: food.id,
+      quantity: 1,
+      source: 'cooking',
+      weight: cookingRequestWeight(food.id),
+      title: `${food.name}をひと皿`,
+      message: voice.message(food.name),
+      thanks: voice.thanks
+    };
+  }));
+  const allDailyRequestPool = [...dailyRequestPool, ...cookingDailyRequestPool, ...gardenDailyRequestPool];
   const gardenRequestVoices = {
     naka: { message: item => `${item}を二つ分けてくれる？　少し手元に置いておきたいんだ`, thanks: 'わあ、ありがとう！　大事に持って帰るね。' },
     ritsu: { message: item => `${item}を二つ分けてくれるか？　しばらく手元に置いておきたい`, thanks: '助かった。これなら必要な時に使える。' },
@@ -363,6 +393,7 @@
   const gatherLimit = state => dailyUnlocked(state) ? UNLOCKED_DAILY_GATHERS : DAILY_GATHERS;
   const DAILY_REQUEST_SLOTS = 3;
   const GARDEN_REQUEST_CHANCE = 0.35;
+  const COOKING_REQUEST_CHANCE = 0.35;
   const MERCHANT_VISIT_INTERVAL = 3;
   const SAVE_VERSION = 2;
   const fresh = () => ({ saveVersion: SAVE_VERSION, introViewed: false, inventory: Object.fromEntries([...items, ...crops, ...foods, ...backyardMaterials, ...merchantMaterials].map(item => [item.id, 0])), plots: [null, null, null], facilityProduction: Object.fromEntries(backyardFacilities.map(facility => [facility.id, null])), merchantVisit: null, completed: [], unlockedStage: 1, day: 1, gathersLeft: DAILY_GATHERS, gatherLimit: DAILY_GATHERS, dailyRequests: [], gardenRequest: null, gratitudePoints: 0, dailyHistory: [], dailyRequestCounts: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, 0])), thankYouEventViewed: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, false])), storyProgress: { ...Object.fromEntries(Object.keys(storyMilestones).map(id => [`${id}Viewed`, false])), ...Object.fromEntries(Object.keys(storyRequests).flatMap(id => [[`${id}Completed`, false], [`${id}EventViewed`, false]])) }, discovered: [] });
@@ -541,6 +572,7 @@
   }
   const dailyTemplate = id => allDailyRequestPool.find(request => request.id === id);
   const isGardenDailyRequest = request => request?.source === 'garden';
+  const isCookingDailyRequest = request => request?.source === 'cooking';
   const currentDailyRequests = state => state.dailyRequests.map(slot => {
     const request = dailyTemplate(slot.templateId);
     return { ...dailyResidents[request.resident], ...request, completed: slot.completed };
@@ -581,19 +613,28 @@
       base
     ];
     const candidates = groups.find(group => group.length) || pool;
-    const requestCounts = Object.create(null);
-    for (const request of candidates) requestCounts[request.resident] = (requestCounts[request.resident] || 0) + 1;
-    // 依頼数の多い住人が有利にならないよう、各住人の重みを候補依頼へ均等に配る。
-    const weights = candidates.map(request => dailyResidentWeight(state, request.resident) / requestCounts[request.resident]);
+    const residentWeightTotals = Object.create(null);
+    for (const request of candidates) residentWeightTotals[request.resident] = (residentWeightTotals[request.resident] || 0) + (request.weight || 1);
+    // 候補数や料理の難度に左右されず、住人ごとの抽選重み2/1を保つ。
+    const weights = candidates.map(request => dailyResidentWeight(state, request.resident) * (request.weight || 1) / residentWeightTotals[request.resident]);
     return chooseWeighted(candidates, weights, random);
+  }
+  function shouldAddCookingRequest(state, hasCookingRequest, openSlots, random) {
+    if (!postgameUnlocked(state) || hasCookingRequest || openSlots < 1) return false;
+    const chance = Number(random());
+    return Number.isFinite(chance) && chance >= 0 && chance < COOKING_REQUEST_CHANCE;
   }
   function ensureDailyRequests(state, random = Math.random) {
     if (!dailyUnlocked(state)) return false;
     const previous = state.dailyRequests;
     const requestIds = new Set();
+    let hasCookingRequest = false;
     state.dailyRequests = previous.filter(slot => {
-      const request = dailyRequestPool.find(entry => entry.id === slot?.templateId);
-      if (!request || requestIds.has(request.id) || requestIds.size >= DAILY_REQUEST_SLOTS) return false;
+      const request = dailyTemplate(slot?.templateId);
+      const cooking = isCookingDailyRequest(request);
+      const allowed = request && !isGardenDailyRequest(request) && (!cooking || postgameUnlocked(state));
+      if (!allowed || requestIds.has(request.id) || requestIds.size >= DAILY_REQUEST_SLOTS || cooking && hasCookingRequest) return false;
+      if (cooking) hasCookingRequest = true;
       requestIds.add(request.id);
       return true;
     }).map(slot => ({ templateId: slot.templateId, completed: slot.completed === true }));
@@ -601,6 +642,15 @@
     const usedIds = new Set(state.dailyRequests.map(slot => slot.templateId));
     const usedItems = new Set(state.dailyRequests.map(slot => dailyTemplate(slot.templateId).item));
     const usedResidents = new Set(state.dailyRequests.map(slot => dailyTemplate(slot.templateId).resident));
+    if (shouldAddCookingRequest(state, hasCookingRequest, DAILY_REQUEST_SLOTS - state.dailyRequests.length, random)) {
+      const request = chooseDaily(state, usedIds, usedItems, usedResidents, null, random, cookingDailyRequestPool);
+      state.dailyRequests.push({ templateId: request.id, completed: false });
+      usedIds.add(request.id);
+      usedItems.add(request.item);
+      usedResidents.add(request.resident);
+      rememberDaily(state, request.id);
+      hasCookingRequest = true;
+    }
     while (state.dailyRequests.length < DAILY_REQUEST_SLOTS) {
       const request = chooseDaily(state, usedIds, usedItems, usedResidents, null, random);
       state.dailyRequests.push({ templateId: request.id, completed: false });
@@ -618,16 +668,31 @@
     const usedIds = new Set();
     const usedItems = new Set();
     const usedResidents = new Set();
+    let hasCookingRequest = false;
     for (const slot of state.dailyRequests) {
       if (slot.completed) continue;
       const request = dailyTemplate(slot.templateId);
       usedIds.add(request.id);
       usedItems.add(request.item);
       usedResidents.add(request.resident);
+      if (isCookingDailyRequest(request)) hasCookingRequest = true;
     }
     let changed = false;
-    for (const slot of state.dailyRequests) {
-      if (!slot.completed) continue;
+    const completedSlots = state.dailyRequests.filter(slot => slot.completed);
+    if (shouldAddCookingRequest(state, hasCookingRequest, completedSlots.length, random)) {
+      const slot = completedSlots.shift();
+      const previous = dailyTemplate(slot.templateId);
+      const replacement = chooseDaily(state, usedIds, usedItems, usedResidents, previous.id, random, cookingDailyRequestPool);
+      slot.templateId = replacement.id;
+      slot.completed = false;
+      usedIds.add(replacement.id);
+      usedItems.add(replacement.item);
+      usedResidents.add(replacement.resident);
+      rememberDaily(state, replacement.id);
+      hasCookingRequest = true;
+      changed = true;
+    }
+    for (const slot of completedSlots) {
       const previous = dailyTemplate(slot.templateId);
       const replacement = chooseDaily(state, usedIds, usedItems, usedResidents, previous.id, random);
       slot.templateId = replacement.id;
@@ -798,7 +863,7 @@
     addGratitudePoint(state);
     return true;
   }
-  const game = { items, crops, foods, backyardMaterials, backyardFacilities, merchantMaterials, merchantTrades, recipes, cookingRecipes, requests, dailyResidents, dailyRequestPool, gardenDailyRequestPool, gratitudeExchanges, thankYouEvents, storyMilestones, storyRequests, fresh, restore, gather, craft, deliver, deliverDaily, deliverGardenRequest, deliverStoryRequest, exchangeGratitude, canExchangeGratitude, gratitudePointText, merchantStatus, canTradeMerchant, tradeMerchant, rest, plantCrop, harvestCrop, cropDaysLeft, ensureFacilities, facilityDaysLeft, currentFacilities, collectFacility, completeThankYou, canViewThankYou, completedThankYouCount, dailyResidentWeight, postgameUnlocked, recipeUnlocked, availableRecipes, completeStory, canViewStory, storyUnlocked, storyRequestUnlocked, canViewStoryRequestCompletion, completeStoryRequestEvent, SAVE_VERSION, DAILY_GATHERS, DAILY_REQUEST_SLOTS, GARDEN_REQUEST_CHANCE, MERCHANT_VISIT_INTERVAL, gatherLimit, ingredients, maxCraft, stageTwoUnlocked, stageUnlocked, unlockedStage, visibleRequests, dailyUnlocked, ensureDailyRequests, refreshDailyRequests, refreshGardenRequest, currentDailyRequests, currentGardenRequest };
+  const game = { items, crops, foods, backyardMaterials, backyardFacilities, merchantMaterials, merchantTrades, recipes, cookingRecipes, requests, dailyResidents, dailyRequestPool, cookingDailyRequestPool, gardenDailyRequestPool, gratitudeExchanges, thankYouEvents, storyMilestones, storyRequests, fresh, restore, gather, craft, deliver, deliverDaily, deliverGardenRequest, deliverStoryRequest, exchangeGratitude, canExchangeGratitude, gratitudePointText, merchantStatus, canTradeMerchant, tradeMerchant, rest, plantCrop, harvestCrop, cropDaysLeft, ensureFacilities, facilityDaysLeft, currentFacilities, collectFacility, completeThankYou, canViewThankYou, completedThankYouCount, dailyResidentWeight, cookingRequestWeight, postgameUnlocked, recipeUnlocked, availableRecipes, completeStory, canViewStory, storyUnlocked, storyRequestUnlocked, canViewStoryRequestCompletion, completeStoryRequestEvent, SAVE_VERSION, DAILY_GATHERS, DAILY_REQUEST_SLOTS, GARDEN_REQUEST_CHANCE, COOKING_REQUEST_CHANCE, MERCHANT_VISIT_INTERVAL, gatherLimit, ingredients, maxCraft, stageTwoUnlocked, stageUnlocked, unlockedStage, visibleRequests, dailyUnlocked, ensureDailyRequests, refreshDailyRequests, refreshGardenRequest, currentDailyRequests, currentGardenRequest };
   if (typeof module !== 'undefined' && module.exports) module.exports = game;
   else root.MioGame = game;
 })(typeof window !== 'undefined' ? window : globalThis);
