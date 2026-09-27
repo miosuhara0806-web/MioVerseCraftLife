@@ -301,6 +301,38 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
   border-color: #d4dac6;
   box-shadow: 0 16px 60px #253b3033;
 }
+#gratitude-dialog { width: 620px; max-width: calc(100% - 24px); max-height: calc(100dvh - 24px); overflow: auto; padding: 26px; color: var(--ink); background: var(--paper); border: 1px solid #cdd8c4; border-radius: 20px; box-shadow: 0 18px 60px #253b3033; }
+#gratitude-dialog::backdrop { background: #293c3280; }
+.gratitude-card { display: flex; align-items: center; justify-content: space-between; gap: 22px; min-width: 0; margin: 0 0 26px; padding: 18px 20px; background: #edf0e2; border: 1px solid #ccd6c2; border-radius: 16px; }
+.gratitude-card h2, .gratitude-dialog-heading h2 { margin: 2px 0 5px; color: var(--green); font-family: "Yu Mincho", serif; font-size: 20px; font-weight: 500; }
+.gratitude-dialog-heading h2:focus { outline: none; }
+.gratitude-card p:not(.eyebrow) { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.gratitude-balance { display: grid; grid-template-columns: auto auto; align-items: baseline; gap: 4px 12px; flex: 0 0 auto; }
+.gratitude-balance span { color: var(--muted); font-size: 11px; }
+.gratitude-balance strong { color: var(--green); font-family: Georgia, serif; font-size: 25px; }
+.gratitude-balance button { grid-column: 1 / -1; min-height: 42px; margin-top: 5px; padding: 9px 15px; font-size: 12px; }
+.gratitude-dialog-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; margin-bottom: 17px; }
+.gratitude-dialog-heading p { margin: 0; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.gratitude-dialog-heading strong { color: var(--green); font-size: 19px; }
+.gratitude-exchanges { display: grid; gap: 10px; }
+.gratitude-exchanges article { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-width: 0; padding: 14px 15px; background: #f4f3e9; border: 1px solid #d9dece; border-radius: 13px; }
+.gratitude-exchanges h3 { margin: 0 0 5px; color: var(--green); font-size: 14px; }
+.gratitude-exchanges p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.gratitude-exchanges article > div:last-child { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.gratitude-exchanges article > div:last-child > strong { color: var(--green); font-size: 13px; white-space: nowrap; }
+.gratitude-exchanges button { min-height: 42px; min-width: 105px; padding: 8px 12px; font-size: 11px; }
+.gratitude-dialog-actions { display: flex; justify-content: flex-end; margin-top: 18px; }
+.gratitude-dialog-actions button { min-height: 44px; }
+@media (max-width: 520px) {
+  .gratitude-card, .gratitude-dialog-heading, .gratitude-exchanges article { align-items: stretch; flex-direction: column; }
+  .gratitude-balance { align-self: stretch; }
+  .gratitude-balance button { width: 100%; }
+  #gratitude-dialog { padding: 21px 17px; }
+  .gratitude-dialog-heading p { white-space: normal; }
+  .gratitude-exchanges article > div:last-child { justify-content: space-between; }
+  .gratitude-exchanges button { min-width: 0; max-width: 190px; }
+  .gratitude-dialog-actions button { width: 100%; }
+}
 #rest-dialog { max-height: calc(100dvh - 32px); overflow: auto; }
 #rest-dialog::backdrop, #recipe-dialog::backdrop { background: #293c3280; }
 #rest-dialog h2 { line-height: 1.8; }

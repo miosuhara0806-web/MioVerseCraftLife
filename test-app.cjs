@@ -28,6 +28,9 @@ function launch() {
     dialogOpen() { return node('rest-dialog').open; },
     recipeDialogOpen() { return node('recipe-dialog').open; },
     recipeDialogHtml() { return node('recipe-dialog-content').innerHTML; },
+    gratitudeDialogOpen() { return node('gratitude-dialog').open; },
+    gratitudeDialogHtml() { return node('gratitude-dialog-content').innerHTML; },
+    toastText() { return node('toast').textContent; },
     thankYouDialogOpen() { return node('thank-you-dialog').open; },
     thankYouDialogHtml() { return node('thank-you-dialog-content').innerHTML; },
     storyDialogOpen() { return node('story-dialog').open; },
@@ -1125,3 +1128,59 @@ app = launch();
 assert.match(app.page('requests'), /<details class="request-history-fold" open><summary><span>特別依頼<\/span><small>2\/2 達成済み · 未読あり<\/small>/, '納品後の未読イベントも見落とさない');
 assert.equal(app.state().storyProgress.milestone8EventViewed, false, '折りたたみ表示はセーブを変更しない');
 console.log('PASS: collapsible request history summaries, unread/open defaults, completed/closed defaults and daily-request priority');
+
+saved.set('mioverse-craft-v1', JSON.stringify({ ...G.fresh(), introViewed: true }));
+app = launch();
+assert.ok(!app.page('requests').includes('みんなからのお返し'), '本編未クリアではしるしUIを表示しない');
+
+const gratitudeSave = JSON.parse(JSON.stringify(clearEnding));
+delete gratitudeSave.gratitudePoints;
+gratitudeSave.inventory.bag = 2;
+gratitudeSave.dailyRequests = [
+  { templateId: 'daily-naka-bag', completed: false },
+  { templateId: 'daily-ritsu-thread', completed: false },
+  { templateId: 'daily-towa-box', completed: false }
+];
+saved.set('mioverse-craft-v1', JSON.stringify(gratitudeSave));
+app = launch();
+let gratitudeHtml = app.page('requests');
+assert.ok(gratitudeHtml.includes('みんなからのお返し'));
+assert.match(gratitudeHtml, /お礼のしるし<\/span><strong>0<\/strong>/, 'クリア済み旧セーブは0pt表示');
+app.click('deliver-daily', 'daily-naka-bag');
+assert.equal(app.state().gratitudePoints, 1, '通常の日常依頼で+1');
+assert.ok(app.toastText().includes('お礼のしるし +1（所持：1）'), '達成通知に増加と所持数を表示');
+app.click('deliver-daily', 'daily-naka-bag');
+assert.equal(app.state().gratitudePoints, 1, '画面操作でも二重取得しない');
+app.click('gratitude-open');
+assert.equal(app.gratitudeDialogOpen(), true);
+let exchangeHtml = app.gratitudeDialogHtml();
+for (const exchange of G.gratitudeExchanges) {
+  assert.ok(exchangeHtml.includes(exchange.name));
+  assert.ok(exchangeHtml.includes(`${exchange.cost} pt`));
+  for (const reward of exchange.rewards) assert.ok(exchangeHtml.includes(`${G.items.find(item => item.id === reward.id).name} ×${reward.quantity}`));
+}
+assert.ok(exchangeHtml.includes('お礼のしるしが足りません'));
+const insufficientState = JSON.stringify(app.state());
+app.click('gratitude-exchange', 'wood-materials');
+assert.equal(JSON.stringify(app.state()), insufficientState, 'ポイント不足の交換操作は状態を変えない');
+app.click('gratitude-close');
+assert.equal(app.gratitudeDialogOpen(), false);
+
+const exchangeSave = app.state();
+exchangeSave.gratitudePoints = 5;
+saved.set('mioverse-craft-v1', JSON.stringify(exchangeSave));
+app = launch();
+app.page('requests');
+app.click('gratitude-open');
+const stockBeforeExchange = { ...app.state().inventory };
+app.click('gratitude-exchange', 'workshop-materials');
+assert.equal(app.state().gratitudePoints, 0);
+assert.equal(app.state().inventory.plank, stockBeforeExchange.plank + 2);
+assert.equal(app.state().inventory.thread, stockBeforeExchange.thread + 2);
+assert.equal(app.state().inventory.cloth, stockBeforeExchange.cloth + 1);
+assert.ok(app.gratitudeDialogHtml().includes('お礼のしるし <strong>0</strong>'), '交換後にダイアログ残高を更新');
+assert.ok(app.toastText().includes('工房素材のおまかせセットと交換しました'));
+app = launch();
+assert.equal(app.state().gratitudePoints, 0, '再読み込み後もポイントを保持');
+assert.equal(app.state().inventory.plank, stockBeforeExchange.plank + 2, '交換素材も保持');
+console.log('PASS: gratitude card gating, +1 notice, exchange dialog contents, shortage guard, exact exchange and reload');

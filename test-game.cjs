@@ -727,6 +727,7 @@ for (const item of finalRequest.requirements) {
   assert.equal(shortage.storyProgress.milestone8Completed, false);
 }
 assert.equal(G.deliverStoryRequest(finalLegacy, 'milestone8'), true);
+assert.equal(G.gratitudePointText(finalLegacy), '0', '特別依頼ではしるしを増やさない');
 for (const item of finalRequest.requirements) assert.equal(finalLegacy.inventory[item.id], finalStock[item.id] - item.quantity, `${item.id}を指定数だけ消費`);
 assert.equal(finalLegacy.inventory.bag, 7, '無関係な在庫を維持');
 assert.equal(finalLegacy.storyProgress.milestone8Completed, true);
@@ -899,3 +900,51 @@ assert.ok(G.currentDailyRequests(legacyGardenMigration).some(request => request.
 assert.ok(G.currentDailyRequests(legacyGardenMigration).some(request => request.id === 'daily-shiru-curtain'));
 assert.ok(G.currentDailyRequests(legacyGardenMigration).every(request => !gardenIds.has(request.id)), '旧畑依頼を通常枠へ重複させない');
 console.log('PASS: independent backyard request slot, daily 35-percent draw, carryover, all crops/residents, delivery, migration and reload');
+
+assert.equal(G.fresh().gratitudePoints, 0);
+const preClearGratitude = G.fresh();
+preClearGratitude.inventory.bag = 1;
+assert.equal(G.deliver(preClearGratitude, 'naka'), true, '固定依頼は従来どおり達成');
+assert.equal(G.gratitudePointText(preClearGratitude), '0', '固定依頼ではしるしを増やさない');
+assert.equal(G.restore({ ...oldCompleteSave, gratitudePoints: 99 }).gratitudePoints, 0, '未クリアでは保存値を採用しない');
+const oldClearWithoutPoints = G.restore({ ...finalReload, gratitudePoints: undefined });
+assert.equal(G.gratitudePointText(oldClearWithoutPoints), '0', 'クリア済み旧セーブは0から開始');
+
+const dailyGratitude = G.restore({ ...postgameRequestSeed, gratitudePoints: 0, inventory: { ...postgameRequestSeed.inventory, bag: 2 } });
+assert.equal(G.deliverDaily(dailyGratitude, 'daily-naka-bag'), true);
+assert.equal(G.gratitudePointText(dailyGratitude), '1', 'クリア後の日常依頼で+1');
+assert.equal(G.deliverDaily(dailyGratitude, 'daily-naka-bag'), false);
+assert.equal(G.gratitudePointText(dailyGratitude), '1', '同じ日常依頼では二重取得しない');
+
+const gardenGratitude = G.restore({ ...postgameRequestSeed, gratitudePoints: 1, inventory: { ...postgameRequestSeed.inventory, potato: 2 }, gardenRequest: { resident: 'ritsu', cropId: 'potato', completed: false } });
+assert.equal(G.deliverGardenRequest(gardenGratitude, 'garden:ritsu:potato'), true);
+assert.equal(G.gratitudePointText(gardenGratitude), '2', '裏庭依頼でも+1');
+assert.equal(G.deliverGardenRequest(gardenGratitude, 'garden:ritsu:potato'), false);
+assert.equal(G.gratitudePointText(gardenGratitude), '2', '同じ裏庭依頼では二重取得しない');
+assert.equal(G.gratitudePointText(G.restore(JSON.parse(JSON.stringify(gardenGratitude)))), '2', '再読込後も所持数を保持');
+
+assert.equal(G.gratitudeExchanges.length, 4);
+assert.ok(G.gratitudeExchanges.every(exchange => exchange.rewards.every(reward => {
+  const item = G.items.find(entry => entry.id === reward.id);
+  return item && item.category !== '完成品';
+})), '交換品は既存の未完成素材だけ');
+for (const exchange of G.gratitudeExchanges) {
+  const exchangeState = G.restore({ ...postgameRequestSeed, gratitudePoints: exchange.cost, inventory: {} });
+  const before = { ...exchangeState.inventory };
+  assert.equal(G.canExchangeGratitude(exchangeState, exchange.id), true);
+  assert.equal(G.exchangeGratitude(exchangeState, exchange.id), true, `${exchange.name}と交換できる`);
+  assert.equal(G.gratitudePointText(exchangeState), '0', `${exchange.cost}ptを正確に消費`);
+  for (const reward of exchange.rewards) assert.equal(exchangeState.inventory[reward.id], before[reward.id] + reward.quantity, `${reward.id}を指定数追加`);
+  assert.deepEqual(G.restore(JSON.parse(JSON.stringify(exchangeState))).inventory, exchangeState.inventory, '交換後の在庫を再読込で保持');
+}
+const shortExchange = G.restore({ ...postgameRequestSeed, gratitudePoints: 2, inventory: {} });
+const shortSnapshot = JSON.stringify(shortExchange);
+assert.equal(G.exchangeGratitude(shortExchange, 'wood-materials'), false, 'ポイント不足では交換不可');
+assert.equal(JSON.stringify(shortExchange), shortSnapshot, '不足時はポイントも在庫も変えない');
+const fullExchange = G.restore({ ...postgameRequestSeed, gratitudePoints: 3, inventory: { wood: Number.MAX_SAFE_INTEGER } });
+const fullExchangeSnapshot = JSON.stringify(fullExchange);
+assert.equal(G.exchangeGratitude(fullExchange, 'wood-materials'), false, '在庫上限時は交換全体を拒否');
+assert.equal(JSON.stringify(fullExchange), fullExchangeSnapshot, '上限時も原子的に状態を保つ');
+const hugePoints = G.restore({ ...postgameRequestSeed, gratitudePoints: '9007199254740993' });
+assert.equal(G.gratitudePointText(hugePoints), '9007199254740993', '安全整数を超えるポイントも保存可能');
+console.log('PASS: postgame gratitude earning, exclusions, duplicate guards, four material exchanges, atomic shortage handling and reload');

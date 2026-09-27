@@ -43,6 +43,7 @@ let activeStoryMilestoneId = null;
 let selectedGardenPlot = null;
 const restDialog = document.getElementById('rest-dialog');
 const recipeDialog = document.getElementById('recipe-dialog');
+const gratitudeDialog = document.getElementById('gratitude-dialog');
 const thankYouDialog = document.getElementById('thank-you-dialog');
 const storyDialog = document.getElementById('story-dialog');
 thankYouDialog.addEventListener?.('close', () => { activeThankYouResidentId = null; });
@@ -149,6 +150,10 @@ function gardenRequestSection() {
   const ready = count(request.item) >= request.quantity;
   return `<section class="backyard-request ${done ? 'completed' : ''}" aria-labelledby="backyard-request-title"><div class="backyard-request-heading"><div><p class="eyebrow">BACKYARD DELIVERY</p><h2 id="backyard-request-title">裏庭からのお届け</h2></div><span>${done ? '✓ お届け済み' : '1件'}</span></div><article class="backyard-request-card"><div class="resident"><span class="avatar" aria-hidden="true">${request.initial}</span><div><span class="eyebrow">${done ? 'DELIVERED TODAY' : 'FROM THE BACKYARD'}</span><h2>${request.name}</h2></div></div><h3>${request.title}</h3><p class="quote">「${done ? request.thanks : request.message}」</p><div class="delivery"><div><span>お届けするもの</span><strong>${names[request.item]} × ${request.quantity}</strong><small>${done ? '本日は納品済み' : `在庫 ${count(request.item)}個 / 必要 ${request.quantity}個`}</small></div><button data-action="deliver-garden" data-id="${request.id}" ${done || !ready ? 'disabled' : ''}>${done ? 'お届け済み' : ready ? '届ける' : '収穫物が必要'}</button></div></article></section>`;
 }
+function gratitudeSection() {
+  if (!G.postgameUnlocked(state)) return '';
+  return `<section class="gratitude-card" aria-labelledby="gratitude-title"><div><p class="eyebrow">A GIFT IN RETURN</p><h2 id="gratitude-title">みんなからのお返し</h2><p>依頼を届けるたび、小さなお礼が積み重なっていきます。</p></div><div class="gratitude-balance"><span>お礼のしるし</span><strong>${G.gratitudePointText(state)}</strong><button data-action="gratitude-open">素材と交換する</button></div></section>`;
+}
 function residentProgressSection() {
   if (!G.dailyUnlocked(state)) return '';
   return `<section class="residents-record" aria-labelledby="residents-record-title"><p class="eyebrow">WORKSHOP RECORD</p><h2 id="residents-record-title">みんなとの記録</h2><div class="residents-record-list">${Object.entries(G.dailyResidents).map(([id, resident]) => `<div class="residents-record-row"><span>${resident.name}</span><strong>${Math.min(state.dailyRequestCounts[id], 5)} / 5</strong>${state.thankYouEventViewed[id] ? '<span class="thank-you-done">✓ お礼済み</span>' : G.canViewThankYou(state, id) ? `<button class="secondary thank-you-open" data-action="thank-you-open" data-id="${id}">お礼を見る</button>` : ''}</div>`).join('')}</div></section>`;
@@ -207,8 +212,11 @@ function requestsPage() {
   });
   if (!G.dailyUnlocked(state)) return fixed;
   return fixed
-    .replace('<div class="requests-list">', `${dailyRequestsSection()}${gardenRequestSection()}${requestHistorySections()}${G.postgameUnlocked(state) ? '<section class="story-milestone"><div><p class="eyebrow">本編</p><h2>小径の工房</h2></div><span class="story-read">✓ 本編クリア</span></section>' : ''}<details class="fixed-history"><summary><span>固定依頼のお礼</span><small>9件</small></summary><div class="requests-list">`)
+    .replace('<div class="requests-list">', `${dailyRequestsSection()}${gardenRequestSection()}${gratitudeSection()}${requestHistorySections()}${G.postgameUnlocked(state) ? '<section class="story-milestone"><div><p class="eyebrow">本編</p><h2>小径の工房</h2></div><span class="story-read">✓ 本編クリア</span></section>' : ''}<details class="fixed-history"><summary><span>固定依頼のお礼</span><small>9件</small></summary><div class="requests-list">`)
     .replace('<div class="bottom-note">', '</details><div class="bottom-note">');
+}
+function renderGratitudeDialog() {
+  document.getElementById('gratitude-dialog-content').innerHTML = `<p class="eyebrow">MATERIAL EXCHANGE</p><div class="gratitude-dialog-heading"><h2 id="gratitude-dialog-title" tabindex="-1">素材と交換する</h2><p>お礼のしるし <strong>${G.gratitudePointText(state)}</strong></p></div><div class="gratitude-exchanges">${G.gratitudeExchanges.map(exchange => { const ready = G.canExchangeGratitude(state, exchange.id); return `<article><div><h3>${exchange.name}</h3><p>${exchange.rewards.map(reward => `${names[reward.id]} ×${reward.quantity}`).join('・')}</p></div><div><strong>${exchange.cost} pt</strong><button data-action="gratitude-exchange" data-id="${exchange.id}" ${ready ? '' : 'disabled'}>${ready ? '交換する' : 'お礼のしるしが足りません'}</button></div></article>`; }).join('')}</div>`;
 }
 function openRecipeDialog(request) {
   const recipe = G.recipes.find(r => r.id === request.item);
@@ -251,6 +259,22 @@ document.addEventListener('click', event => {
   const button = event.target.closest('button[data-action]');
   if (!button || button.disabled) return;
   const { action, id } = button.dataset;
+  if (action === 'gratitude-open') {
+    if (!G.postgameUnlocked(state)) return;
+    renderGratitudeDialog();
+    gratitudeDialog.showModal();
+    document.getElementById('gratitude-dialog-title').focus({ preventScroll: true });
+    gratitudeDialog.scrollTop = 0;
+    return;
+  }
+  if (action === 'gratitude-close') { gratitudeDialog.close(); return; }
+  if (action === 'gratitude-exchange') {
+    const exchange = G.gratitudeExchanges.find(entry => entry.id === id);
+    if (!exchange || !G.exchangeGratitude(state, id)) return;
+    save(); render(); renderGratitudeDialog();
+    notify(`${exchange.name}と交換しました。お礼のしるし 所持：${G.gratitudePointText(state)}`);
+    return;
+  }
   if (action === 'garden-select') {
     const index = Number(id);
     if (!G.postgameUnlocked(state) || !Number.isInteger(index) || state.plots[index] !== null) return;
@@ -355,11 +379,11 @@ document.addEventListener('click', event => {
   }
   if (action === 'deliver-daily' && G.deliverDaily(state, id)) {
     const request = findRequest(id);
-    message = `${request.name}「${request.thanks}」`;
+    message = `${request.name}「${request.thanks}」${G.postgameUnlocked(state) ? ` お礼のしるし +1（所持：${G.gratitudePointText(state)}）` : ''}`;
   }
   if (action === 'deliver-garden') {
     const request = gardenRequest();
-    if (request && G.deliverGardenRequest(state, id)) message = `${request.name}「${request.thanks}」`;
+    if (request && G.deliverGardenRequest(state, id)) message = `${request.name}「${request.thanks}」 お礼のしるし +1（所持：${G.gratitudePointText(state)}）`;
   }
   if (message) { save(); render(); notify(message); }
 });
