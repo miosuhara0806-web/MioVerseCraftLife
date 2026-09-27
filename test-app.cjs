@@ -1446,7 +1446,7 @@ assert.equal(app.merchantDialogOpen(), false, '未クリアでは交換画面を
 const merchantUiSave = JSON.parse(JSON.stringify(clearEnding));
 delete merchantUiSave.merchantVisit;
 for (const item of G.merchantMaterials) delete merchantUiSave.inventory[item.id];
-Object.assign(merchantUiSave.inventory, { flower: 4, branch: 0, thread: 0, dye: 0, box: 0, bag: 0 });
+Object.assign(merchantUiSave.inventory, { flower: 4, branch: 0, thread: 0, dye: 0, vegetableSoup: 0, potato: 0, carrot: 0 });
 saved.set('mioverse-craft-v1', JSON.stringify(merchantUiSave));
 app = launch();
 let merchantHomeHtml = app.page('home');
@@ -1461,7 +1461,10 @@ let merchantDialogHtml = app.merchantDialogHtml();
 assert.ok(merchantDialogHtml.includes('交換するものある！？　俺はいろいろ持ってきた！'));
 for (const trade of G.merchantTrades) {
   assert.ok(merchantDialogHtml.includes(G.merchantMaterials.find(item => item.id === trade.id).name), `${trade.id}を表示`);
-  for (const cost of trade.costs) assert.ok(merchantDialogHtml.includes(`${G.items.find(item => item.id === cost.id).name} ×${cost.quantity}`));
+  for (const cost of trade.costs) {
+    const costItem = [...G.items, ...G.crops, ...G.foods, ...G.backyardMaterials].find(item => item.id === cost.id);
+    assert.ok(merchantDialogHtml.includes(`${costItem.name} ×${cost.quantity}`));
+  }
 }
 assert.match(merchantDialogHtml, /data-action="merchant-trade" data-id="sugar" >交換する<\/button>/);
 assert.match(merchantDialogHtml, /data-action="merchant-trade" data-id="salt" disabled>交換材料が足りません<\/button>/);
@@ -1516,6 +1519,33 @@ assert.ok(app.page('craft').includes('きのこオムレツ'), '既存料理を�
 assert.ok(app.page('backyard').includes('小さな鶏小屋'), '既存の畑・設備を維持');
 assert.ok(app.page('requests').includes('お礼のしるし'), '既存依頼とお礼のしるしを維持');
 console.log('PASS: Regatowa workshop card/dialog gating, six trades, shortage and duplicate guards, three-day visit UI, inventory, reload and existing-system isolation');
+
+const balancedMerchantUiSave = JSON.parse(JSON.stringify(clearEnding));
+delete balancedMerchantUiSave.merchantVisit;
+Object.assign(balancedMerchantUiSave.inventory, { vegetableSoup: 1, potato: 2, carrot: 1, meat: 0, fish: 0 });
+saved.set('mioverse-craft-v1', JSON.stringify(balancedMerchantUiSave));
+app = launch();
+app.click('merchant-open');
+merchantDialogHtml = app.merchantDialogHtml();
+assert.ok(merchantDialogHtml.includes('渡すもの：野菜スープ ×1（在庫 1）'));
+assert.ok(merchantDialogHtml.includes('渡すもの：じゃがいも ×2（在庫 2）・にんじん ×1（在庫 1）'));
+assert.match(merchantDialogHtml, /data-action="merchant-trade" data-id="meat" >交換する<\/button>/);
+assert.match(merchantDialogHtml, /data-action="merchant-trade" data-id="fish" >交換する<\/button>/);
+app.click('merchant-trade', 'meat');
+assert.equal(app.state().inventory.vegetableSoup, 0);
+assert.equal(app.state().inventory.meat, 1);
+app.click('merchant-trade', 'fish');
+assert.equal(app.state().inventory.potato, 0);
+assert.equal(app.state().inventory.carrot, 0);
+assert.equal(app.state().inventory.fish, 1);
+assert.deepEqual(app.state().merchantVisit.exchanged.sort(), ['fish', 'meat']);
+app = launch();
+app.click('merchant-open');
+assert.ok(app.merchantDialogHtml().includes('data-id="meat" disabled>交換済み</button>'));
+assert.ok(app.merchantDialogHtml().includes('data-id="fish" disabled>交換済み</button>'));
+assert.equal(app.state().inventory.meat, 1, '肉の交換結果を再読込で保持');
+assert.equal(app.state().inventory.fish, 1, '魚の交換結果を再読込で保持');
+console.log('PASS: balanced meat and fish barter UI, exact mixed-cost consumption and exchanged-state reload');
 
 const cookingRequestUiSave = JSON.parse(JSON.stringify(clearEnding));
 cookingRequestUiSave.gratitudePoints = 6;

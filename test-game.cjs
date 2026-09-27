@@ -1180,11 +1180,12 @@ assert.deepEqual(G.merchantTrades.map(trade => [trade.id, trade.quantity, trade.
   ['salt', 2, [['branch', 2]]],
   ['butter', 1, [['thread', 1]]],
   ['cheese', 1, [['dye', 1]]],
-  ['meat', 1, [['box', 1]]],
-  ['fish', 1, [['bag', 1]]]
+  ['meat', 1, [['vegetableSoup', 1]]],
+  ['fish', 1, [['potato', 2], ['carrot', 1]]]
 ]);
 assert.equal(G.MERCHANT_VISIT_INTERVAL, 3);
-assert.ok(G.merchantTrades.every(trade => trade.costs.every(cost => G.items.some(item => item.id === cost.id))), '交換材料は既存アイテムだけ');
+const merchantCostItems = [...G.items, ...G.crops, ...G.foods, ...G.backyardMaterials];
+assert.ok(G.merchantTrades.every(trade => trade.costs.every(cost => merchantCostItems.some(item => item.id === cost.id))), '交換材料は既存アイテムだけ');
 assert.ok(G.merchantTrades.every(trade => !trade.costs.some(cost => G.merchantMaterials.some(item => item.id === cost.id))), '外来食材を交換材料にしない');
 assert.ok(G.merchantMaterials.every(item => G.cookingRecipes.some(recipe => G.ingredients(recipe).some(input => input.id === item.id))), '6種類の外来食材すべてに料理の使い道がある');
 assert.equal(G.merchantStatus(finalReload).present, true, '本編クリア完了日から行商人を利用可能');
@@ -1218,6 +1219,27 @@ for (const trade of G.merchantTrades) {
   assert.equal(G.tradeMerchant(shortTrade, trade.id), false, '交換材料不足では交換不可');
   assert.equal(JSON.stringify(shortTrade), shortSnapshot, '不足時は材料も受取品も変更しない');
 }
+
+for (const inventory of [{ potato: 2, carrot: 0 }, { potato: 1, carrot: 1 }]) {
+  const shortFish = G.restore({ ...postgameRequestSeed, merchantVisit: undefined, inventory });
+  const shortFishSnapshot = JSON.stringify(shortFish);
+  assert.equal(G.tradeMerchant(shortFish, 'fish'), false, '魚はじゃがいも・にんじんの両方が揃うまで交換不可');
+  assert.equal(JSON.stringify(shortFish), shortFishSnapshot, '魚の片方不足時も在庫を変更しない');
+}
+
+const balancedTradeCycle = G.restore({ ...postgameRequestSeed, merchantVisit: undefined, inventory: { vegetableSoup: 1, potato: 2, carrot: 1 } });
+assert.equal(G.tradeMerchant(balancedTradeCycle, 'meat'), true);
+assert.equal(G.tradeMerchant(balancedTradeCycle, 'fish'), true);
+assert.deepEqual(G.merchantStatus(balancedTradeCycle).exchanged.sort(), ['fish', 'meat']);
+const balancedTradeReload = G.restore(JSON.parse(JSON.stringify(balancedTradeCycle)));
+assert.deepEqual(G.merchantStatus(balancedTradeReload).exchanged.sort(), ['fish', 'meat'], '肉・魚の交換済み状態を再読込で保持');
+for (let day = 0; day < G.MERCHANT_VISIT_INTERVAL; day++) G.rest(balancedTradeReload, () => 0.9);
+balancedTradeReload.inventory.vegetableSoup = 1;
+balancedTradeReload.inventory.potato = 2;
+balancedTradeReload.inventory.carrot = 1;
+assert.deepEqual(G.merchantStatus(balancedTradeReload).exchanged, [], '次回来訪で肉・魚の交換制限をリセット');
+assert.equal(G.canTradeMerchant(balancedTradeReload, 'meat'), true);
+assert.equal(G.canTradeMerchant(balancedTradeReload, 'fish'), true);
 
 const merchantCycle = G.restore({ ...postgameRequestSeed, merchantVisit: undefined, inventory: { flower: 4 } });
 const merchantAnchor = merchantCycle.merchantVisit.anchorDay;
