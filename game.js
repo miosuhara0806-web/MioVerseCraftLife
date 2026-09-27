@@ -33,7 +33,13 @@
     { id: 'steamedPotato', name: 'ふかしじゃがいも', category: '料理', mark: '芋' },
     { id: 'warmCarrotSalad', name: 'にんじんの温サラダ', category: '料理', mark: '温' },
     { id: 'vegetableSoup', name: '野菜スープ', category: '料理', mark: '汁' },
-    { id: 'rusticBread', name: '素朴なパン', category: '料理', mark: '麦' }
+    { id: 'rusticBread', name: '素朴なパン', category: '料理', mark: '麦' },
+    { id: 'boiledEgg', name: 'ゆで卵', category: '料理', mark: '卵' },
+    { id: 'mushroomSoup', name: 'きのこスープ', category: '料理', mark: '茸' },
+    { id: 'mushroomOmelet', name: 'きのこオムレツ', category: '料理', mark: '包' },
+    { id: 'milkBread', name: 'ミルクパン', category: '料理', mark: '乳' },
+    { id: 'potatoMilkStew', name: 'じゃがいものミルク煮', category: '料理', mark: '煮' },
+    { id: 'carrotOmelet', name: 'にんじんオムレツ', category: '料理', mark: '包' }
   ];
   const backyardMaterials = [
     { id: 'egg', name: '卵', category: '畜産物', mark: '卵' },
@@ -77,7 +83,13 @@
     { id: 'steamedPotato', inputs: [{ id: 'potato', cost: 1 }], group: '料理', kind: 'cooking' },
     { id: 'warmCarrotSalad', inputs: [{ id: 'carrot', cost: 1 }], group: '料理', kind: 'cooking' },
     { id: 'vegetableSoup', inputs: [{ id: 'potato', cost: 1 }, { id: 'carrot', cost: 1 }], group: '料理', kind: 'cooking' },
-    { id: 'rusticBread', inputs: [{ id: 'wheat', cost: 2 }], group: '料理', kind: 'cooking' }
+    { id: 'rusticBread', inputs: [{ id: 'wheat', cost: 2 }], group: '料理', kind: 'cooking' },
+    { id: 'boiledEgg', inputs: [{ id: 'egg', cost: 1 }], group: '料理', kind: 'cooking' },
+    { id: 'mushroomSoup', inputs: [{ id: 'mushroom', cost: 1 }, { id: 'milk', cost: 1 }], group: '料理', kind: 'cooking' },
+    { id: 'mushroomOmelet', inputs: [{ id: 'egg', cost: 1 }, { id: 'mushroom', cost: 1 }], group: '料理', kind: 'cooking' },
+    { id: 'milkBread', inputs: [{ id: 'wheat', cost: 2 }, { id: 'milk', cost: 1 }], group: '料理', kind: 'cooking' },
+    { id: 'potatoMilkStew', inputs: [{ id: 'potato', cost: 1 }, { id: 'milk', cost: 1 }], group: '料理', kind: 'cooking' },
+    { id: 'carrotOmelet', inputs: [{ id: 'carrot', cost: 1 }, { id: 'egg', cost: 1 }], group: '料理', kind: 'cooking' }
   ];
   recipes.push(...cookingRecipes);
   const requests = [
