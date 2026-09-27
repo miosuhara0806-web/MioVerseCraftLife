@@ -1,7 +1,7 @@
 'use strict';
 const G = window.MioGame;
 const SAVE_KEY = 'mioverse-craft-v1';
-const names = Object.fromEntries([...G.items, ...G.crops, ...G.foods].map(i => [i.id, i.name]));
+const names = Object.fromEntries([...G.items, ...G.crops, ...G.foods, ...G.backyardMaterials].map(i => [i.id, i.name]));
 const pages = [['home', '工房', '01'], ['gather', '採集', '02'], ['craft', '加工', '03'], ['inventory', '在庫', '04'], ['requests', '依頼', '05'], ['encyclopedia', '図鑑', '06'], ['backyard', '裏庭', '07']];
 const introEvent = {
   title: '小径の工房',
@@ -121,14 +121,19 @@ function craftPage() {
   return craftPageBase();
 }
 function inventoryPage() {
-  return heading('STOCK / 03', '工房の棚', `採集素材から料理まで、いま持っているもの。合計 ${total()} 個。`) + ['採集素材', '中間素材', '完成品'].map(category => `<section class="inventory-section"><h2>${category}</h2><div class="inventory-grid">${G.items.filter(i => i.category === category).map(i => `<div class="inventory-item ${count(i.id) === 0 ? 'empty' : ''}"><span class="small-mark" aria-hidden="true">${i.mark}</span><span>${i.name}</span><strong>${count(i.id)} <small>個</small></strong></div>`).join('')}</div></section>`).join('') + (G.postgameUnlocked(state) ? `<section class="inventory-section"><h2>収穫物</h2><div class="inventory-grid">${G.crops.map(crop => `<div class="inventory-item ${count(crop.id) === 0 ? 'empty' : ''}"><span class="small-mark" aria-hidden="true">${crop.mark}</span><span>${crop.name}</span><strong>${count(crop.id)} <small>個</small></strong></div>`).join('')}</div></section><section class="inventory-section cooking-inventory"><h2>料理</h2><div class="inventory-grid">${G.foods.map(food => `<div class="inventory-item ${count(food.id) === 0 ? 'empty' : ''}"><span class="small-mark" aria-hidden="true">${food.mark}</span><span>${food.name}</span><strong>${count(food.id)} <small>個</small></strong></div>`).join('')}</div></section>` : '') + `<p class="muted">在庫の上限はありません。加工・納品・料理に使った素材はここから減ります。</p>`;
+  const inventoryItem = item => `<div class="inventory-item ${count(item.id) === 0 ? 'empty' : ''}"><span class="small-mark" aria-hidden="true">${item.mark}</span><span>${item.name}</span><strong>${count(item.id)} <small>個</small></strong></div>`;
+  const harvests = [...G.crops, ...G.backyardMaterials.filter(item => item.category === '収穫物')];
+  const livestock = G.backyardMaterials.filter(item => item.category === '畜産物');
+  return heading('STOCK / 03', '工房の棚', `採集素材から料理まで、いま持っているもの。合計 ${total()} 個。`) + ['採集素材', '中間素材', '完成品'].map(category => `<section class="inventory-section"><h2>${category}</h2><div class="inventory-grid">${G.items.filter(i => i.category === category).map(inventoryItem).join('')}</div></section>`).join('') + (G.postgameUnlocked(state) ? `<section class="inventory-section"><h2>収穫物</h2><div class="inventory-grid">${harvests.map(inventoryItem).join('')}</div></section><section class="inventory-section livestock-inventory"><h2>畜産物</h2><div class="inventory-grid">${livestock.map(inventoryItem).join('')}</div></section><section class="inventory-section cooking-inventory"><h2>料理</h2><div class="inventory-grid">${G.foods.map(inventoryItem).join('')}</div></section>` : '') + `<p class="muted">在庫の上限はありません。加工・納品・料理に使った素材はここから減ります。</p>`;
 }
 function backyardPage() {
-  return heading('BACKYARD / 07', '工房の裏庭', '工房の裏には、まだほとんど手を入れていない小さな庭がある。') + dayStatus() + `<div class="garden-grid">${state.plots.map((plot, index) => {
+  const garden = `<div class="garden-grid">${state.plots.map((plot, index) => {
     const crop = plot && G.crops.find(entry => entry.id === plot.cropId);
     const left = crop ? G.cropDaysLeft(state, index) : null;
     return `<section class="garden-plot"><p class="eyebrow">畑 ${index + 1}</p>${crop ? `<h2>${crop.name}</h2><p class="garden-status">${left === 0 ? '収穫できます' : `収穫まで あと${left}日`}</p>${left === 0 ? `<button data-action="harvest-crop" data-id="${index}">収穫する <span>＋2</span></button>` : ''}` : `<h2>空いています</h2>${selectedGardenPlot === index ? `<div class="garden-choices"><p>育てる作物を選ぶ</p>${G.crops.map(choice => `<button class="secondary" data-action="plant-crop" data-id="${index}:${choice.id}">${choice.name} <small>${choice.growDays}日</small></button>`).join('')}<button class="secondary" data-action="garden-cancel">やめる</button></div>` : `<button data-action="garden-select" data-id="${index}">植える</button>`}`}</section>`;
   }).join('')}</div><p class="muted garden-note">作物はゲーム内の日付が進むと育ちます。種や水やりは必要ありません。</p>`;
+  const facilities = `<section class="backyard-facilities" aria-labelledby="backyard-facilities-title"><div class="backyard-facilities-heading"><p class="eyebrow">A QUIET HARVEST</p><h2 id="backyard-facilities-title">庭の小さな恵み</h2><p>日付が進むと、卵・牛乳・きのこを受け取れます。</p></div><div class="facility-grid">${G.currentFacilities(state).map(facility => `<article class="facility-card ${facility.ready ? 'ready' : ''}"><span class="facility-mark" aria-hidden="true">${facility.mark}</span><div><p class="eyebrow">${facility.cycleDays}日ごと</p><h3>${facility.name}</h3><strong>${facility.productName}</strong><p class="facility-status">${facility.ready ? `${facility.productName}を受け取れます` : `受け取りまで あと${facility.daysLeft}日`}</p></div><button data-action="collect-facility" data-id="${facility.id}" ${facility.ready ? '' : 'disabled'}>${facility.ready ? `受け取る　＋${facility.quantity}` : '生産待ち'}</button></article>`).join('')}</div></section>`;
+  return heading('BACKYARD / 07', '工房の裏庭', '工房の裏には、まだほとんど手を入れていない小さな庭がある。') + dayStatus() + garden + facilities;
 }
 function encyclopediaPage() {
   // 在庫の分類は変えず、図鑑では制作にも使う染料を加工素材としてまとめる。
@@ -281,6 +286,12 @@ document.addEventListener('click', event => {
     if (!exchange || !G.exchangeGratitude(state, id)) return;
     save(); render(); renderGratitudeDialog();
     notify(`${exchange.name}と交換しました。お礼のしるし 所持：${G.gratitudePointText(state)}`);
+    return;
+  }
+  if (action === 'collect-facility') {
+    const facility = G.currentFacilities(state).find(entry => entry.id === id);
+    if (!facility || !G.collectFacility(state, id)) return;
+    save(); render(); notify(`${facility.productName}を${facility.quantity}個受け取りました。`);
     return;
   }
   if (action === 'garden-select') {

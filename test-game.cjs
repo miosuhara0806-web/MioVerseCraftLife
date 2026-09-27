@@ -999,3 +999,63 @@ assert.equal(cookingReload.inventory.vegetableSoup, 1);
 assert.equal(cookingReload.inventory.rusticBread, 2, '料理在庫を再読込で保持');
 assert.equal(cookingReload.discovered.length, cookingState.discovered.length, '料理追加後も既存図鑑の件数を変えない');
 console.log('PASS: four postgame cooking recipes, unlock guard, exact and repeated cooking, atomic shortage, inventory reload and existing-system isolation');
+
+assert.deepEqual(G.backyardMaterials.map(item => [item.id, item.name, item.category]), [
+  ['egg', '卵', '畜産物'],
+  ['milk', '牛乳', '畜産物'],
+  ['mushroom', 'きのこ', '収穫物']
+]);
+assert.deepEqual(G.backyardFacilities.map(facility => [facility.id, facility.name, facility.product, facility.cycleDays, facility.quantity]), [
+  ['chickenCoop', '小さな鶏小屋', 'egg', 2, 2],
+  ['cowBarn', '小さな牛舎', 'milk', 3, 1],
+  ['mushroomLog', 'きのこ原木', 'mushroom', 3, 2]
+]);
+const lockedFacilities = G.fresh();
+assert.deepEqual(G.currentFacilities(lockedFacilities), [], '本編未クリアでは設備を利用不可');
+assert.equal(G.collectFacility(lockedFacilities, 'chickenCoop'), false);
+
+const oldClearFacilities = G.restore({ ...postgameRequestSeed, facilityProduction: undefined, inventory: {} });
+const facilityStartDay = oldClearFacilities.day;
+assert.deepEqual(Object.values(oldClearFacilities.facilityProduction).map(entry => entry.startedDay), [facilityStartDay, facilityStartDay, facilityStartDay], 'クリア済み旧セーブは読込日から初回周期開始');
+assert.deepEqual(G.currentFacilities(oldClearFacilities).map(facility => [facility.id, facility.daysLeft, facility.ready]), [
+  ['chickenCoop', 2, false], ['cowBarn', 3, false], ['mushroomLog', 3, false]
+]);
+const unchangedFacilities = JSON.stringify(oldClearFacilities);
+G.currentFacilities(oldClearFacilities);
+assert.equal(JSON.stringify(oldClearFacilities), unchangedFacilities, 'ゲーム内日付を進めなければ生産は進まない');
+assert.equal(G.collectFacility(oldClearFacilities, 'chickenCoop'), false, '生産待ちは受け取れない');
+G.rest(oldClearFacilities, () => 0.9);
+assert.deepEqual(G.currentFacilities(oldClearFacilities).map(facility => facility.daysLeft), [1, 2, 2]);
+const oneDayFacilityReload = G.restore(JSON.parse(JSON.stringify(oldClearFacilities)));
+assert.deepEqual(G.currentFacilities(oneDayFacilityReload).map(facility => facility.daysLeft), [1, 2, 2], 'リロード後も進行途中を保持');
+G.rest(oneDayFacilityReload, () => 0.9);
+assert.deepEqual(G.currentFacilities(oneDayFacilityReload).map(facility => [facility.daysLeft, facility.ready]), [[0, true], [1, false], [1, false]]);
+const readyFacilityReload = G.restore(JSON.parse(JSON.stringify(oneDayFacilityReload)));
+assert.equal(G.currentFacilities(readyFacilityReload).find(facility => facility.id === 'chickenCoop').ready, true, '受取可能状態も再読込で保持');
+assert.equal(G.collectFacility(oneDayFacilityReload, 'chickenCoop'), true);
+assert.equal(oneDayFacilityReload.inventory.egg, 2, '2日で卵を2個受け取る');
+assert.equal(G.facilityDaysLeft(oneDayFacilityReload, 'chickenCoop'), 2, '受取日から次の周期を開始');
+assert.equal(G.collectFacility(oneDayFacilityReload, 'chickenCoop'), false, '同じ周期から二重受取不可');
+G.rest(oneDayFacilityReload, () => 0.9);
+assert.deepEqual(G.currentFacilities(oneDayFacilityReload).map(facility => [facility.daysLeft, facility.ready]), [[1, false], [0, true], [0, true]]);
+assert.equal(G.collectFacility(oneDayFacilityReload, 'cowBarn'), true);
+assert.equal(G.collectFacility(oneDayFacilityReload, 'mushroomLog'), true);
+assert.equal(oneDayFacilityReload.inventory.milk, 1, '3日で牛乳を1個受け取る');
+assert.equal(oneDayFacilityReload.inventory.mushroom, 2, '3日できのこを2個受け取る');
+assert.equal(G.facilityDaysLeft(oneDayFacilityReload, 'cowBarn'), 3);
+assert.equal(G.facilityDaysLeft(oneDayFacilityReload, 'mushroomLog'), 3);
+G.rest(oneDayFacilityReload, () => 0.9);
+G.rest(oneDayFacilityReload, () => 0.9);
+assert.equal(G.collectFacility(oneDayFacilityReload, 'chickenCoop'), true, '受取後2日で卵を再生産');
+assert.equal(oneDayFacilityReload.inventory.egg, 4);
+const facilityReload = G.restore(JSON.parse(JSON.stringify(oneDayFacilityReload)));
+assert.equal(facilityReload.inventory.egg, 4);
+assert.equal(facilityReload.inventory.milk, 1);
+assert.equal(facilityReload.inventory.mushroom, 2, '受取在庫を再読込で保持');
+assert.deepEqual(facilityReload.facilityProduction, oneDayFacilityReload.facilityProduction, '各設備の周期開始日を保持');
+const fullEggFacility = G.restore({ ...postgameRequestSeed, day: 100, inventory: { egg: Number.MAX_SAFE_INTEGER }, facilityProduction: { chickenCoop: { startedDay: 1 }, cowBarn: { startedDay: 100 }, mushroomLog: { startedDay: 100 } } });
+const fullEggSnapshot = JSON.stringify(fullEggFacility);
+assert.equal(G.collectFacility(fullEggFacility, 'chickenCoop'), false, '在庫上限時は受取不可');
+assert.equal(JSON.stringify(fullEggFacility), fullEggSnapshot, '上限時は周期も変更しない');
+assert.equal(G.SAVE_VERSION, 2, '設備追加でも既存セーブバージョンを維持');
+console.log('PASS: three postgame facilities, exact game-day cycles, collection quantities, restart timing, save reload, no real-time progress and guards');
