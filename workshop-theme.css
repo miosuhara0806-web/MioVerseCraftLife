@@ -150,6 +150,13 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
 .note p { color: #6e705d; font-size: 12px; line-height: 1.9; }
 .note h3 { font-size: 13px; }
 .note-icon { color: #97815e; }
+.harvest-notice { display: flex; align-items: center; gap: 14px; min-width: 0; margin: 0 0 18px; padding: 13px 16px; border: 1px solid #ccd7c3; border-radius: 14px; background: #f0f2e8; box-shadow: 0 6px 18px rgba(72, 91, 68, .05); }
+.harvest-notice:hover { border-color: #aebfa2; background: #eaeee0; }
+.harvest-notice-mark { display: grid; place-items: center; flex: 0 0 34px; width: 34px; height: 34px; border-radius: 50%; background: #dfe7d5; color: var(--green); font-family: "Yu Mincho", serif; font-size: 14px; }
+.harvest-notice > span:nth-child(2) { display: grid; min-width: 0; gap: 3px; }
+.harvest-notice small { color: var(--muted); font-size: 8px; font-weight: 700; letter-spacing: 1.4px; }
+.harvest-notice strong { color: var(--green); font-size: 13px; font-weight: 600; line-height: 1.6; overflow-wrap: anywhere; }
+.harvest-notice-link { flex: 0 0 auto; margin-left: auto; color: var(--green); font-size: 11px; font-weight: 700; }
 .gather-grid { gap: 18px; }
 .gather-card { border-top: 3px solid #d6c8ad; }
 .gather-card.vine { border-top-color: #bbcca5; }
@@ -443,6 +450,9 @@ footer { border-top-style: dashed; color: var(--muted); }
   .hero .eyebrow { font-size: 8px; letter-spacing: 1px; }
   .day-status { padding: 16px; gap: 10px; }
   .day-status button { padding: 10px 13px; }
+  .harvest-notice { align-items: flex-start; flex-wrap: wrap; gap: 9px 12px; padding: 13px 14px; }
+  .harvest-notice > span:nth-child(2) { flex: 1 1 calc(100% - 46px); }
+  .harvest-notice-link { margin-left: 46px; }
   .request-card { padding: 20px; }
   .resident .eyebrow { font-size: 7px; letter-spacing: .7px; }
   .resident h2 { font-size: 13px; }

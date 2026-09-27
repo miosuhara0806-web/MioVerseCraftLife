@@ -1068,6 +1068,44 @@ assert.equal(app.state().inventory.wheat, 2, '収穫物も再読込で維持');
 assert.equal(app.state().storyProgress.milestone8EventViewed, true);
 console.log('PASS: garden navigation gating, three crop planting, daily growth, exact harvest, inventory and reload');
 
+assert.ok(!app.page('home').includes('class="harvest-notice"'), '収穫可能な区画がなければホーム通知を出さない');
+saved.set('mioverse-craft-v1', JSON.stringify({ ...G.fresh(), introViewed: true, plots: [{ cropId: 'potato', plantedDay: 1 }, null, null], day: 10 }));
+app = launch();
+assert.ok(!app.page('home').includes('class="harvest-notice"'), '本編未クリアでは保存値に畑があっても通知を出さない');
+const harvestNoticeSave = JSON.parse(JSON.stringify(clearEnding));
+harvestNoticeSave.day = 120;
+harvestNoticeSave.plots = [
+  { cropId: 'potato', plantedDay: 118 },
+  { cropId: 'carrot', plantedDay: 117 },
+  null
+];
+saved.set('mioverse-craft-v1', JSON.stringify(harvestNoticeSave));
+app = launch();
+let harvestNoticeHtml = app.page('home');
+assert.ok(harvestNoticeHtml.includes('class="harvest-notice"'));
+assert.ok(harvestNoticeHtml.includes('裏庭：収穫できる作物が2区画あります'));
+assert.ok(harvestNoticeHtml.includes('href="#backyard"'), '通知全体を裏庭へのリンクにする');
+assert.ok(app.page('backyard').includes('data-action="harvest-crop" data-id="0"'), '通知の導線先に収穫可能な畑を表示');
+app = launch();
+assert.ok(app.page('home').includes('裏庭：収穫できる作物が2区画あります'), '再読込後も畑状態から通知を再判定');
+app.page('backyard');
+app.click('harvest-crop', '0');
+app.click('harvest-crop', '1');
+assert.ok(!app.page('home').includes('class="harvest-notice"'), '収穫可能な作物をすべて収穫すると通知を消す');
+app.page('backyard');
+app.click('garden-select', '0');
+app.click('plant-crop', '0:potato');
+assert.ok(!app.page('home').includes('class="harvest-notice"'), '栽培中は通知を出さない');
+app.click('rest'); app.click('rest-confirm');
+assert.ok(!app.page('home').includes('class="harvest-notice"'), '収穫まで残り1日では通知を出さない');
+app.click('rest'); app.click('rest-confirm');
+harvestNoticeHtml = app.page('home');
+assert.ok(harvestNoticeHtml.includes('裏庭：じゃがいもを収穫できます'), '日付経過で再び収穫可能になると単一区画通知を表示');
+app = launch();
+assert.ok(app.page('home').includes('裏庭：じゃがいもを収穫できます'), '単一区画通知も再読込後に維持');
+assert.ok(app.page('home').includes('工房での過ごし方'), '既存ホーム画面を維持');
+console.log('PASS: harvest-ready home notice gating, multiple/single labels, backyard route, harvest removal, regrowth and reload');
+
 const cropDailySave = JSON.parse(JSON.stringify(clearEnding));
 cropDailySave.inventory.potato = 1;
 cropDailySave.dailyRequests = [
