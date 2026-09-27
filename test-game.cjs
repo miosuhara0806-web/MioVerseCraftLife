@@ -948,3 +948,54 @@ assert.equal(JSON.stringify(fullExchange), fullExchangeSnapshot, '上限時も�
 const hugePoints = G.restore({ ...postgameRequestSeed, gratitudePoints: '9007199254740993' });
 assert.equal(G.gratitudePointText(hugePoints), '9007199254740993', '安全整数を超えるポイントも保存可能');
 console.log('PASS: postgame gratitude earning, exclusions, duplicate guards, four material exchanges, atomic shortage handling and reload');
+
+assert.deepEqual(G.foods.map(food => [food.id, food.name, food.category]), [
+  ['steamedPotato', 'ふかしじゃがいも', '料理'],
+  ['warmCarrotSalad', 'にんじんの温サラダ', '料理'],
+  ['vegetableSoup', '野菜スープ', '料理'],
+  ['rusticBread', '素朴なパン', '料理']
+]);
+assert.deepEqual(G.cookingRecipes.map(recipe => [recipe.id, G.ingredients(recipe).map(input => [input.id, input.cost])]), [
+  ['steamedPotato', [['potato', 1]]],
+  ['warmCarrotSalad', [['carrot', 1]]],
+  ['vegetableSoup', [['potato', 1], ['carrot', 1]]],
+  ['rusticBread', [['wheat', 2]]]
+]);
+assert.ok(G.dailyRequestPool.every(request => !G.foods.some(food => food.id === request.item)), '料理は日常依頼へ追加しない');
+const lockedCooking = G.fresh();
+lockedCooking.inventory.potato = 2;
+assert.equal(G.availableRecipes(lockedCooking).some(recipe => recipe.kind === 'cooking'), false, '本編未クリアでは料理レシピを解放しない');
+assert.equal(G.craft(lockedCooking, 'steamedPotato'), false, '未クリアでは直接指定しても調理不可');
+assert.equal(lockedCooking.inventory.potato, 2);
+assert.equal(lockedCooking.inventory.steamedPotato, 0);
+
+const cookingState = G.restore({ ...postgameRequestSeed, inventory: { potato: 4, carrot: 3, wheat: 4 }, gratitudePoints: 7 });
+assert.equal(G.availableRecipes(cookingState).filter(recipe => recipe.kind === 'cooking').length, 4, 'クリア済み旧セーブで4レシピを即解放');
+assert.ok(G.foods.every(food => cookingState.inventory[food.id] === 0), '旧セーブの料理在庫は0で初期化');
+const dailyBeforeCooking = JSON.stringify(cookingState.dailyRequests);
+const pointsBeforeCooking = G.gratitudePointText(cookingState);
+assert.equal(G.craft(cookingState, 'steamedPotato'), true);
+assert.equal(cookingState.inventory.potato, 3);
+assert.equal(cookingState.inventory.steamedPotato, 1);
+assert.equal(G.craft(cookingState, 'warmCarrotSalad'), true);
+assert.equal(cookingState.inventory.carrot, 2);
+assert.equal(cookingState.inventory.warmCarrotSalad, 1);
+assert.equal(G.craft(cookingState, 'vegetableSoup'), true);
+assert.equal(cookingState.inventory.potato, 2);
+assert.equal(cookingState.inventory.carrot, 1);
+assert.equal(cookingState.inventory.vegetableSoup, 1);
+assert.equal(G.craft(cookingState, 'rusticBread', 2), true, '材料があれば複数回まとめて調理');
+assert.equal(cookingState.inventory.wheat, 0);
+assert.equal(cookingState.inventory.rusticBread, 2);
+assert.deepEqual(JSON.stringify(cookingState.dailyRequests), dailyBeforeCooking, '料理で通常依頼を変更しない');
+assert.equal(G.gratitudePointText(cookingState), pointsBeforeCooking, '料理でお礼のしるしを変更しない');
+const shortageCooking = { ...cookingState.inventory };
+assert.equal(G.craft(cookingState, 'vegetableSoup', 2), false, '複数素材の不足時は調理不可');
+assert.deepEqual(cookingState.inventory, shortageCooking, '不足時はどの材料も消費しない');
+const cookingReload = G.restore(JSON.parse(JSON.stringify(cookingState)));
+assert.equal(cookingReload.inventory.steamedPotato, 1);
+assert.equal(cookingReload.inventory.warmCarrotSalad, 1);
+assert.equal(cookingReload.inventory.vegetableSoup, 1);
+assert.equal(cookingReload.inventory.rusticBread, 2, '料理在庫を再読込で保持');
+assert.equal(cookingReload.discovered.length, cookingState.discovered.length, '料理追加後も既存図鑑の件数を変えない');
+console.log('PASS: four postgame cooking recipes, unlock guard, exact and repeated cooking, atomic shortage, inventory reload and existing-system isolation');

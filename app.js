@@ -1,7 +1,7 @@
 'use strict';
 const G = window.MioGame;
 const SAVE_KEY = 'mioverse-craft-v1';
-const names = Object.fromEntries([...G.items, ...G.crops].map(i => [i.id, i.name]));
+const names = Object.fromEntries([...G.items, ...G.crops, ...G.foods].map(i => [i.id, i.name]));
 const pages = [['home', '工房', '01'], ['gather', '採集', '02'], ['craft', '加工', '03'], ['inventory', '在庫', '04'], ['requests', '依頼', '05'], ['encyclopedia', '図鑑', '06'], ['backyard', '裏庭', '07']];
 const introEvent = {
   title: '小径の工房',
@@ -102,18 +102,26 @@ function gatherPage() {
   return heading('GATHER / 01', '森の小径', '気になる素材を選んで、ひと休みするように採集。') + dayStatus() + `<div class="location-note"><span>採集できるもの · 3種類</span><span>毎回2個 / 待ち時間なし</span></div><div class="gather-grid">${G.items.slice(0, 3).map(i => `<article class="gather-card ${i.id}"><div class="material-mark" aria-hidden="true">${i.mark}</div><p class="eyebrow">FOREST MATERIAL</p><h2>${i.name}</h2><p>${descriptions[i.id]}</p><div class="owned">現在の在庫 <strong>${count(i.id)} 個</strong></div><button data-action="gather" data-id="${i.id}" ${state.gathersLeft === 0 ? 'disabled' : ''}>${i.name}を採集 <span>＋2</span></button></article>`).join('')}</div><div class="bottom-note"><p>${state.gathersLeft === 0 ? '今日はもう十分集めたようです。工房で作業するか、今日は休みましょう。' : `採集は1日${G.gatherLimit(state)}回。加工・納品には回数制限がありません。`}</p>${link('craft', '集めた素材を加工する', 'text-link')}${state.gathersLeft === 0 ? link('home', '工房で休む', 'text-link') : ''}</div>`;
 }
 function craftPageBase() {
-  return heading('CRAFT / 02', '手仕事の時間', '素材をつないで、ひとつの品物へ。加工はすぐに完了します。') + G.recipes.reduce((groups, r) => { if (!groups.includes(r.group)) groups.push(r.group); return groups; }, []).map(group => `<section class="recipe-section"><h2>${group}</h2><p class="chain">${group === '木のしごと' ? '枝 → 木材 → 板材 → 小箱' : group === '布のしごと' ? 'ツル草 → 植物繊維 → 糸 → 布 → 布袋' : group === '花のしごと' ? '野花 → 乾燥花 → 染料' : '素材・中間素材・完成品を組み合わせて、暮らしの品へ'}</p><div class="recipe-list">${G.recipes.filter(r => r.group === group).map(r => { const inputs = G.ingredients(r); const max = G.maxCraft(state, r); const missing = inputs.filter(i => count(i.id) < i.cost); return `<article class="recipe"><div><h3>${names[r.id]} <span class="yield">＋1個</span></h3><p>${inputs.map(i => `${names[i.id]} ${i.cost}個`).join(' ＋ ')} <span class="arrow">→</span> ${names[r.id]} 1個</p><small>${inputs.map(i => `${names[i.id]}の在庫 ${count(i.id)} / 必要 ${i.cost}${count(i.id) < i.cost ? '（不足）' : ''}`).join(' · ')} · ${names[r.id]}の在庫 ${count(r.id)}</small></div><div class="recipe-actions"><button data-action="craft" data-id="${r.id}" ${max < 1 ? 'disabled' : ''}>${max < 1 ? `${missing.map(i => names[i.id]).join('・')}が不足` : '1個つくる'}</button>${max > 1 ? `<button class="secondary" data-action="craft-all" data-id="${r.id}">まとめて${max}個</button>` : ''}</div></article>`; }).join('')}</div></section>`).join('') + `<div class="bottom-note">${link('gather', '素材を集める', 'text-link')}${link('requests', 'できた品物を届ける', 'text-link')}</div>`;
+  const available = G.availableRecipes(state);
+  const materialRecipes = available.filter(recipe => recipe.kind !== 'cooking');
+  const cookingRecipes = available.filter(recipe => recipe.kind === 'cooking');
+  const groups = materialRecipes.reduce((result, recipe) => { if (!result.includes(recipe.group)) result.push(recipe.group); return result; }, []);
+  const recipeCard = recipe => {
+    const inputs = G.ingredients(recipe);
+    const max = G.maxCraft(state, recipe);
+    const missing = inputs.filter(input => count(input.id) < input.cost);
+    const highlight = highlightedRecipeId === recipe.id ? ' recipe-highlight' : '';
+    return `<article class="recipe${highlight}" data-recipe-id="${recipe.id}" tabindex="-1"><div><h3>${names[recipe.id]} <span class="yield">＋1個</span></h3><p>${inputs.map(input => `${names[input.id]} ${input.cost}個`).join(' ＋ ')} <span class="arrow">→</span> ${names[recipe.id]} 1個</p><small>${inputs.map(input => `${names[input.id]}の在庫 ${count(input.id)} / 必要 ${input.cost}${count(input.id) < input.cost ? '（不足）' : ''}`).join(' · ')} · ${names[recipe.id]}の在庫 ${count(recipe.id)}</small></div><div class="recipe-actions"><button data-action="craft" data-id="${recipe.id}" ${max < 1 ? 'disabled' : ''}>${max < 1 ? `${missing.map(input => names[input.id]).join('・')}が不足` : '1個つくる'}</button>${max > 1 ? `<button class="secondary" data-action="craft-all" data-id="${recipe.id}">まとめて${max}個</button>` : ''}</div></article>`;
+  };
+  const materialSections = groups.map(group => `<section class="recipe-section"><h2>${group}</h2><p class="chain">${group === '木のしごと' ? '枝 → 木材 → 板材 → 小箱' : group === '布のしごと' ? 'ツル草 → 植物繊維 → 糸 → 布 → 布袋' : group === '花のしごと' ? '野花 → 乾燥花 → 染料' : '素材・中間素材・完成品を組み合わせて、暮らしの品へ'}</p><div class="recipe-list">${materialRecipes.filter(recipe => recipe.group === group).map(recipeCard).join('')}</div></section>`).join('');
+  const cookingSection = cookingRecipes.length ? `<div class="craft-category cooking-category"><p class="eyebrow">COOKING</p><h2>料理</h2><p>裏庭の収穫物を使って、素朴なひと皿を作ります。</p></div><section class="recipe-section cooking-recipes"><div class="recipe-list">${cookingRecipes.map(recipeCard).join('')}</div></section>` : '';
+  return heading('CRAFT / 02', '手仕事の時間', '素材をつないで、ひとつの品物へ。加工はすぐに完了します。') + '<div class="craft-category"><p class="eyebrow">MATERIAL CRAFT</p><h2>素材加工</h2><p>森で集めた素材を、暮らしに使う品へ整えます。</p></div>' + materialSections + cookingSection + `<div class="bottom-note">${link('gather', '素材を集める', 'text-link')}${link('requests', 'できた品物を届ける', 'text-link')}</div>`;
 }
 function craftPage() {
-  let recipeIndex = 0;
-  return craftPageBase().replace(/<article class="recipe">/g, () => {
-    const id = G.recipes[recipeIndex++].id;
-    const highlight = highlightedRecipeId === id ? ' recipe-highlight' : '';
-    return `<article class="recipe${highlight}" data-recipe-id="${id}" tabindex="-1">`;
-  });
+  return craftPageBase();
 }
 function inventoryPage() {
-  return heading('STOCK / 03', '工房の棚', `採集素材から完成品まで、いま持っているもの。合計 ${total()} 個。`) + ['採集素材', '中間素材', '完成品'].map(category => `<section class="inventory-section"><h2>${category}</h2><div class="inventory-grid">${G.items.filter(i => i.category === category).map(i => `<div class="inventory-item ${count(i.id) === 0 ? 'empty' : ''}"><span class="small-mark" aria-hidden="true">${i.mark}</span><span>${i.name}</span><strong>${count(i.id)} <small>個</small></strong></div>`).join('')}</div></section>`).join('') + (G.postgameUnlocked(state) ? `<section class="inventory-section"><h2>収穫物</h2><div class="inventory-grid">${G.crops.map(crop => `<div class="inventory-item ${count(crop.id) === 0 ? 'empty' : ''}"><span class="small-mark" aria-hidden="true">${crop.mark}</span><span>${crop.name}</span><strong>${count(crop.id)} <small>個</small></strong></div>`).join('')}</div></section>` : '') + `<p class="muted">在庫の上限はありません。加工・納品に使った素材はここから減ります。</p>`;
+  return heading('STOCK / 03', '工房の棚', `採集素材から料理まで、いま持っているもの。合計 ${total()} 個。`) + ['採集素材', '中間素材', '完成品'].map(category => `<section class="inventory-section"><h2>${category}</h2><div class="inventory-grid">${G.items.filter(i => i.category === category).map(i => `<div class="inventory-item ${count(i.id) === 0 ? 'empty' : ''}"><span class="small-mark" aria-hidden="true">${i.mark}</span><span>${i.name}</span><strong>${count(i.id)} <small>個</small></strong></div>`).join('')}</div></section>`).join('') + (G.postgameUnlocked(state) ? `<section class="inventory-section"><h2>収穫物</h2><div class="inventory-grid">${G.crops.map(crop => `<div class="inventory-item ${count(crop.id) === 0 ? 'empty' : ''}"><span class="small-mark" aria-hidden="true">${crop.mark}</span><span>${crop.name}</span><strong>${count(crop.id)} <small>個</small></strong></div>`).join('')}</div></section><section class="inventory-section cooking-inventory"><h2>料理</h2><div class="inventory-grid">${G.foods.map(food => `<div class="inventory-item ${count(food.id) === 0 ? 'empty' : ''}"><span class="small-mark" aria-hidden="true">${food.mark}</span><span>${food.name}</span><strong>${count(food.id)} <small>個</small></strong></div>`).join('')}</div></section>` : '') + `<p class="muted">在庫の上限はありません。加工・納品・料理に使った素材はここから減ります。</p>`;
 }
 function backyardPage() {
   return heading('BACKYARD / 07', '工房の裏庭', '工房の裏には、まだほとんど手を入れていない小さな庭がある。') + dayStatus() + `<div class="garden-grid">${state.plots.map((plot, index) => {

@@ -159,6 +159,14 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
 .owned { border-top-style: dashed; }
 
 .recipe-section, .inventory-section, .encyclopedia-section { margin-bottom: 34px; }
+.craft-category { margin: 8px 0 20px; padding: 17px 19px; background: #f2f1e7; border: 1px solid var(--line); border-radius: 15px; }
+.craft-category .eyebrow { margin-bottom: 3px; }
+.craft-category h2 { color: var(--green); font-family: "Yu Mincho", serif; font-size: 20px; font-weight: 500; }
+.craft-category > p:last-child { margin: 5px 0 0; color: var(--muted); font-size: 11px; line-height: 1.8; }
+.craft-category.cooking-category { margin-top: 42px; background: #edf0e2; border-color: #ccd6c2; }
+.cooking-recipes { margin-top: -8px; }
+.cooking-recipes .recipe-list { border-color: #ccd6c2; }
+.cooking-inventory .small-mark { background: #e7eddb; color: var(--green); }
 .chain { line-height: 1.9; }
 .recipe-list { border-radius: 17px; box-shadow: var(--card-shadow); }
 .recipe { padding-top: 22px; padding-bottom: 22px; }
