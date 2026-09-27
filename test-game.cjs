@@ -959,7 +959,13 @@ assert.deepEqual(G.foods.map(food => [food.id, food.name, food.category]), [
   ['mushroomOmelet', 'きのこオムレツ', '料理'],
   ['milkBread', 'ミルクパン', '料理'],
   ['potatoMilkStew', 'じゃがいものミルク煮', '料理'],
-  ['carrotOmelet', 'にんじんオムレツ', '料理']
+  ['carrotOmelet', 'にんじんオムレツ', '料理'],
+  ['mashedPotatoes', 'マッシュポテト', '料理'],
+  ['meatVegetableStew', '肉と野菜の煮込み', '料理'],
+  ['saltGrilledFish', '魚の塩焼き', '料理'],
+  ['cheeseBakedMushrooms', 'きのこのチーズ焼き', '料理'],
+  ['butterCookies', 'バタークッキー', '料理'],
+  ['mushroomCreamPasta', 'きのこのクリームパスタ', '料理']
 ]);
 assert.deepEqual(G.cookingRecipes.map(recipe => [recipe.id, G.ingredients(recipe).map(input => [input.id, input.cost])]), [
   ['steamedPotato', [['potato', 1]]],
@@ -971,7 +977,13 @@ assert.deepEqual(G.cookingRecipes.map(recipe => [recipe.id, G.ingredients(recipe
   ['mushroomOmelet', [['egg', 1], ['mushroom', 1]]],
   ['milkBread', [['wheat', 2], ['milk', 1]]],
   ['potatoMilkStew', [['potato', 1], ['milk', 1]]],
-  ['carrotOmelet', [['carrot', 1], ['egg', 1]]]
+  ['carrotOmelet', [['carrot', 1], ['egg', 1]]],
+  ['mashedPotatoes', [['potato', 1], ['milk', 1], ['butter', 1]]],
+  ['meatVegetableStew', [['meat', 1], ['potato', 1], ['carrot', 1], ['salt', 1]]],
+  ['saltGrilledFish', [['fish', 1], ['salt', 1]]],
+  ['cheeseBakedMushrooms', [['mushroom', 1], ['cheese', 1]]],
+  ['butterCookies', [['wheat', 2], ['sugar', 1], ['butter', 1]]],
+  ['mushroomCreamPasta', [['wheat', 2], ['mushroom', 1], ['milk', 1], ['cheese', 1]]]
 ]);
 assert.ok(G.dailyRequestPool.every(request => !G.foods.some(food => food.id === request.item)), '料理は日常依頼へ追加しない');
 const lockedCooking = G.fresh();
@@ -982,7 +994,7 @@ assert.equal(lockedCooking.inventory.potato, 2);
 assert.equal(lockedCooking.inventory.steamedPotato, 0);
 
 const cookingState = G.restore({ ...postgameRequestSeed, inventory: { potato: 4, carrot: 3, wheat: 4 }, gratitudePoints: 7 });
-assert.equal(G.availableRecipes(cookingState).filter(recipe => recipe.kind === 'cooking').length, 10, 'クリア済み旧セーブで10レシピを即解放');
+assert.equal(G.availableRecipes(cookingState).filter(recipe => recipe.kind === 'cooking').length, 16, 'クリア済み旧セーブで16レシピを即解放');
 assert.ok(G.foods.every(food => cookingState.inventory[food.id] === 0), '旧セーブの料理在庫は0で初期化');
 const dailyBeforeCooking = JSON.stringify(cookingState.dailyRequests);
 const pointsBeforeCooking = G.gratitudePointText(cookingState);
@@ -1050,7 +1062,50 @@ assert.equal(cookingReload.inventory.warmCarrotSalad, 1);
 assert.equal(cookingReload.inventory.vegetableSoup, 1);
 assert.equal(cookingReload.inventory.rusticBread, 2, '料理在庫を再読込で保持');
 assert.equal(cookingReload.discovered.length, cookingState.discovered.length, '料理追加後も既存図鑑の件数を変えない');
-console.log('PASS: ten postgame cooking recipes, exact single/multi-input and repeated cooking, atomic shortage, inventory reload and existing-system isolation');
+const thirdCookingCases = [
+  ['mashedPotatoes', { potato: 5, milk: 4, butter: 3 }, 3],
+  ['meatVegetableStew', { meat: 4, potato: 5, carrot: 6, salt: 2 }, 2],
+  ['saltGrilledFish', { fish: 3, salt: 5 }, 3],
+  ['cheeseBakedMushrooms', { mushroom: 4, cheese: 2 }, 2],
+  ['butterCookies', { wheat: 8, sugar: 3, butter: 5 }, 3],
+  ['mushroomCreamPasta', { wheat: 8, mushroom: 5, milk: 3, cheese: 2 }, 2]
+];
+for (const [id, stock, expectedMax] of thirdCookingCases) {
+  const recipe = G.cookingRecipes.find(entry => entry.id === id);
+  const cooking = G.restore({ ...postgameRequestSeed, merchantVisit: undefined, inventory: stock });
+  G.rest(cooking, () => 0.9);
+  assert.equal(G.merchantStatus(cooking).present, false, `${id}はレガトワ不在時にも検証`);
+  assert.equal(G.maxCraft(cooking, recipe), expectedMax, `${id}の最少材料から最大調理数を計算`);
+  const before = { ...cooking.inventory };
+  const requestsBefore = JSON.stringify(cooking.dailyRequests);
+  const pointsBefore = G.gratitudePointText(cooking);
+  assert.equal(G.craft(cooking, id), true, `${id}を1個調理`);
+  for (const input of G.ingredients(recipe)) assert.equal(cooking.inventory[input.id], before[input.id] - input.cost, `${id}で${input.id}を正確に消費`);
+  assert.equal(cooking.inventory[id], 1, `${id}を在庫へ1個追加`);
+  assert.equal(JSON.stringify(cooking.dailyRequests), requestsBefore, `${id}で日常依頼を変更しない`);
+  assert.equal(G.gratitudePointText(cooking), pointsBefore, `${id}でお礼のしるしを変更しない`);
+  const reload = G.restore(JSON.parse(JSON.stringify(cooking)));
+  assert.equal(reload.inventory[id], 1, `${id}を再読込後も保持`);
+  for (const input of G.ingredients(recipe)) assert.equal(reload.inventory[input.id], cooking.inventory[input.id], `${input.id}の残数を再読込後も保持`);
+
+  const merchantInput = G.ingredients(recipe).find(input => G.merchantMaterials.some(item => item.id === input.id));
+  const shortageStock = { ...stock, [merchantInput.id]: 0 };
+  const shortage = G.restore({ ...postgameRequestSeed, inventory: shortageStock });
+  const shortageSnapshot = JSON.stringify(shortage.inventory);
+  assert.equal(G.craft(shortage, id), false, `${id}は外来食材不足で調理不可`);
+  assert.equal(JSON.stringify(shortage.inventory), shortageSnapshot, `${id}の不足時は全材料を維持`);
+}
+const pastaBatch = G.restore({ ...postgameRequestSeed, merchantVisit: { anchorDay: postgameRequestSeed.day - 1, exchangedDay: null, exchanged: [] }, inventory: { wheat: 8, mushroom: 5, milk: 3, cheese: 2 } });
+const pastaRecipe = G.cookingRecipes.find(recipe => recipe.id === 'mushroomCreamPasta');
+assert.equal(G.merchantStatus(pastaBatch).present, false);
+assert.equal(G.maxCraft(pastaBatch, pastaRecipe), 2);
+assert.equal(G.craft(pastaBatch, 'mushroomCreamPasta', 2), true, '4材料料理をまとめて2個調理');
+assert.equal(pastaBatch.inventory.wheat, 4);
+assert.equal(pastaBatch.inventory.mushroom, 3);
+assert.equal(pastaBatch.inventory.milk, 1);
+assert.equal(pastaBatch.inventory.cheese, 0);
+assert.equal(pastaBatch.inventory.mushroomCreamPasta, 2);
+console.log('PASS: sixteen postgame cooking recipes, third-set merchant ingredients, absent-merchant cooking, exact multi-input and batch cooking, shortage guards and reload');
 
 assert.deepEqual(G.backyardMaterials.map(item => [item.id, item.name, item.category]), [
   ['egg', '卵', '畜産物'],
@@ -1131,7 +1186,7 @@ assert.deepEqual(G.merchantTrades.map(trade => [trade.id, trade.quantity, trade.
 assert.equal(G.MERCHANT_VISIT_INTERVAL, 3);
 assert.ok(G.merchantTrades.every(trade => trade.costs.every(cost => G.items.some(item => item.id === cost.id))), '交換材料は既存アイテムだけ');
 assert.ok(G.merchantTrades.every(trade => !trade.costs.some(cost => G.merchantMaterials.some(item => item.id === cost.id))), '外来食材を交換材料にしない');
-assert.ok(G.cookingRecipes.every(recipe => G.ingredients(recipe).every(input => !G.merchantMaterials.some(item => item.id === input.id))), '今回は外来食材の料理レシピを追加しない');
+assert.ok(G.merchantMaterials.every(item => G.cookingRecipes.some(recipe => G.ingredients(recipe).some(input => input.id === item.id))), '6種類の外来食材すべてに料理の使い道がある');
 assert.equal(G.merchantStatus(finalReload).present, true, '本編クリア完了日から行商人を利用可能');
 const preClearMerchant = G.fresh();
 assert.equal(G.merchantStatus(preClearMerchant), null, '本編未クリアでは行商人を無効化');

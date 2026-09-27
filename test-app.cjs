@@ -1217,6 +1217,12 @@ assert.ok(cookingCard('mushroomOmelet').includes('卵 1個 ＋ きのこ 1個'))
 assert.ok(cookingCard('milkBread').includes('小麦 2個 ＋ 牛乳 1個'));
 assert.ok(cookingCard('potatoMilkStew').includes('じゃがいも 1個 ＋ 牛乳 1個'));
 assert.ok(cookingCard('carrotOmelet').includes('にんじん 1個 ＋ 卵 1個'));
+assert.ok(cookingCard('mashedPotatoes').includes('じゃがいも 1個 ＋ 牛乳 1個 ＋ バター 1個'));
+assert.ok(cookingCard('meatVegetableStew').includes('肉 1個 ＋ じゃがいも 1個 ＋ にんじん 1個 ＋ 塩 1個'));
+assert.ok(cookingCard('saltGrilledFish').includes('魚 1個 ＋ 塩 1個'));
+assert.ok(cookingCard('cheeseBakedMushrooms').includes('きのこ 1個 ＋ チーズ 1個'));
+assert.ok(cookingCard('butterCookies').includes('小麦 2個 ＋ 砂糖 1個 ＋ バター 1個'));
+assert.ok(cookingCard('mushroomCreamPasta').includes('小麦 2個 ＋ きのこ 1個 ＋ 牛乳 1個 ＋ チーズ 1個'));
 const dailyStateBeforeCooking = JSON.stringify(app.state().dailyRequests);
 const gratitudeBeforeCooking = app.state().gratitudePoints;
 app.click('craft', 'steamedPotato');
@@ -1303,7 +1309,72 @@ const expectedSecondCookingStock = { boiledEgg: 1, mushroomSoup: 1, mushroomOmel
 for (const [id, quantity] of Object.entries(expectedSecondCookingStock)) {
   assert.equal(app.state().inventory[id], quantity, `${id}をリロード後も保持`);
 }
-console.log('PASS: postgame cooking UI gating, ten recipes, exact/repeated cooking, inventory category, shortage guard, reload and existing-state isolation');
+
+const thirdCookingUiSave = JSON.parse(JSON.stringify(clearEnding));
+Object.assign(thirdCookingUiSave.inventory, { potato: 6, milk: 8, butter: 5, meat: 3, carrot: 4, salt: 6, fish: 4, mushroom: 7, cheese: 5, wheat: 14, sugar: 4 });
+for (const food of G.foods) thirdCookingUiSave.inventory[food.id] = 0;
+thirdCookingUiSave.merchantVisit = { anchorDay: thirdCookingUiSave.day - 1, exchangedDay: null, exchanged: [] };
+saved.set('mioverse-craft-v1', JSON.stringify(thirdCookingUiSave));
+app = launch();
+cookingHtml = app.page('craft');
+assert.equal(G.merchantStatus(app.state()).present, false, 'レガトワ不在状態で第三弾料理を表示');
+for (const id of ['mashedPotatoes', 'meatVegetableStew', 'saltGrilledFish', 'cheeseBakedMushrooms', 'butterCookies', 'mushroomCreamPasta']) assert.ok(cookingHtml.includes(`data-recipe-id="${id}"`), `${id}を表示`);
+assert.match(cookingHtml, /data-action="craft-all" data-id="mushroomCreamPasta">まとめて5個<\/button>/, '4材料の最少在庫から最大数を表示');
+const thirdDailyBeforeCooking = JSON.stringify(app.state().dailyRequests);
+const thirdGratitudeBeforeCooking = app.state().gratitudePoints;
+const merchantBeforeCooking = JSON.stringify(app.state().merchantVisit);
+app.click('craft', 'mashedPotatoes');
+assert.equal(app.state().inventory.mashedPotatoes, 1);
+assert.equal(app.state().inventory.potato, 5);
+assert.equal(app.state().inventory.milk, 7);
+assert.equal(app.state().inventory.butter, 4);
+app.click('craft', 'meatVegetableStew');
+assert.equal(app.state().inventory.meatVegetableStew, 1);
+assert.equal(app.state().inventory.meat, 2);
+assert.equal(app.state().inventory.potato, 4);
+assert.equal(app.state().inventory.carrot, 3);
+assert.equal(app.state().inventory.salt, 5);
+app.click('craft', 'saltGrilledFish');
+assert.equal(app.state().inventory.saltGrilledFish, 1);
+assert.equal(app.state().inventory.fish, 3);
+assert.equal(app.state().inventory.salt, 4);
+app.click('craft', 'cheeseBakedMushrooms');
+assert.equal(app.state().inventory.cheeseBakedMushrooms, 1);
+assert.equal(app.state().inventory.mushroom, 6);
+assert.equal(app.state().inventory.cheese, 4);
+app.click('craft-all', 'mushroomCreamPasta');
+assert.equal(app.state().inventory.mushroomCreamPasta, 4, '残材料から4個まとめて調理');
+assert.equal(app.state().inventory.wheat, 6);
+assert.equal(app.state().inventory.mushroom, 2);
+assert.equal(app.state().inventory.milk, 3);
+assert.equal(app.state().inventory.cheese, 0);
+app.click('craft-all', 'butterCookies');
+assert.equal(app.state().inventory.butterCookies, 3, '残材料から3個まとめて調理');
+assert.equal(app.state().inventory.wheat, 0);
+assert.equal(app.state().inventory.sugar, 1);
+assert.equal(app.state().inventory.butter, 1);
+assert.equal(JSON.stringify(app.state().dailyRequests), thirdDailyBeforeCooking, '第三弾料理で通常依頼を変更しない');
+assert.equal(app.state().gratitudePoints, thirdGratitudeBeforeCooking, '第三弾料理でお礼のしるしを変更しない');
+assert.equal(JSON.stringify(app.state().merchantVisit), merchantBeforeCooking, '調理でレガトワの周期・交換状態を変更しない');
+cookingInventory = app.page('inventory');
+const expectedThirdCookingStock = { mashedPotatoes: 1, meatVegetableStew: 1, saltGrilledFish: 1, cheeseBakedMushrooms: 1, butterCookies: 3, mushroomCreamPasta: 4 };
+for (const [id, quantity] of Object.entries(expectedThirdCookingStock)) {
+  const name = G.foods.find(food => food.id === id).name;
+  assert.ok(cookingInventory.includes(`<span>${name}</span><strong>${quantity} `), `${name}を料理在庫へ表示`);
+}
+app = launch();
+for (const [id, quantity] of Object.entries(expectedThirdCookingStock)) assert.equal(app.state().inventory[id], quantity, `${id}をリロード後も保持`);
+const thirdShortageSave = app.state();
+thirdShortageSave.inventory.fish = 1;
+thirdShortageSave.inventory.salt = 0;
+saved.set('mioverse-craft-v1', JSON.stringify(thirdShortageSave));
+app = launch();
+cookingHtml = app.page('craft');
+assert.match(cookingHtml, /data-action="craft" data-id="saltGrilledFish" disabled>塩が不足<\/button>/);
+const thirdShortageSnapshot = JSON.stringify(app.state());
+app.click('craft', 'saltGrilledFish');
+assert.equal(JSON.stringify(app.state()), thirdShortageSnapshot, '外来食材不足時は画面操作でも状態を変えない');
+console.log('PASS: postgame cooking UI gating, sixteen recipes, third-set mixed ingredients, absent-merchant and batch cooking, shortage guard, inventory reload and existing-state isolation');
 
 saved.set('mioverse-craft-v1', JSON.stringify({ ...G.fresh(), introViewed: true }));
 app = launch();

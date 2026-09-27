@@ -39,7 +39,13 @@
     { id: 'mushroomOmelet', name: 'きのこオムレツ', category: '料理', mark: '包' },
     { id: 'milkBread', name: 'ミルクパン', category: '料理', mark: '乳' },
     { id: 'potatoMilkStew', name: 'じゃがいものミルク煮', category: '料理', mark: '煮' },
-    { id: 'carrotOmelet', name: 'にんじんオムレツ', category: '料理', mark: '包' }
+    { id: 'carrotOmelet', name: 'にんじんオムレツ', category: '料理', mark: '包' },
+    { id: 'mashedPotatoes', name: 'マッシュポテト', category: '料理', mark: '芋' },
+    { id: 'meatVegetableStew', name: '肉と野菜の煮込み', category: '料理', mark: '煮' },
+    { id: 'saltGrilledFish', name: '魚の塩焼き', category: '料理', mark: '魚' },
+    { id: 'cheeseBakedMushrooms', name: 'きのこのチーズ焼き', category: '料理', mark: '焼' },
+    { id: 'butterCookies', name: 'バタークッキー', category: '料理', mark: '菓' },
+    { id: 'mushroomCreamPasta', name: 'きのこのクリームパスタ', category: '料理', mark: '麺' }
   ];
   const backyardMaterials = [
     { id: 'egg', name: '卵', category: '畜産物', mark: '卵' },
@@ -106,7 +112,13 @@
     { id: 'mushroomOmelet', inputs: [{ id: 'egg', cost: 1 }, { id: 'mushroom', cost: 1 }], group: '料理', kind: 'cooking' },
     { id: 'milkBread', inputs: [{ id: 'wheat', cost: 2 }, { id: 'milk', cost: 1 }], group: '料理', kind: 'cooking' },
     { id: 'potatoMilkStew', inputs: [{ id: 'potato', cost: 1 }, { id: 'milk', cost: 1 }], group: '料理', kind: 'cooking' },
-    { id: 'carrotOmelet', inputs: [{ id: 'carrot', cost: 1 }, { id: 'egg', cost: 1 }], group: '料理', kind: 'cooking' }
+    { id: 'carrotOmelet', inputs: [{ id: 'carrot', cost: 1 }, { id: 'egg', cost: 1 }], group: '料理', kind: 'cooking' },
+    { id: 'mashedPotatoes', inputs: [{ id: 'potato', cost: 1 }, { id: 'milk', cost: 1 }, { id: 'butter', cost: 1 }], group: '料理', kind: 'cooking' },
+    { id: 'meatVegetableStew', inputs: [{ id: 'meat', cost: 1 }, { id: 'potato', cost: 1 }, { id: 'carrot', cost: 1 }, { id: 'salt', cost: 1 }], group: '料理', kind: 'cooking' },
+    { id: 'saltGrilledFish', inputs: [{ id: 'fish', cost: 1 }, { id: 'salt', cost: 1 }], group: '料理', kind: 'cooking' },
+    { id: 'cheeseBakedMushrooms', inputs: [{ id: 'mushroom', cost: 1 }, { id: 'cheese', cost: 1 }], group: '料理', kind: 'cooking' },
+    { id: 'butterCookies', inputs: [{ id: 'wheat', cost: 2 }, { id: 'sugar', cost: 1 }, { id: 'butter', cost: 1 }], group: '料理', kind: 'cooking' },
+    { id: 'mushroomCreamPasta', inputs: [{ id: 'wheat', cost: 2 }, { id: 'mushroom', cost: 1 }, { id: 'milk', cost: 1 }, { id: 'cheese', cost: 1 }], group: '料理', kind: 'cooking' }
   ];
   recipes.push(...cookingRecipes);
   const requests = [
