@@ -52,6 +52,7 @@ const dayStatus = () => `<section class="day-status" aria-label="今日の状態
 const count = id => state.inventory[id];
 const requestTotal = () => G.visibleRequests(state).length;
 const dailyRequests = () => G.dailyUnlocked(state) ? G.currentDailyRequests(state) : [];
+const gardenRequest = () => G.postgameUnlocked(state) ? G.currentGardenRequest(state) : null;
 const storyRecipeRequest = id => {
   const prefix = 'story-recipe-';
   if (!id?.startsWith(prefix)) return null;
@@ -138,7 +139,15 @@ function requestsPageBase() {
 function dailyRequestsSection() {
   if (!G.dailyUnlocked(state)) return '';
   const requests = dailyRequests();
-  return `<section class="daily-requests" aria-labelledby="daily-requests-title"><div class="daily-heading"><div><p class="eyebrow">DAILY REQUESTS</p><h2 id="daily-requests-title">日常のお願い</h2></div><span>今日の依頼 ${requests.length}件</span></div><p class="muted">未達成のお願いは翌日も持ち越します。お届け済みの枠だけ、「今日は休む」と新しいお願いに入れ替わります。</p><div class="requests-list">${requests.map(request => { const done = request.completed; const ready = count(request.item) >= request.quantity; const garden = request.source === 'garden'; return `<article class="request-card daily-request ${garden ? 'garden-request' : ''} ${done ? 'completed' : ''}"><div class="resident"><span class="avatar" aria-hidden="true">${request.initial}</span><div><span class="eyebrow">${done ? 'DELIVERED TODAY' : garden ? 'FROM THE BACKYARD' : 'TODAY’S REQUEST'}</span><h2>${request.name}</h2></div><span class="badge">${done ? '✓ お届け済み' : garden ? '畑のお願い' : '受付中'}</span></div><h3>${request.title}</h3><p class="quote">「${done ? request.thanks : request.message}」</p><div class="delivery"><div><span>お届けするもの</span><strong>${names[request.item]} × ${request.quantity}</strong><small>${done ? '本日は納品済み' : `在庫 ${count(request.item)}個 / 納品時に${request.quantity}個消費`}</small></div>${!done && !garden ? `<button class="secondary view-recipe" data-action="view-recipe" data-id="${request.id}">作り方を見る</button>` : ''}<button data-action="deliver-daily" data-id="${request.id}" ${done || !ready ? 'disabled' : ''}>${done ? 'お届け済み' : ready ? `${request.quantity}個届ける` : garden ? '収穫物が必要' : '完成品が必要'}</button></div></article>`; }).join('')}</div></section>`;
+  return `<section class="daily-requests" aria-labelledby="daily-requests-title"><div class="daily-heading"><div><p class="eyebrow">DAILY REQUESTS</p><h2 id="daily-requests-title">日常のお願い</h2></div><span>今日の依頼 ${requests.length}件</span></div><p class="muted">未達成のお願いは翌日も持ち越します。お届け済みの枠だけ、「今日は休む」と新しいお願いに入れ替わります。</p><div class="requests-list">${requests.map(request => { const done = request.completed; const ready = count(request.item) >= request.quantity; return `<article class="request-card daily-request ${done ? 'completed' : ''}"><div class="resident"><span class="avatar" aria-hidden="true">${request.initial}</span><div><span class="eyebrow">${done ? 'DELIVERED TODAY' : 'TODAY’S REQUEST'}</span><h2>${request.name}</h2></div><span class="badge">${done ? '✓ お届け済み' : '受付中'}</span></div><h3>${request.title}</h3><p class="quote">「${done ? request.thanks : request.message}」</p><div class="delivery"><div><span>お届けするもの</span><strong>${names[request.item]} × ${request.quantity}</strong><small>${done ? '本日は納品済み' : `在庫 ${count(request.item)}個 / 納品時に${request.quantity}個消費`}</small></div>${!done ? `<button class="secondary view-recipe" data-action="view-recipe" data-id="${request.id}">作り方を見る</button>` : ''}<button data-action="deliver-daily" data-id="${request.id}" ${done || !ready ? 'disabled' : ''}>${done ? 'お届け済み' : ready ? `${request.quantity}個届ける` : '完成品が必要'}</button></div></article>`; }).join('')}</div></section>`;
+}
+function gardenRequestSection() {
+  if (!G.postgameUnlocked(state)) return '';
+  const request = gardenRequest();
+  if (!request) return `<section class="backyard-request" aria-labelledby="backyard-request-title"><div class="backyard-request-heading"><div><p class="eyebrow">BACKYARD DELIVERY</p><h2 id="backyard-request-title">裏庭からのお届け</h2></div><span>今日はありません</span></div><p class="muted">日付が進むと、収穫物を待つお願いが届くことがあります。</p></section>`;
+  const done = request.completed;
+  const ready = count(request.item) >= request.quantity;
+  return `<section class="backyard-request ${done ? 'completed' : ''}" aria-labelledby="backyard-request-title"><div class="backyard-request-heading"><div><p class="eyebrow">BACKYARD DELIVERY</p><h2 id="backyard-request-title">裏庭からのお届け</h2></div><span>${done ? '✓ お届け済み' : '1件'}</span></div><article class="backyard-request-card"><div class="resident"><span class="avatar" aria-hidden="true">${request.initial}</span><div><span class="eyebrow">${done ? 'DELIVERED TODAY' : 'FROM THE BACKYARD'}</span><h2>${request.name}</h2></div></div><h3>${request.title}</h3><p class="quote">「${done ? request.thanks : request.message}」</p><div class="delivery"><div><span>お届けするもの</span><strong>${names[request.item]} × ${request.quantity}</strong><small>${done ? '本日は納品済み' : `在庫 ${count(request.item)}個 / 必要 ${request.quantity}個`}</small></div><button data-action="deliver-garden" data-id="${request.id}" ${done || !ready ? 'disabled' : ''}>${done ? 'お届け済み' : ready ? '届ける' : '収穫物が必要'}</button></div></article></section>`;
 }
 function residentProgressSection() {
   if (!G.dailyUnlocked(state)) return '';
@@ -198,7 +207,7 @@ function requestsPage() {
   });
   if (!G.dailyUnlocked(state)) return fixed;
   return fixed
-    .replace('<div class="requests-list">', `${dailyRequestsSection()}${requestHistorySections()}${G.postgameUnlocked(state) ? '<section class="story-milestone"><div><p class="eyebrow">本編</p><h2>小径の工房</h2></div><span class="story-read">✓ 本編クリア</span></section>' : ''}<details class="fixed-history"><summary><span>固定依頼のお礼</span><small>9件</small></summary><div class="requests-list">`)
+    .replace('<div class="requests-list">', `${dailyRequestsSection()}${gardenRequestSection()}${requestHistorySections()}${G.postgameUnlocked(state) ? '<section class="story-milestone"><div><p class="eyebrow">本編</p><h2>小径の工房</h2></div><span class="story-read">✓ 本編クリア</span></section>' : ''}<details class="fixed-history"><summary><span>固定依頼のお礼</span><small>9件</small></summary><div class="requests-list">`)
     .replace('<div class="bottom-note">', '</details><div class="bottom-note">');
 }
 function openRecipeDialog(request) {
@@ -347,6 +356,10 @@ document.addEventListener('click', event => {
   if (action === 'deliver-daily' && G.deliverDaily(state, id)) {
     const request = findRequest(id);
     message = `${request.name}「${request.thanks}」`;
+  }
+  if (action === 'deliver-garden') {
+    const request = gardenRequest();
+    if (request && G.deliverGardenRequest(state, id)) message = `${request.name}「${request.thanks}」`;
   }
   if (message) { save(); render(); notify(message); }
 });

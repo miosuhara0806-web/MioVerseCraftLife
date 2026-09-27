@@ -268,6 +268,16 @@
     { id: 'daily-garden-aoi-wheat', resident: 'aoiDoctor', item: 'wheat', quantity: 2, source: 'garden', title: '小麦を観察したい', message: '美桜さん、小麦を二つ分けてもらえますか？　育ったものを手元で観察してみたいんです', thanks: 'ありがとうございます！　育ち方の違いまで、じっくり記録してみます' }
   ];
   const allDailyRequestPool = [...dailyRequestPool, ...gardenDailyRequestPool];
+  const gardenRequestVoices = {
+    naka: { message: item => `${item}を二つ分けてくれる？　少し手元に置いておきたいんだ`, thanks: 'わあ、ありがとう！　大事に持って帰るね。' },
+    ritsu: { message: item => `${item}を二つ分けてくれるか？　しばらく手元に置いておきたい`, thanks: '助かった。これなら必要な時に使える。' },
+    towa: { message: item => `${item}を二つ分けてもらえるか？　保存用に手元へ置いておきたい`, thanks: 'ありがとう、美桜。きちんと保管しておくよ。' },
+    keikaiTowa: { message: item => `${item}を二つ、分けてくれない？　ちょっと手元で試してみたくてさ（笑）`, thanks: 'ありがと、美桜！　こういうの、眺めてるだけでも結構楽しいな（笑）' },
+    shiru: { message: item => `${item}を二つお願いしてもいい？　手元に置いて、少し様子を見てみたいの`, thanks: 'ありがとう。これならゆっくり確かめられそう。' },
+    kuroko: { message: item => `${item}を二つ頼めるか、美桜。手元に置いておきたいんだ`, thanks: '助かった。しばらくこっちで預かっておく。' },
+    alto: { message: item => `${item}を二つ分けてくれる？　形や色を手元で見てみたいんだ`, thanks: 'ありがとう、美桜。並べてみると、見え方も変わって面白いな。' },
+    aoiDoctor: { message: item => `美桜さん、${item}を二つ分けてもらえますか？　育ったものを手元で観察してみたいんです`, thanks: 'ありがとうございます！　育ち方の違いまで、じっくり記録してみます。' }
+  };
   // その段階より前の依頼をすべて納品していることを条件にする。
   const stageUnlocked = (state, stage) => requests.filter(r => (r.stage || 1) < stage).every(r => state.completed.includes(r.id));
   const stageTwoUnlocked = state => stageUnlocked(state, 2);
@@ -282,7 +292,7 @@
   const DAILY_REQUEST_SLOTS = 3;
   const GARDEN_REQUEST_CHANCE = 0.35;
   const SAVE_VERSION = 2;
-  const fresh = () => ({ saveVersion: SAVE_VERSION, introViewed: false, inventory: Object.fromEntries([...items, ...crops].map(item => [item.id, 0])), plots: [null, null, null], completed: [], unlockedStage: 1, day: 1, gathersLeft: DAILY_GATHERS, gatherLimit: DAILY_GATHERS, dailyRequests: [], dailyHistory: [], dailyRequestCounts: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, 0])), thankYouEventViewed: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, false])), storyProgress: { ...Object.fromEntries(Object.keys(storyMilestones).map(id => [`${id}Viewed`, false])), ...Object.fromEntries(Object.keys(storyRequests).flatMap(id => [[`${id}Completed`, false], [`${id}EventViewed`, false]])) }, discovered: [] });
+  const fresh = () => ({ saveVersion: SAVE_VERSION, introViewed: false, inventory: Object.fromEntries([...items, ...crops].map(item => [item.id, 0])), plots: [null, null, null], completed: [], unlockedStage: 1, day: 1, gathersLeft: DAILY_GATHERS, gatherLimit: DAILY_GATHERS, dailyRequests: [], gardenRequest: null, dailyHistory: [], dailyRequestCounts: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, 0])), thankYouEventViewed: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, false])), storyProgress: { ...Object.fromEntries(Object.keys(storyMilestones).map(id => [`${id}Viewed`, false])), ...Object.fromEntries(Object.keys(storyRequests).flatMap(id => [[`${id}Completed`, false], [`${id}EventViewed`, false]])) }, discovered: [] });
   const canViewThankYou = (state, id) => !!dailyResidents[id] && state.dailyRequestCounts[id] >= 5 && !state.thankYouEventViewed[id];
   const completedThankYouCount = state => Object.keys(dailyResidents).filter(id => state.thankYouEventViewed[id]).length;
   const dailyResidentWeight = (state, id) => state.thankYouEventViewed[id] ? 1 : 2;
@@ -356,14 +366,31 @@
   }
   const dailyTemplate = id => allDailyRequestPool.find(request => request.id === id);
   const isGardenDailyRequest = request => request?.source === 'garden';
-  const dailyRequestAvailable = (state, request) => !!request && (!isGardenDailyRequest(request) || postgameUnlocked(state));
   const currentDailyRequests = state => state.dailyRequests.map(slot => {
     const request = dailyTemplate(slot.templateId);
     return { ...dailyResidents[request.resident], ...request, completed: slot.completed };
   });
+  function currentGardenRequest(state) {
+    if (!postgameUnlocked(state) || !state.gardenRequest) return null;
+    const crop = crops.find(entry => entry.id === state.gardenRequest.cropId);
+    const resident = dailyResidents[state.gardenRequest.resident];
+    const voice = gardenRequestVoices[state.gardenRequest.resident];
+    if (!crop || !resident || !voice) return null;
+    return { ...resident, id: `garden:${state.gardenRequest.resident}:${crop.id}`, resident: state.gardenRequest.resident, item: crop.id, quantity: 2, source: 'garden', title: `${crop.name}を少し`, message: voice.message(crop.name), thanks: voice.thanks, completed: state.gardenRequest.completed };
+  }
   function rememberDaily(state, id) {
     state.dailyHistory.push(id);
     state.dailyHistory = state.dailyHistory.slice(-12);
+  }
+  function chooseWeighted(candidates, weights, random) {
+    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+    const roll = Number(random());
+    let position = (Number.isFinite(roll) ? Math.min(1 - Number.EPSILON, Math.max(0, roll)) : 0) * totalWeight;
+    for (let index = 0; index < candidates.length; index++) {
+      position -= weights[index];
+      if (position < 0) return candidates[index];
+    }
+    return candidates[candidates.length - 1];
   }
   function chooseDaily(state, excludedIds, excludedItems, excludedResidents, previousId, random, pool = dailyRequestPool) {
     const recent = new Set(state.dailyHistory.slice(-6));
@@ -383,28 +410,24 @@
     for (const request of candidates) requestCounts[request.resident] = (requestCounts[request.resident] || 0) + 1;
     // 依頼数の多い住人が有利にならないよう、各住人の重みを候補依頼へ均等に配る。
     const weights = candidates.map(request => dailyResidentWeight(state, request.resident) / requestCounts[request.resident]);
-    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
-    const roll = Number(random());
-    let position = (Number.isFinite(roll) ? Math.min(1 - Number.EPSILON, Math.max(0, roll)) : 0) * totalWeight;
-    for (let index = 0; index < candidates.length; index++) {
-      position -= weights[index];
-      if (position < 0) return candidates[index];
-    }
-    return candidates[candidates.length - 1];
+    return chooseWeighted(candidates, weights, random);
   }
   function ensureDailyRequests(state, random = Math.random) {
     if (!dailyUnlocked(state)) return false;
-    const requestIds = new Set(state.dailyRequests.map(slot => slot.templateId));
-    const gardenCount = state.dailyRequests.filter(slot => isGardenDailyRequest(dailyTemplate(slot.templateId))).length;
-    if (state.dailyRequests.length === DAILY_REQUEST_SLOTS && requestIds.size === DAILY_REQUEST_SLOTS && gardenCount <= 1 && state.dailyRequests.every(slot => dailyRequestAvailable(state, dailyTemplate(slot.templateId)))) return false;
-    state.dailyRequests = [];
-    const usedIds = new Set();
-    const usedItems = new Set();
-    const usedResidents = new Set();
-    const includeGarden = postgameUnlocked(state) && Number(random()) < GARDEN_REQUEST_CHANCE;
-    for (let index = 0; index < DAILY_REQUEST_SLOTS; index++) {
-      const pool = includeGarden && index === 0 ? gardenDailyRequestPool : dailyRequestPool;
-      const request = chooseDaily(state, usedIds, usedItems, usedResidents, null, random, pool);
+    const previous = state.dailyRequests;
+    const requestIds = new Set();
+    state.dailyRequests = previous.filter(slot => {
+      const request = dailyRequestPool.find(entry => entry.id === slot?.templateId);
+      if (!request || requestIds.has(request.id) || requestIds.size >= DAILY_REQUEST_SLOTS) return false;
+      requestIds.add(request.id);
+      return true;
+    }).map(slot => ({ templateId: slot.templateId, completed: slot.completed === true }));
+    if (state.dailyRequests.length === DAILY_REQUEST_SLOTS && previous.length === DAILY_REQUEST_SLOTS) return false;
+    const usedIds = new Set(state.dailyRequests.map(slot => slot.templateId));
+    const usedItems = new Set(state.dailyRequests.map(slot => dailyTemplate(slot.templateId).item));
+    const usedResidents = new Set(state.dailyRequests.map(slot => dailyTemplate(slot.templateId).resident));
+    while (state.dailyRequests.length < DAILY_REQUEST_SLOTS) {
+      const request = chooseDaily(state, usedIds, usedItems, usedResidents, null, random);
       state.dailyRequests.push({ templateId: request.id, completed: false });
       usedIds.add(request.id);
       usedItems.add(request.item);
@@ -427,16 +450,11 @@
       usedItems.add(request.item);
       usedResidents.add(request.resident);
     }
-    const completedSlots = state.dailyRequests.filter(slot => slot.completed);
-    const hasGardenRequest = state.dailyRequests.some(slot => !slot.completed && isGardenDailyRequest(dailyTemplate(slot.templateId)));
-    let gardenPending = completedSlots.length > 0 && !hasGardenRequest && postgameUnlocked(state) && Number(random()) < GARDEN_REQUEST_CHANCE;
     let changed = false;
     for (const slot of state.dailyRequests) {
       if (!slot.completed) continue;
       const previous = dailyTemplate(slot.templateId);
-      const pool = gardenPending ? gardenDailyRequestPool : dailyRequestPool;
-      const replacement = chooseDaily(state, usedIds, usedItems, usedResidents, previous.id, random, pool);
-      gardenPending = false;
+      const replacement = chooseDaily(state, usedIds, usedItems, usedResidents, previous.id, random);
       slot.templateId = replacement.id;
       slot.completed = false;
       usedIds.add(replacement.id);
@@ -446,6 +464,24 @@
       changed = true;
     }
     return changed;
+  }
+  function chooseDailyResident(state, random) {
+    const candidates = Object.keys(dailyResidents);
+    const weights = candidates.map(id => dailyResidentWeight(state, id));
+    return chooseWeighted(candidates, weights, random);
+  }
+  function refreshGardenRequest(state, random = Math.random) {
+    if (!postgameUnlocked(state)) { state.gardenRequest = null; return false; }
+    if (state.gardenRequest && !state.gardenRequest.completed) return false;
+    const hadRequest = state.gardenRequest !== null;
+    state.gardenRequest = null;
+    const chance = Number(random());
+    if (!Number.isFinite(chance) || chance < 0 || chance >= GARDEN_REQUEST_CHANCE) return hadRequest;
+    const resident = chooseDailyResident(state, random);
+    const cropRoll = Number(random());
+    const cropIndex = Math.floor((Number.isFinite(cropRoll) ? Math.min(1 - Number.EPSILON, Math.max(0, cropRoll)) : 0) * crops.length);
+    state.gardenRequest = { resident, cropId: crops[cropIndex].id, completed: false };
+    return true;
   }
   function restore(data, random = Math.random) {
     const state = fresh();
@@ -484,6 +520,9 @@
         if (data.storyProgress?.[`${id}EventViewed`] === true) state.storyProgress[`${id}EventViewed`] = true;
       }
     }
+    if (postgameUnlocked(state) && data.gardenRequest && dailyResidents[data.gardenRequest.resident] && crops.some(crop => crop.id === data.gardenRequest.cropId)) {
+      state.gardenRequest = { resident: data.gardenRequest.resident, cropId: data.gardenRequest.cropId, completed: data.gardenRequest.completed === true };
+    }
     if (Array.isArray(data.plots) && data.plots.length === 3 && postgameUnlocked(state)) {
       state.plots = data.plots.map(plot => {
         if (plot === null) return null;
@@ -492,8 +531,13 @@
       });
     }
     if (dailyUnlocked(state) && Array.isArray(data.dailyRequests)) {
-      const slots = data.dailyRequests.filter(slot => slot && dailyRequestAvailable(state, dailyTemplate(slot.templateId))).map(slot => ({ templateId: slot.templateId, completed: slot.completed === true }));
-      if (slots.length === DAILY_REQUEST_SLOTS && new Set(slots.map(slot => slot.templateId)).size === DAILY_REQUEST_SLOTS) state.dailyRequests = slots;
+      const sourceSlots = data.dailyRequests.filter(slot => slot && dailyTemplate(slot.templateId));
+      const legacyGardenSlot = sourceSlots.find(slot => isGardenDailyRequest(dailyTemplate(slot.templateId)));
+      if (!state.gardenRequest && postgameUnlocked(state) && legacyGardenSlot) {
+        const request = dailyTemplate(legacyGardenSlot.templateId);
+        state.gardenRequest = { resident: request.resident, cropId: request.item, completed: legacyGardenSlot.completed === true };
+      }
+      state.dailyRequests = sourceSlots.filter(slot => !isGardenDailyRequest(dailyTemplate(slot.templateId))).map(slot => ({ templateId: slot.templateId, completed: slot.completed === true }));
     }
     state.discovered = Array.isArray(data.discovered)
       ? [...new Set(data.discovered.filter(id => items.some(item => item.id === id)))]
@@ -514,6 +558,7 @@
     state.gathersLeft = gatherLimit(state);
     state.gatherLimit = gatherLimit(state);
     refreshDailyRequests(state, random);
+    refreshGardenRequest(state, random);
   }
   function craft(state, id, amount = 1) {
     // 作成は在庫の更新のみ。依頼の達成は deliver での手動納品に限定する。
@@ -548,7 +593,15 @@
     state.dailyRequestCounts[request.resident] = Math.min(Number.MAX_SAFE_INTEGER, state.dailyRequestCounts[request.resident] + 1);
     return true;
   }
-  const game = { items, crops, recipes, requests, dailyResidents, dailyRequestPool, gardenDailyRequestPool, thankYouEvents, storyMilestones, storyRequests, fresh, restore, gather, craft, deliver, deliverDaily, deliverStoryRequest, rest, plantCrop, harvestCrop, cropDaysLeft, completeThankYou, canViewThankYou, completedThankYouCount, dailyResidentWeight, postgameUnlocked, completeStory, canViewStory, storyUnlocked, storyRequestUnlocked, canViewStoryRequestCompletion, completeStoryRequestEvent, SAVE_VERSION, DAILY_GATHERS, DAILY_REQUEST_SLOTS, GARDEN_REQUEST_CHANCE, gatherLimit, ingredients, maxCraft, stageTwoUnlocked, stageUnlocked, unlockedStage, visibleRequests, dailyUnlocked, ensureDailyRequests, refreshDailyRequests, currentDailyRequests };
+  function deliverGardenRequest(state, id) {
+    const request = currentGardenRequest(state);
+    if (!request || request.id !== id || request.completed || state.inventory[request.item] < request.quantity) return false;
+    state.inventory[request.item] -= request.quantity;
+    state.gardenRequest.completed = true;
+    state.dailyRequestCounts[request.resident] = Math.min(Number.MAX_SAFE_INTEGER, state.dailyRequestCounts[request.resident] + 1);
+    return true;
+  }
+  const game = { items, crops, recipes, requests, dailyResidents, dailyRequestPool, gardenDailyRequestPool, thankYouEvents, storyMilestones, storyRequests, fresh, restore, gather, craft, deliver, deliverDaily, deliverGardenRequest, deliverStoryRequest, rest, plantCrop, harvestCrop, cropDaysLeft, completeThankYou, canViewThankYou, completedThankYouCount, dailyResidentWeight, postgameUnlocked, completeStory, canViewStory, storyUnlocked, storyRequestUnlocked, canViewStoryRequestCompletion, completeStoryRequestEvent, SAVE_VERSION, DAILY_GATHERS, DAILY_REQUEST_SLOTS, GARDEN_REQUEST_CHANCE, gatherLimit, ingredients, maxCraft, stageTwoUnlocked, stageUnlocked, unlockedStage, visibleRequests, dailyUnlocked, ensureDailyRequests, refreshDailyRequests, refreshGardenRequest, currentDailyRequests, currentGardenRequest };
   if (typeof module !== 'undefined' && module.exports) module.exports = game;
   else root.MioGame = game;
 })(typeof window !== 'undefined' ? window : globalThis);

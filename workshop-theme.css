@@ -402,10 +402,21 @@ footer { border-top-style: dashed; color: var(--muted); }
 .request-history-fold > .residents-record { margin: 0; padding: 17px 20px 20px; border: 0; border-radius: 0; box-shadow: none; }
 .request-history-content { display: grid; gap: 12px; padding: 16px; }
 .request-history-content > .story-milestone, .request-history-content > .special-request { margin: 0; }
+.backyard-request { min-width: 0; margin: -18px 0 38px; padding: 22px 24px; border: 1px solid #cfd9c7; border-radius: 14px; background: #f2f2e8; box-shadow: 0 8px 24px rgba(72, 91, 68, .06); }
+.backyard-request.completed { background: #edf1e5; }
+.backyard-request-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.backyard-request-heading .eyebrow { margin-bottom: 7px; }
+.backyard-request-heading > span { flex-shrink: 0; padding: 5px 10px; border: 1px solid #d7dfcf; border-radius: 999px; background: rgba(255,255,255,.58); color: var(--green); font-size: 10px; }
+.backyard-request > .muted { margin: 0; line-height: 1.8; }
+.backyard-request-card { padding-top: 17px; border-top: 1px solid #d7dfcf; }
+.backyard-request-card .resident { margin-bottom: 15px; }
+.backyard-request-card .quote { margin-bottom: 17px; }
 @media (max-width: 380px) {
   .request-history-fold > summary { gap: 7px; padding: 13px 14px; }
   .request-history-fold > summary span { font-size: 14px; }
   .request-history-fold > summary small { font-size: 10px; }
   .request-history-fold > .residents-record { padding: 14px; }
   .request-history-content { padding: 12px; }
+  .backyard-request { margin-top: -12px; padding: 18px 16px; }
+  .backyard-request-heading { align-items: flex-start; }
 }

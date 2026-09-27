@@ -1066,29 +1066,30 @@ console.log('PASS: garden navigation gating, three crop planting, daily growth, 
 const cropDailySave = JSON.parse(JSON.stringify(clearEnding));
 cropDailySave.inventory.potato = 1;
 cropDailySave.dailyRequests = [
-  { templateId: 'daily-garden-naka-potato', completed: false },
+  { templateId: 'daily-kuroko-curtain', completed: false },
   { templateId: 'daily-ritsu-thread', completed: false },
   { templateId: 'daily-towa-box', completed: false }
 ];
+cropDailySave.gardenRequest = { resident: 'naka', cropId: 'potato', completed: false };
 saved.set('mioverse-craft-v1', JSON.stringify(cropDailySave));
 app = launch();
 let cropDailyHtml = app.page('requests');
+assert.ok(cropDailyHtml.includes('裏庭からのお届け'));
 assert.ok(cropDailyHtml.includes('じゃがいもを少し'));
 assert.ok(cropDailyHtml.includes('じゃがいも × 2'));
 assert.ok(cropDailyHtml.includes('FROM THE BACKYARD'));
-assert.ok(cropDailyHtml.includes('畑のお願い'));
-assert.match(cropDailyHtml, /data-action="deliver-daily" data-id="daily-garden-naka-potato" disabled>収穫物が必要<\/button>/);
-assert.ok(!cropDailyHtml.includes('data-action="view-recipe" data-id="daily-garden-naka-potato"'), '収穫物に未実装の作り方ボタンを出さない');
+assert.equal((cropDailyHtml.match(/class="request-card daily-request/g) || []).length, 3, '通常依頼は別に3枠表示');
+assert.match(cropDailyHtml, /data-action="deliver-garden" data-id="garden:naka:potato" disabled>収穫物が必要<\/button>/);
 const cropBeforeShortage = JSON.stringify(app.state());
-app.click('deliver-daily', 'daily-garden-naka-potato');
+app.click('deliver-garden', 'garden:naka:potato');
 assert.equal(JSON.stringify(app.state()), cropBeforeShortage, '在庫1個では画面操作からも納品不可');
 const cropReadySave = app.state();
 cropReadySave.inventory.potato = 2;
 saved.set('mioverse-craft-v1', JSON.stringify(cropReadySave));
 app = launch();
 const nakaGardenCountBefore = app.state().dailyRequestCounts.naka;
-assert.match(app.page('requests'), /data-action="deliver-daily" data-id="daily-garden-naka-potato" >2個届ける<\/button>/);
-app.click('deliver-daily', 'daily-garden-naka-potato');
+assert.match(app.page('requests'), /data-action="deliver-garden" data-id="garden:naka:potato" >届ける<\/button>/);
+app.click('deliver-garden', 'garden:naka:potato');
 assert.equal(app.state().inventory.potato, 0);
 assert.equal(app.state().dailyRequestCounts.naka, nakaGardenCountBefore + 1);
 assert.equal(app.state().thankYouEventViewed.naka, true, '既存のお礼済み状態を維持');
@@ -1097,9 +1098,9 @@ assert.ok(cropDailyHtml.includes('大事に持って帰るね。'));
 assert.ok(cropDailyHtml.includes('本日は納品済み'));
 assert.ok(cropDailyHtml.includes('5 / 5'), '5/5表示は上限表示を維持');
 app = launch();
-assert.equal(app.state().dailyRequests.find(slot => slot.templateId === 'daily-garden-naka-potato').completed, true);
+assert.equal(app.state().gardenRequest.completed, true);
 assert.equal(app.state().dailyRequestCounts.naka, nakaGardenCountBefore + 1);
-console.log('PASS: garden daily request UI, shortage label, exact delivery, 5/5 progress and reload');
+console.log('PASS: independent backyard request UI, shortage label, exact delivery, normal three slots, 5/5 progress and reload');
 
 saved.set('mioverse-craft-v1', JSON.stringify(clearEnding));
 app = launch();
