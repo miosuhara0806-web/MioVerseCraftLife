@@ -94,16 +94,18 @@ function notify(message) {
 function home() {
   const done = state.completed.length;
   const merchant = G.merchantStatus(state);
-  const readyHarvests = G.postgameUnlocked(state) ? state.plots.flatMap((plot, index) => {
+  const backyardUnlocked = G.postgameUnlocked(state);
+  const readyHarvests = backyardUnlocked ? state.plots.flatMap((plot, index) => {
     if (!plot || G.cropDaysLeft(state, index) !== 0) return [];
     const crop = G.crops.find(entry => entry.id === plot.cropId);
     return crop ? [crop] : [];
   }) : [];
-  const harvestNotice = readyHarvests.length ? `<a class="harvest-notice" href="#backyard"><span class="harvest-notice-mark" aria-hidden="true">収</span><span><small>BACKYARD HARVEST</small><strong>${readyHarvests.length === 1 ? `裏庭：${readyHarvests[0].name}を収穫できます` : `裏庭：収穫できる作物が${readyHarvests.length}区画あります`}</strong></span><span class="harvest-notice-link">裏庭を見る →</span></a>` : '';
+  const hasReadyFacility = backyardUnlocked && G.currentFacilities(state).some(facility => facility.ready);
+  const backyardNotice = readyHarvests.length || hasReadyFacility ? `<a class="harvest-notice" href="#backyard"><span class="harvest-notice-mark" aria-hidden="true">庭</span><span><small>BACKYARD READY</small><strong>裏庭：収穫・受け取りできるものがあります</strong></span><span class="harvest-notice-link">裏庭を見る →</span></a>` : '';
   const merchantCard = merchant ? `<section class="merchant-card ${merchant.present ? 'present' : ''}" aria-labelledby="merchant-card-title"><div><p class="eyebrow">TRAVELING MERCHANT</p><h2 id="merchant-card-title">行商人</h2><p>${merchant.present ? 'レガトワが来ています' : `次の来訪まで あと${merchant.daysUntil}日`}</p>${merchant.present ? '<small>「美桜ーーー！今日はいいもん持ってきたぞ！！」</small>' : '<small>日付が進むと、3日ごとに工房へ立ち寄ります。</small>'}</div>${merchant.present ? '<button data-action="merchant-open">品物を見る</button>' : '<span class="merchant-away">旅の途中</span>'}</section>` : '';
   return `${dayStatus()}<section class="hero"><p class="eyebrow">A LITTLE WORKSHOP IN THE WOODS</p><h1>森の恵みで、<br>暮らしをひとつ。</h1><p>小径で集めて、工房でつくる。<br>あなたの手仕事を、住人たちが待っています。</p>${link('gather', '森の小径へ')}<span class="hero-stamp" aria-hidden="true">森<br>と<br>暮らす</span></section>${state.storyProgress.milestone8Completed ? '<div class="workshop-sign"><small>Mio Verse</small><strong>小径の工房</strong></div>' : ''}
     <div class="stats"><div><span>在庫の合計</span><strong>${total()} <small>個</small></strong></div><div><span>住人へのお届け</span><strong>${done} <small>/ ${requestTotal()} 件</small></strong></div><div><span>今日のペース</span><strong class="slow">のんびり</strong></div></div>
-    ${harvestNotice}${merchantCard}
+    ${backyardNotice}${merchantCard}
     <section><div class="section-title"><h2>工房での過ごし方</h2><span>急がず、ひとつずつ</span></div><div class="steps"><a href="#gather"><span class="step-number">01 / GATHER</span><h3>森で集める</h3><p>枝、ツル草、野花。<br>好きな素材を選んで採集。</p><span class="text-link">採集へ →</span></a><a href="#craft"><span class="step-number">02 / CRAFT</span><h3>手を動かす</h3><p>素材を少しずつ加工して、<br>暮らしの道具をつくる。</p><span class="text-link">加工へ →</span></a><a href="#requests"><span class="step-number">03 / GIVE</span><h3>住人へ届ける</h3><p>できあがった品物で、<br>小さなお願いを叶える。</p><span class="text-link">依頼へ →</span></a></div></section>
     <section class="note"><span class="note-icon" aria-hidden="true">✳</span><div><h3>${done === G.requests.length ? '日常のお願いが届いています' : G.stageTwoUnlocked(state) ? '新しい3件のお願いが届いています' : 'はじめのひと品に、布袋はいかが？'}</h3><p>${done === G.requests.length ? '8人の住人から届く日常のお願いのうち、3件を受け付けます。お届け済みの枠は「今日は休む」と翌日に入れ替わります。' : G.stageTwoUnlocked(state) ? (state.unlockedStage === 3 ? '乾燥花はリースに、小箱は布張りに。素材の使い道を選びながら、新しい品物をつくってみましょう。' : '布と染料、そして木材。素材を組み合わせて、窓辺や壁を彩る品物をつくってみましょう。') : 'ツル草を1回採集 → 植物繊維を2個 → 糸を2個 → 布を1個 → 布袋を1個。ナカちゃんに届けてみましょう。'}</p></div></section>`;
 }
