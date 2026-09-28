@@ -249,7 +249,7 @@ function renderMerchantDialog() {
   document.getElementById('merchant-dialog-content').innerHTML = `<p class="eyebrow">REGATOWA’S BARTER</p><div class="merchant-dialog-heading"><h2 id="merchant-dialog-title" tabindex="-1">レガトワの品物</h2><p>「交換するものある！？　俺はいろいろ持ってきた！」</p></div><div class="merchant-trades">${G.merchantTrades.map(trade => {
     const exchanged = status.exchanged.includes(trade.id);
     const ready = G.canTradeMerchant(state, trade.id);
-    return `<article class="${exchanged ? 'exchanged' : ''}"><div><h3>${names[trade.id]}</h3><p class="merchant-reward">受け取るもの：<strong>${names[trade.id]} ×${trade.quantity}</strong></p><p>渡すもの：${trade.costs.map(cost => `${names[cost.id]} ×${cost.quantity}（在庫 ${count(cost.id)}）`).join('・')}</p></div><button data-action="merchant-trade" data-id="${trade.id}" ${ready ? '' : 'disabled'}>${exchanged ? '交換済み' : ready ? '交換する' : '交換材料が足りません'}</button></article>`;
+    return `<article class="${exchanged ? 'exchanged' : ''}"><div><h3>${names[trade.id]}</h3><p class="merchant-reward">受け取るもの：<strong>${names[trade.id]} ×${trade.quantity}</strong>（在庫 ${count(trade.id)}）</p><p>渡すもの：${trade.costs.map(cost => `${names[cost.id]} ×${cost.quantity}（在庫 ${count(cost.id)}）`).join('・')}</p></div><button data-action="merchant-trade" data-id="${trade.id}" ${ready ? '' : 'disabled'}>${exchanged ? '交換済み' : ready ? '交換する' : '交換材料が足りません'}</button></article>`;
   }).join('')}</div>`;
   return true;
 }

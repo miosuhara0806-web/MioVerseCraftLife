@@ -1525,7 +1525,8 @@ assert.equal(app.merchantDialogOpen(), true);
 let merchantDialogHtml = app.merchantDialogHtml();
 assert.ok(merchantDialogHtml.includes('交換するものある！？　俺はいろいろ持ってきた！'));
 for (const trade of G.merchantTrades) {
-  assert.ok(merchantDialogHtml.includes(G.merchantMaterials.find(item => item.id === trade.id).name), `${trade.id}を表示`);
+  const rewardItem = G.merchantMaterials.find(item => item.id === trade.id);
+  assert.ok(merchantDialogHtml.includes(`受け取るもの：<strong>${rewardItem.name} ×${trade.quantity}</strong>（在庫 0）`), `${trade.id}の在庫0を表示`);
   for (const cost of trade.costs) {
     const costItem = [...G.items, ...G.crops, ...G.foods, ...G.backyardMaterials].find(item => item.id === cost.id);
     assert.ok(merchantDialogHtml.includes(`${costItem.name} ×${cost.quantity}`));
@@ -1540,6 +1541,7 @@ app.click('merchant-trade', 'sugar');
 assert.equal(app.state().inventory.flower, 2);
 assert.equal(app.state().inventory.sugar, 2);
 assert.ok(app.state().merchantVisit.exchanged.includes('sugar'));
+assert.ok(app.merchantDialogHtml().includes('受け取るもの：<strong>砂糖 ×2</strong>（在庫 2）'), '交換直後に受取品の在庫表示を更新');
 assert.ok(app.merchantDialogHtml().includes('data-id="sugar" disabled>交換済み</button>'));
 assert.ok(app.toastText().includes('レガトワ「よっしゃ、交換成立！」 砂糖を2個受け取りました。'));
 const duplicateMerchantUi = JSON.stringify(app.state());
@@ -1584,6 +1586,26 @@ assert.ok(app.page('craft').includes('きのこオムレツ'), '既存料理を�
 assert.ok(app.page('backyard').includes('小さな鶏小屋'), '既存の畑・設備を維持');
 assert.ok(app.page('requests').includes('お礼のしるし'), '既存依頼とお礼のしるしを維持');
 console.log('PASS: Regatowa workshop card/dialog gating, six trades, shortage and duplicate guards, three-day visit UI, inventory, reload and existing-system isolation');
+
+const merchantRewardStockSave = JSON.parse(JSON.stringify(clearEnding));
+delete merchantRewardStockSave.merchantVisit;
+Object.assign(merchantRewardStockSave.inventory, { sugar: 6, salt: 8, butter: 0, cheese: 3, meat: 2, fish: 1 });
+saved.set('mioverse-craft-v1', JSON.stringify(merchantRewardStockSave));
+app = launch();
+app.click('merchant-open');
+merchantDialogHtml = app.merchantDialogHtml();
+for (const [id, expected] of Object.entries({ sugar: 6, salt: 8, butter: 0, cheese: 3, meat: 2, fish: 1 })) {
+  const trade = G.merchantTrades.find(entry => entry.id === id);
+  const rewardName = G.merchantMaterials.find(item => item.id === id).name;
+  assert.ok(merchantDialogHtml.includes(`受け取るもの：<strong>${rewardName} ×${trade.quantity}</strong>（在庫 ${expected}）`), `${rewardName}の現在在庫を表示`);
+}
+for (const trade of G.merchantTrades) {
+  for (const cost of trade.costs) {
+    const costName = [...G.items, ...G.crops, ...G.foods, ...G.backyardMaterials].find(item => item.id === cost.id).name;
+    assert.ok(merchantDialogHtml.includes(`${costName} ×${cost.quantity}（在庫 ${app.state().inventory[cost.id]}）`), `${trade.id}の渡すもの在庫表示を維持`);
+  }
+}
+console.log('PASS: all six merchant reward stocks, zero stock and existing cost-stock labels');
 
 const balancedMerchantUiSave = JSON.parse(JSON.stringify(clearEnding));
 delete balancedMerchantUiSave.merchantVisit;
