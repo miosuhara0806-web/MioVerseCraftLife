@@ -335,6 +335,30 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
 .encyclopedia-recipe { border-top-style: dashed; line-height: 1.9; }
 .encyclopedia-card.undiscovered { background: #eeeee3; border-style: dashed; box-shadow: none; padding: 25px 22px; }
 .encyclopedia-card.undiscovered h3 { letter-spacing: 4px; color: #68745d; }
+.hospitality-list { display: grid; gap: 18px; }
+.hospitality-card { min-width: 0; padding: 22px; background: var(--paper); border: 1px solid var(--line); border-radius: 17px; box-shadow: var(--card-shadow); overflow-wrap: anywhere; }
+.hospitality-card.completed { background: #f0f2e7; }
+.hospitality-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.hospitality-heading h2 { margin: 0; color: var(--green); font-family: "Yu Mincho", serif; font-size: 21px; line-height: 1.7; }
+.hospitality-heading .badge { flex: 0 0 auto; white-space: nowrap; }
+.hospitality-card p { margin: 12px 0; color: var(--muted); font-size: 13px; line-height: 1.9; }
+.hospitality-card h3 { margin: 18px 0 8px; font-size: 13px; color: var(--green); }
+.hospitality-dishes { list-style: none; padding: 0; margin: 0; }
+.hospitality-dishes li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; padding: 10px 0; border-bottom: 1px dashed var(--line); font-size: 13px; }
+.hospitality-dishes strong { min-width: 0; }
+.hospitality-dishes span { color: var(--muted); font-size: 12px; }
+.hospitality-card .hospitality-keepsake { color: var(--green); }
+.hospitality-card > button { margin-top: 5px; min-height: 44px; }
+.hospitality-memories { margin-top: 32px; }
+.hospitality-memories > h2 { color: var(--green); font-size: 20px; }
+.hospitality-memory { margin-top: 12px; padding: 18px; background: #f0f2e7; border: 1px solid var(--line); border-radius: 17px; overflow-wrap: anywhere; }
+.hospitality-memory h3 { font-size: 16px; color: var(--green); }
+.hospitality-memory p { margin: 8px 0 12px; color: var(--muted); font-size: 13px; }
+@media (max-width: 480px) {
+  .hospitality-card { padding: 18px 16px; }
+  .hospitality-heading h2 { font-size: 19px; }
+  .hospitality-card > button, .hospitality-memory > button { width: 100%; font-size: 12px; }
+}
 
 #rest-dialog, #recipe-dialog {
   border-radius: 22px;

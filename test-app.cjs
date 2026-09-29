@@ -1720,3 +1720,78 @@ encyclopedia = app.page('encyclopedia');
 assert.equal((encyclopedia.match(/class="encyclopedia-card undiscovered"/g) || []).length, 49, '追加品も未発見は名前・詳細を隠す');
 assert.ok(!encyclopedia.includes('<h3>卵</h3>') && !encyclopedia.includes('<h3>バタークッキー</h3>'));
 console.log('PASS: six closed encyclopedia categories, all 49 items/sources/recipes, legacy save, undiscovered concealment and unchanged game progress');
+
+saved.set('mioverse-craft-v1', JSON.stringify({ ...G.fresh(), introViewed: true }));
+app = launch();
+assert.ok(!app.navigation().includes('もてなし'));
+assert.ok(!app.page('hospitality').includes('森の恵みの昼食'), 'URLからの未クリア表示を防ぐ');
+app.click('hospitality-host', 'forestLunch');
+app.click('hospitality-replay', 'forestLunch');
+assert.equal(app.storyDialogOpen(), false);
+const hospitalityUiSeed = JSON.parse(JSON.stringify(clearEnding));
+delete hospitalityUiSeed.hospitality;
+for (const food of G.foods) hospitalityUiSeed.inventory[food.id] = 0;
+saved.set('mioverse-craft-v1', JSON.stringify(hospitalityUiSeed));
+app = launch();
+assert.ok(app.navigation().includes('href="#hospitality"'));
+let hospitalityHtml = app.page('hospitality');
+assert.equal((hospitalityHtml.match(/class="hospitality-card /g) || []).length, 3);
+assert.deepEqual(app.state().hospitality, { completed: [], keepsakes: [] });
+for (const event of G.hospitalityEvents) {
+  assert.ok(hospitalityHtml.includes(event.title) && hospitalityHtml.includes(event.keepsake.name));
+  for (const resident of event.residents) assert.ok(hospitalityHtml.includes(G.dailyResidents[resident].name));
+  assert.ok(hospitalityHtml.includes(`data-id="${event.id}" disabled>料理をそろえましょう</button>`));
+  const shortageHostSnapshot = JSON.stringify(app.state());
+  app.click('hospitality-host', event.id);
+  assert.equal(JSON.stringify(app.state()), shortageHostSnapshot);
+  assert.equal(app.storyDialogOpen(), false);
+}
+assert.ok(hospitalityHtml.includes('現在の所持：0個 / あと1個必要'));
+const readyHospitalityUi = app.state();
+for (const food of G.foods) readyHospitalityUi.inventory[food.id] = 3;
+saved.set('mioverse-craft-v1', JSON.stringify(readyHospitalityUi));
+app = launch();
+for (const event of G.hospitalityEvents) {
+  hospitalityHtml = app.page('hospitality');
+  assert.ok(hospitalityHtml.includes(`data-id="${event.id}" >もてなす</button>`));
+  const beforeHost = app.state();
+  app.click('hospitality-host', event.id);
+  assert.equal(app.storyDialogOpen(), true);
+  for (const line of event.conversation) {
+    assert.ok(app.storyDialogHtml().includes(line.text));
+    if (line.speaker) assert.ok(app.storyDialogHtml().includes(`${line.speaker}<br>`));
+  }
+  assert.equal(app.storyCompleteLabel(), 'もてなしへ戻る');
+  const afterHost = app.state();
+  for (const [id, amount] of Object.entries(beforeHost.inventory)) assert.equal(afterHost.inventory[id], amount - (event.requirements.find(item => item.id === id)?.quantity || 0));
+  assert.deepEqual(afterHost.dailyRequestCounts, beforeHost.dailyRequestCounts);
+  assert.equal(afterHost.gratitudePoints, beforeHost.gratitudePoints);
+  assert.deepEqual(afterHost.dailyRequests, beforeHost.dailyRequests);
+  assert.deepEqual(afterHost.gardenRequest, beforeHost.gardenRequest);
+  const completedHostSnapshot = JSON.stringify(afterHost);
+  app.click('hospitality-host', event.id);
+  assert.equal(JSON.stringify(app.state()), completedHostSnapshot, '連打で二重消費・二重付与なし');
+  // 会話を閉じる前の再読込でも完了が保存されている。
+  app = launch();
+  assert.ok(app.state().hospitality.completed.includes(event.id));
+  hospitalityHtml = app.page('hospitality');
+  assert.ok(hospitalityHtml.includes(`data-id="${event.id}" disabled>もてなし済み</button>`));
+  assert.ok(hospitalityHtml.includes('もてなしの思い出'));
+  assert.ok(hospitalityHtml.includes(`記念：${event.keepsake.name} ×1`));
+  assert.ok(hospitalityHtml.includes(`data-action="hospitality-replay" data-id="${event.id}"`));
+  const replayHostSnapshot = JSON.stringify(app.state());
+  app.click('hospitality-replay', event.id);
+  assert.equal(app.storyDialogOpen(), true);
+  app.click('story-complete');
+  assert.equal(app.storyDialogOpen(), false);
+  assert.equal(JSON.stringify(app.state()), replayHostSnapshot, '再閲覧・終了で在庫も報酬も変わらない');
+}
+app.page('home'); app.click('rest'); app.click('rest-confirm');
+app = launch();
+assert.equal(app.state().hospitality.completed.length, 3);
+assert.equal(app.state().hospitality.keepsakes.length, 3);
+assert.ok(app.page('encyclopedia').includes('49'), '記念品は既存図鑑項目へ追加しない');
+assert.ok(app.page('craft').includes('きのこのクリームパスタ'));
+assert.ok(app.page('backyard').includes('小さな鶏小屋'));
+assert.ok(app.page('requests').includes('お礼のしるし'));
+console.log('PASS: hospitality navigation/cards, exact stock/shortage UI, all supplied conversations, persistent one-time completion, safe replay and continuing existing play');

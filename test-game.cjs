@@ -1369,3 +1369,61 @@ assert.equal(G.craft(acquisition, 'mushroomCreamPasta'), false);
 assert.equal(JSON.stringify(acquisition.discovered), acquisitionDiscovery, '失敗した入手処理では発見を増やさない');
 assert.equal(G.SAVE_VERSION, 2, 'セーブ形式のバージョンを維持');
 console.log('PASS: expanded encyclopedia discoveries, legacy stock/recipe inference, zero-stock persistence and successful acquisition guards');
+
+assert.equal(G.hospitalityEvents.length, 3);
+assert.deepEqual(G.hospitalityEvents.map(event => [event.title, event.residents, event.requirements.map(item => [item.id, item.quantity]), event.keepsake.name]), [
+  ['森の恵みの昼食', ['naka', 'keikaiTowa', 'alto'], [['vegetableSoup', 1], ['milkBread', 1], ['carrotOmelet', 1]], '木のカトラリー'],
+  ['雨の日のあたたかい食卓', ['ritsu', 'towa', 'kuroko'], [['meatVegetableStew', 1], ['cheeseBakedMushrooms', 1], ['rusticBread', 1]], '生成りのティークロス'],
+  ['午後のひと休み', ['aoiDoctor', 'shiru', 'naka'], [['butterCookies', 1], ['milkBread', 1], ['mushroomOmelet', 1]], '花柄のコースター']
+]);
+for (const event of G.hospitalityEvents) {
+  assert.equal(event.conversation.length, 8, '会話6行と地の文2行');
+  assert.ok(event.requirements.every(item => G.foods.some(food => food.id === item.id)), '実在する料理だけを要求');
+  assert.ok(event.conversation.every(line => !line.speaker?.includes('美桜')), '美桜の固定セリフを作らない');
+  const lockedHost = G.fresh();
+  for (const item of event.requirements) lockedHost.inventory[item.id] = 3;
+  const lockedSnapshot = JSON.stringify(lockedHost);
+  assert.equal(G.host(lockedHost, event.id), false);
+  assert.equal(G.canViewHospitality(lockedHost, event.id), false);
+  assert.equal(JSON.stringify(lockedHost), lockedSnapshot, '未クリアでは料理があっても実行不可');
+  for (const missing of event.requirements) {
+    const partialHost = G.restore(JSON.parse(JSON.stringify(finalReload)), () => 0);
+    for (const item of event.requirements) partialHost.inventory[item.id] = item.id === missing.id ? 0 : 3;
+    const partialSnapshot = JSON.stringify(partialHost);
+    assert.equal(G.canHost(partialHost, event.id), false);
+    assert.equal(G.host(partialHost, event.id), false);
+    assert.equal(JSON.stringify(partialHost), partialSnapshot, `${missing.id}不足時は料理を一切消費しない`);
+  }
+}
+const hospitalityLegacySeed = JSON.parse(JSON.stringify(finalReload));
+delete hospitalityLegacySeed.hospitality;
+const hospitalityState = G.restore(hospitalityLegacySeed, () => 0);
+assert.deepEqual(hospitalityState.hospitality, { completed: [], keepsakes: [] }, '既存クリア済みセーブの初期値');
+for (const food of G.foods) hospitalityState.inventory[food.id] = 3;
+const { inventory: hostStockBefore, hospitality: unusedHospitalityBefore, ...otherHostStateBefore } = JSON.parse(JSON.stringify(hospitalityState));
+for (const event of G.hospitalityEvents) {
+  const stockBefore = { ...hospitalityState.inventory };
+  assert.equal(G.canHost(hospitalityState, event.id), true);
+  assert.equal(G.canViewHospitality(hospitalityState, event.id), false, '未完了会話は再閲覧不可');
+  assert.equal(G.host(hospitalityState, event.id), true);
+  for (const [id, amount] of Object.entries(stockBefore)) assert.equal(hospitalityState.inventory[id], amount - (event.requirements.find(item => item.id === id)?.quantity || 0), `${id}の消費数`);
+  assert.ok(hospitalityState.hospitality.completed.includes(event.id));
+  assert.equal(hospitalityState.hospitality.keepsakes.filter(id => id === event.keepsake.id).length, 1);
+  assert.equal(G.canHost(hospitalityState, event.id), false);
+  const duplicateSnapshot = JSON.stringify(hospitalityState);
+  assert.equal(G.host(hospitalityState, event.id), false);
+  assert.equal(G.canViewHospitality(hospitalityState, event.id), true);
+  assert.equal(JSON.stringify(hospitalityState), duplicateSnapshot, '二重実行・再閲覧判定で料理・記念品を変更しない');
+}
+const { inventory: hostStockAfter, hospitality: hostedMemories, ...otherHostStateAfter } = hospitalityState;
+assert.deepEqual(otherHostStateAfter, otherHostStateBefore, '通常依頼・住人進捗・しるし・畑・レガトワ・図鑑へ影響しない');
+const hospitalityReload = G.restore(JSON.parse(JSON.stringify(hospitalityState)), () => 0);
+assert.deepEqual(hospitalityReload.hospitality, hostedMemories);
+assert.deepEqual(hospitalityReload.inventory, hostStockAfter);
+G.rest(hospitalityReload, () => 0);
+assert.deepEqual(hospitalityReload.hospitality, hostedMemories, '日付を進めても完了と記念品は維持');
+assert.equal(G.host(hospitalityReload, 'unknown'), false);
+const invalidHospitality = G.restore({ ...hospitalityState, hospitality: { completed: ['forestLunch', 'forestLunch', 'unknown'], keepsakes: ['unknown'] } }, () => 0);
+assert.deepEqual(invalidHospitality.hospitality, { completed: ['forestLunch'], keepsakes: ['woodenCutlery'] }, '既知IDだけ復元し重複と記念品欠損を正規化');
+assert.deepEqual(G.restore({ hospitality: { completed: ['forestLunch'] } }).hospitality, { completed: [], keepsakes: [] }, '未解放データの完了フラグは採用しない');
+console.log('PASS: three fixed hospitality events, unlock/shortage guards, exact atomic consumption, one-time keepsakes, replay, legacy save and existing-system isolation');
