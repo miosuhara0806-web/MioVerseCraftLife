@@ -60,6 +60,7 @@
     { id: 'meat', name: '肉', category: '外来食材', mark: '肉' },
     { id: 'fish', name: '魚', category: '外来食材', mark: '魚' }
   ];
+  const encyclopediaItems = [...items, ...crops, ...backyardMaterials, ...merchantMaterials, ...foods];
   const backyardFacilities = [
     { id: 'chickenCoop', name: '小さな鶏小屋', product: 'egg', cycleDays: 2, quantity: 2 },
     { id: 'cowBarn', name: '小さな牛舎', product: 'milk', cycleDays: 3, quantity: 1 },
@@ -438,6 +439,7 @@
     if (!trade || !canTradeMerchant(state, id)) return false;
     for (const cost of trade.costs) state.inventory[cost.id] -= cost.quantity;
     state.inventory[id] += trade.quantity;
+    recordDiscovery(state, id);
     state.merchantVisit.exchangedDay = state.day;
     state.merchantVisit.exchanged.push(id);
     return true;
@@ -476,6 +478,7 @@
     const facility = backyardFacilities.find(entry => entry.id === id);
     if (!facility || facilityDaysLeft(state, id) !== 0 || !Number.isSafeInteger(state.inventory[facility.product]) || state.inventory[facility.product] > Number.MAX_SAFE_INTEGER - facility.quantity) return false;
     state.inventory[facility.product] += facility.quantity;
+    recordDiscovery(state, facility.product);
     state.facilityProduction[id] = { startedDay: state.day };
     return true;
   }
@@ -520,6 +523,7 @@
     const cropId = state.plots[index].cropId;
     if (!Number.isSafeInteger(state.inventory[cropId]) || state.inventory[cropId] > Number.MAX_SAFE_INTEGER - 2) return false;
     state.inventory[cropId] += 2;
+    recordDiscovery(state, cropId);
     state.plots[index] = null;
     return true;
   }
@@ -560,15 +564,16 @@
   function inferLegacyDiscoveries(state) {
     const found = new Set();
     function includeWithIngredients(id) {
-      if (found.has(id) || !items.some(item => item.id === id)) return;
+      if (found.has(id) || !encyclopediaItems.some(item => item.id === id)) return;
       found.add(id);
       const recipe = recipes.find(entry => entry.id === id);
       if (recipe) ingredients(recipe).forEach(input => includeWithIngredients(input.id));
     }
-    items.filter(item => state.inventory[item.id] > 0).forEach(item => includeWithIngredients(item.id));
+    encyclopediaItems.filter(item => state.inventory[item.id] > 0).forEach(item => includeWithIngredients(item.id));
     requests.filter(request => state.completed.includes(request.id)).forEach(request => includeWithIngredients(request.item));
     state.dailyRequests.filter(slot => slot.completed).forEach(slot => includeWithIngredients(dailyTemplate(slot.templateId).item));
-    return items.filter(item => found.has(item.id)).map(item => item.id);
+    if (state.gardenRequest?.completed) includeWithIngredients(state.gardenRequest.cropId);
+    return encyclopediaItems.filter(item => found.has(item.id)).map(item => item.id);
   }
   const dailyTemplate = id => allDailyRequestPool.find(request => request.id === id);
   const isGardenDailyRequest = request => request?.source === 'garden';
@@ -797,8 +802,15 @@
       state.dailyRequests = sourceSlots.filter(slot => !isGardenDailyRequest(dailyTemplate(slot.templateId))).map(slot => ({ templateId: slot.templateId, completed: slot.completed === true }));
     }
     state.discovered = Array.isArray(data.discovered)
-      ? [...new Set(data.discovered.filter(id => items.some(item => item.id === id)))]
+      ? [...new Set(data.discovered.filter(id => encyclopediaItems.some(item => item.id === id)))]
       : inferLegacyDiscoveries(state);
+    // 追加品の発見を未記録の旧セーブは、現所在庫・達成済み依頼から補う。
+    // 既存21品の移行ルールは維持し、同じ discovered 配列へ記録する。
+    if (postgameUnlocked(state)) {
+      for (const id of inferLegacyDiscoveries(state)) {
+        if (!items.some(item => item.id === id)) recordDiscovery(state, id);
+      }
+    }
     if (dailyUnlocked(state)) ensureDailyRequests(state, random);
     return state;
   }
@@ -827,7 +839,7 @@
     // 全素材の充足を確認してからまとめて消費する。不足時は在庫を変更しない。
     for (const input of ingredients(recipe)) state.inventory[input.id] -= input.cost * amount;
     state.inventory[id] += amount;
-    if (items.some(item => item.id === id)) recordDiscovery(state, id);
+    recordDiscovery(state, id);
     return true;
   }
   function deliver(state, id) {

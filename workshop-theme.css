@@ -320,6 +320,15 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
 .fixed-history summary::after { font-size: 9px; }
 .fixed-history > .requests-list { gap: 14px; }
 .encyclopedia-grid { gap: 14px; }
+.encyclopedia-fold { margin-bottom: 12px; min-width: 0; background: var(--paper); border: 1px solid var(--line); border-radius: 17px; }
+.encyclopedia-fold > summary { display: flex; align-items: center; gap: 12px; padding: 15px 18px; min-height: 56px; cursor: pointer; list-style: none; color: var(--green); }
+.encyclopedia-fold > summary::-webkit-details-marker { display: none; }
+.encyclopedia-fold > summary h2 { min-width: 0; margin: 0; font-size: 16px; line-height: 1.7; }
+.encyclopedia-fold > summary small { margin-left: auto; color: var(--muted); font-size: 11px; white-space: nowrap; }
+.encyclopedia-fold > summary::after { content: '⌄'; font-size: 18px; line-height: 1; }
+.encyclopedia-fold[open] > summary::after { content: '⌃'; }
+.encyclopedia-fold[open] > summary { border-bottom: 1px solid var(--line); }
+.encyclopedia-fold > .encyclopedia-grid { padding: 12px; }
 .encyclopedia-card { padding: 22px; }
 .encyclopedia-card .eyebrow { display: inline-block; padding: 2px 8px; background: var(--soft); border-radius: 20px; font-size: 10px; letter-spacing: .7px; }
 .encyclopedia-card h3 { margin-top: 3px; }
