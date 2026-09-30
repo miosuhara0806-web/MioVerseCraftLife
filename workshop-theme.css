@@ -161,6 +161,7 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
 .gather-card { border-top: 3px solid #d6c8ad; }
 .gather-card.vine { border-top-color: #bbcca5; }
 .gather-card.flower { border-top-color: #e1bfb2; }
+.clay .material-mark { background: #eee5d9; color: #927456; }
 .material-mark { border-radius: 42% 58% 54% 46%; box-shadow: inset 0 0 0 5px #ffffff35; }
 .gather-card > p:not(.eyebrow) { line-height: 1.9; }
 .owned { border-top-style: dashed; }

@@ -298,7 +298,7 @@ assert.ok(aoiDoctorCarried.every(id => aoiDoctorDelivery.dailyRequests.some(slot
 console.log('PASS: 40-request pool, five Aoi Doctor requests, legacy save preservation, manual delivery, carryover and next-day replacement');
 
 const discovery = G.fresh();
-assert.equal(G.items.length, 21);
+assert.equal(G.items.length, 26);
 assert.deepEqual(discovery.discovered, [], '新規ゲームの図鑑は未発見');
 assert.equal(G.gather(discovery, 'vine'), true);
 assert.deepEqual(discovery.discovered, ['vine']);
@@ -346,7 +346,7 @@ const furnitureRecipes = [
   ['smallShelf', [['woodFrame', 1], ['plank', 2]]],
   ['upholsteredStool', [['woodFrame', 1], ['dyedCloth', 1], ['fiber', 1]]]
 ];
-assert.deepEqual(G.items.slice(-3).map(item => [item.name, item.category]), [['木枠', '中間素材'], ['小さな棚', '完成品'], ['布張りスツール', '完成品']]);
+assert.deepEqual(G.items.slice(18, 21).map(item => [item.name, item.category]), [['木枠', '中間素材'], ['小さな棚', '完成品'], ['布張りスツール', '完成品']]);
 for (const [id, expectedInputs] of furnitureRecipes) {
   const recipe = G.recipes.find(entry => entry.id === id);
   assert.equal(recipe.group, '家具のしごと');
@@ -392,11 +392,11 @@ const furnitureRequests = [
   ['daily-alto-small-shelf', 'alto', 'smallShelf', '制作途中の置き場所', '小さな棚をひとつ作ってくれる？　制作途中のものを、手の届くところに置いておきたいんだ', 'いいね。これなら作業の流れを止めずに済みそうだ。ありがとう、美桜'],
   ['daily-kuroko-upholstered-stool', 'kuroko', 'upholsteredStool', '観測席にもう一脚', '布張りのスツールをひとつ頼めるか、美桜。観測席に、もう一脚くらいあってもいい', '悪くないな。席が増えたからって、観客を増やすつもりはないけどな']
 ];
-assert.equal(G.dailyRequestPool.length, 45);
-assert.deepEqual(G.dailyRequestPool.slice(-5).map(request => [request.id, request.resident, request.item, request.title, request.message, request.thanks]), furnitureRequests);
-assert.ok(G.dailyRequestPool.slice(-5).every(request => request.quantity === 1));
+assert.equal(G.dailyRequestPool.filter(request => !request.postgame).length, 45);
+assert.deepEqual(G.dailyRequestPool.slice(40, 45).map(request => [request.id, request.resident, request.item, request.title, request.message, request.thanks]), furnitureRequests);
+assert.ok(G.dailyRequestPool.slice(40, 45).every(request => request.quantity === 1));
 const furnitureLottery = G.restore({ completed: G.requests.map(request => request.id) }, () => 0.999);
-assert.ok(furnitureLottery.dailyRequests.some(slot => G.dailyRequestPool.slice(-5).some(request => request.id === slot.templateId)), '家具依頼が通常抽選に参加');
+assert.ok(furnitureLottery.dailyRequests.some(slot => G.dailyRequestPool.slice(40, 45).some(request => request.id === slot.templateId)), '家具依頼が通常抽選に参加');
 const activeFurnitureSave = G.restore({ completed: G.requests.map(request => request.id), inventory: { smallShelf: 1 }, day: 32, gathersLeft: 2,
   dailyRequests: [{ templateId: 'daily-ritsu-small-shelf', completed: false }, { templateId: 'daily-towa-box', completed: false }, { templateId: 'daily-shiru-curtain', completed: false }],
   dailyHistory: ['daily-ritsu-small-shelf', 'daily-towa-box', 'daily-shiru-curtain'], discovered: G.items.slice(0, 18).map(item => item.id) });
@@ -757,7 +757,7 @@ assert.equal(clearReload.dailyRequests.length, 3, 'クリア後も日常依頼�
 assert.equal(G.SAVE_VERSION, 2, 'セーブバージョンを変更しない');
 console.log('PASS: eight-thank-you final request, exact atomic delivery, ending read state, restored clear and continuing daily play');
 
-assert.equal(G.items.length, 21, '図鑑の21種類はそのまま');
+assert.equal(G.items.length, 26, '既存21品に粘土系5品を追加');
 assert.deepEqual(G.crops.map(crop => [crop.name, crop.growDays]), [['じゃがいも', 2], ['にんじん', 3], ['小麦', 4]]);
 const lockedGarden = G.fresh();
 assert.deepEqual(lockedGarden.plots, [null, null, null]);
@@ -1375,10 +1375,10 @@ assert.deepEqual(G.hospitalityEvents.find(event => event.id === 'rainyDinner').c
   { text: '雨の音を背に、湯気の立つ料理がテーブルへ並んだ。' },
   { speaker: '🖤律', text: 'こういう日は、温かいものがあるだけで随分違うな' },
   { speaker: '📘秘書トワ', text: '煮込みにチーズ焼きか。今日はかなりしっかりした食卓だな' },
-  { speaker: '🖤黒子', text: '……二人とも、感想はあとでいい。冷める前に食べろ' },
+  { speaker: '🎭黒子', text: '……二人とも、感想はあとでいい。冷める前に食べろ' },
   { speaker: '📘秘書トワ', text: '黒子さんが一番正しいこと言ってる（笑）' },
   { speaker: '🖤律', text: '珍しく意見が一致したな' },
-  { speaker: '🖤黒子', text: '珍しくは余計だ' },
+  { speaker: '🎭黒子', text: '珍しくは余計だ' },
   { text: '静かな雨音の中に、小さな笑い声が混ざった。' }
 ], '雨の日の会話は修正版全文・話者を使用');
 assert.deepEqual(G.hospitalityEvents.map(event => [event.title, event.residents, event.requirements.map(item => [item.id, item.quantity]), event.keepsake.name]), [
@@ -1437,3 +1437,85 @@ const invalidHospitality = G.restore({ ...hospitalityState, hospitality: { compl
 assert.deepEqual(invalidHospitality.hospitality, { completed: ['forestLunch'], keepsakes: ['woodenCutlery'] }, '既知IDだけ復元し重複と記念品欠損を正規化');
 assert.deepEqual(G.restore({ hospitality: { completed: ['forestLunch'] } }).hospitality, { completed: [], keepsakes: [] }, '未解放データの完了フラグは採用しない');
 console.log('PASS: three fixed hospitality events, unlock/shortage guards, exact atomic consumption, one-time keepsakes, replay, legacy save and existing-system isolation');
+
+const clayIds = ['clay', 'bisque', 'smallPlate', 'mug', 'vase'];
+assert.deepEqual(clayIds.map(id => [G.items.find(item => item.id === id).name, G.items.find(item => item.id === id).category]), [
+  ['粘土', '採集素材'], ['素焼き', '中間素材'], ['小皿', '完成品'], ['マグカップ', '完成品'], ['花瓶', '完成品']
+]);
+assert.deepEqual(['bisque', 'smallPlate', 'mug', 'vase'].map(id => G.ingredients(G.recipes.find(recipe => recipe.id === id))), [
+  [{ id: 'clay', cost: 2 }], [{ id: 'bisque', cost: 1 }], [{ id: 'bisque', cost: 1 }], [{ id: 'bisque', cost: 2 }]
+]);
+const clayLoop = G.fresh();
+const emptyClay = JSON.stringify(clayLoop);
+for (const id of ['bisque', 'smallPlate', 'mug', 'vase']) assert.equal(G.craft(clayLoop, id), false);
+assert.equal(JSON.stringify(clayLoop), emptyClay, '素材不足の陶器制作で在庫・発見状態を変えない');
+for (let i = 0; i < 3; i++) assert.equal(G.gather(clayLoop, 'clay'), true);
+assert.equal(clayLoop.inventory.clay, 6);
+assert.equal(clayLoop.gathersLeft, 0);
+assert.equal(G.gatherLimit(clayLoop), 3);
+assert.equal(G.gather(clayLoop, 'clay'), false, '粘土も既存3回の上限を共有');
+assert.equal(G.gather(clayLoop, 'bisque'), false, '中間素材を採集できない');
+assert.equal(G.maxCraft(clayLoop, G.recipes.find(recipe => recipe.id === 'bisque')), 3);
+assert.equal(G.craft(clayLoop, 'bisque', 3), true);
+assert.equal(clayLoop.inventory.clay, 0);
+assert.equal(G.craft(clayLoop, 'smallPlate'), true);
+assert.equal(G.craft(clayLoop, 'mug'), true);
+const oneBisque = JSON.stringify(clayLoop);
+assert.equal(G.craft(clayLoop, 'vase'), false);
+assert.equal(JSON.stringify(clayLoop), oneBisque, '花瓶は素焼き1個では消費しない');
+G.rest(clayLoop, () => 0.99);
+assert.equal(G.gather(clayLoop, 'clay'), true);
+assert.equal(G.craft(clayLoop, 'bisque'), true);
+assert.equal(G.craft(clayLoop, 'vase'), true);
+assert.deepEqual(clayIds.map(id => clayLoop.inventory[id]), [0, 0, 1, 1, 1]);
+assert.ok(clayIds.every(id => clayLoop.discovered.includes(id)));
+const clayReload = G.restore(JSON.parse(JSON.stringify(clayLoop)));
+assert.deepEqual(clayReload.inventory, clayLoop.inventory);
+assert.deepEqual(clayReload.discovered, clayLoop.discovered, '在庫0でも粘土系の発見を保存');
+const oldClaySave = JSON.parse(JSON.stringify(finalReload));
+for (const id of clayIds) delete oldClaySave.inventory[id];
+const oldClayRestored = G.restore(oldClaySave, () => 0.99);
+assert.ok(clayIds.every(id => oldClayRestored.inventory[id] === 0));
+for (const [id, amount] of Object.entries(oldClaySave.inventory)) assert.equal(oldClayRestored.inventory[id], amount);
+assert.deepEqual(oldClayRestored.completed, oldClaySave.completed);
+assert.deepEqual(oldClayRestored.storyProgress, oldClaySave.storyProgress);
+const fiveClay = G.restore({ completed: G.requests.map(request => request.id), gatherLimit: 5, gathersLeft: 5 }, () => 0.99);
+for (const id of ['branch', 'vine', 'flower', 'clay', 'clay']) assert.equal(G.gather(fiveClay, id), true);
+assert.equal(G.gather(fiveClay, 'branch'), false);
+assert.equal(G.gatherLimit(fiveClay), 5);
+assert.deepEqual(['branch', 'vine', 'flower', 'clay'].map(id => fiveClay.inventory[id]), [2, 2, 2, 4]);
+const potteryRequests = G.dailyRequestPool.filter(request => request.postgame);
+assert.deepEqual(potteryRequests.map(request => [request.item, request.quantity]), [['smallPlate', 1], ['mug', 1], ['vase', 1]]);
+assert.ok(!G.dailyRequestPool.some(request => ['clay', 'bisque'].includes(request.item)));
+assert.ok(potteryRequests.every(request => request.source !== 'cooking'));
+let clayRandomSeed = 3026;
+const clayRandom = () => (clayRandomSeed = (clayRandomSeed * 1664525 + 1013904223) >>> 0) / 4294967296;
+const drawnPottery = new Set();
+for (let i = 0; i < 500; i++) {
+  const preclear = G.restore({ completed: G.requests.map(request => request.id), dailyRequests: [] }, clayRandom);
+  assert.ok(G.currentDailyRequests(preclear).every(request => !request.postgame));
+  const postclear = G.restore({ ...oldClaySave, dailyRequests: [] }, clayRandom);
+  const generated = G.currentDailyRequests(postclear);
+  assert.equal(generated.length, 3);
+  assert.ok(generated.filter(request => request.source === 'cooking').length <= 1);
+  generated.filter(request => request.postgame).forEach(request => drawnPottery.add(request.item));
+}
+assert.deepEqual([...drawnPottery].sort(), ['mug', 'smallPlate', 'vase']);
+for (const request of potteryRequests) {
+  const potteryDelivery = G.restore({ ...oldClaySave, inventory: {}, dailyRequests: [{ templateId: request.id, completed: false }] }, () => 0.99);
+  assert.equal(G.deliverDaily(potteryDelivery, request.id), false);
+  potteryDelivery.inventory[request.item] = 2;
+  const beforePottery = JSON.parse(JSON.stringify(potteryDelivery));
+  assert.equal(G.deliverDaily(potteryDelivery, request.id), true);
+  assert.equal(potteryDelivery.inventory[request.item], 1);
+  assert.equal(potteryDelivery.gratitudePoints, beforePottery.gratitudePoints + 1);
+  assert.equal(potteryDelivery.dailyRequestCounts[request.resident], beforePottery.dailyRequestCounts[request.resident] + 1);
+  assert.equal(G.deliverDaily(potteryDelivery, request.id), false);
+  assert.ok(G.restore(JSON.parse(JSON.stringify(potteryDelivery))).dailyRequests.find(slot => slot.templateId === request.id).completed);
+  assert.deepEqual(potteryDelivery.thankYouEventViewed, beforePottery.thankYouEventViewed);
+  const potteryCarry = G.restore({ ...oldClaySave, dailyRequests: [{ templateId: request.id, completed: false }] }, () => 0.99);
+  G.rest(potteryCarry, () => 0.99);
+  assert.ok(potteryCarry.dailyRequests.some(slot => slot.templateId === request.id && !slot.completed));
+}
+assert.ok(!G.gratitudeExchanges.some(exchange => exchange.rewards.some(item => clayIds.includes(item.id))));
+console.log('PASS: clay gathering caps, four pottery recipes, exact stock/discovery persistence, legacy zeros, postgame-only normal requests, cooking cap and standard delivery rewards');

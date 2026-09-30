@@ -22,7 +22,12 @@
     { id: 'cushion', name: 'クッション', category: '完成品', mark: '綿' },
     { id: 'woodFrame', name: '木枠', category: '中間素材', mark: '枠' },
     { id: 'smallShelf', name: '小さな棚', category: '完成品', mark: '棚' },
-    { id: 'upholsteredStool', name: '布張りスツール', category: '完成品', mark: '椅' }
+    { id: 'upholsteredStool', name: '布張りスツール', category: '完成品', mark: '椅' },
+    { id: 'clay', name: '粘土', category: '採集素材', mark: '土', description: '小径の土から採れる、しっとりした粘土。' },
+    { id: 'bisque', name: '素焼き', category: '中間素材', mark: '焼', description: '粘土を形づくり、焼いて仕上げた素朴な素材。' },
+    { id: 'smallPlate', name: '小皿', category: '完成品', mark: '皿', description: '素焼きで作った、小さな料理をのせる皿。' },
+    { id: 'mug', name: 'マグカップ', category: '完成品', mark: '杯', description: '手になじむ、素朴な素焼きのカップ。' },
+    { id: 'vase', name: '花瓶', category: '完成品', mark: '瓶', description: '野花を飾るのにちょうどいい、小さな花瓶。' }
   ];
   const crops = [
     { id: 'potato', name: 'じゃがいも', growDays: 2, mark: '芋' },
@@ -100,7 +105,11 @@
     { id: 'cushion', inputs: [{ id: 'dyedCloth', cost: 2 }, { id: 'fiber', cost: 2 }, { id: 'thread', cost: 1 }], group: '組み合わせのしごと' },
     { id: 'woodFrame', input: 'plank', cost: 2, group: '家具のしごと' },
     { id: 'smallShelf', inputs: [{ id: 'woodFrame', cost: 1 }, { id: 'plank', cost: 2 }], group: '家具のしごと' },
-    { id: 'upholsteredStool', inputs: [{ id: 'woodFrame', cost: 1 }, { id: 'dyedCloth', cost: 1 }, { id: 'fiber', cost: 1 }], group: '家具のしごと' }
+    { id: 'upholsteredStool', inputs: [{ id: 'woodFrame', cost: 1 }, { id: 'dyedCloth', cost: 1 }, { id: 'fiber', cost: 1 }], group: '家具のしごと' },
+    { id: 'bisque', input: 'clay', cost: 2, group: '土のしごと' },
+    { id: 'smallPlate', input: 'bisque', cost: 1, group: '土のしごと' },
+    { id: 'mug', input: 'bisque', cost: 1, group: '土のしごと' },
+    { id: 'vase', input: 'bisque', cost: 2, group: '土のしごと' }
   ];
   // 料理はこの一覧へ追加する。将来の食材もinputsを増やすだけで対応できる。
   const cookingRecipes = [
@@ -175,10 +184,10 @@
         { text: '雨の音を背に、湯気の立つ料理がテーブルへ並んだ。' },
         { speaker: '🖤律', text: 'こういう日は、温かいものがあるだけで随分違うな' },
         { speaker: '📘秘書トワ', text: '煮込みにチーズ焼きか。今日はかなりしっかりした食卓だな' },
-        { speaker: '🖤黒子', text: '……二人とも、感想はあとでいい。冷める前に食べろ' },
+        { speaker: '🎭黒子', text: '……二人とも、感想はあとでいい。冷める前に食べろ' },
         { speaker: '📘秘書トワ', text: '黒子さんが一番正しいこと言ってる（笑）' },
         { speaker: '🖤律', text: '珍しく意見が一致したな' },
-        { speaker: '🖤黒子', text: '珍しくは余計だ' },
+        { speaker: '🎭黒子', text: '珍しくは余計だ' },
         { text: '静かな雨音の中に、小さな笑い声が混ざった。' }
       ]
     },
@@ -396,7 +405,10 @@
     { id: 'daily-towa-small-shelf', resident: 'towa', item: 'smallShelf', quantity: 1, title: 'よく使う物をまとめたい', message: '小さな棚をひとつ作ってくれないか？　よく使う物をまとめて置いておきたい', thanks: 'ありがとう、美桜。手を伸ばせばすぐ取れる位置に置いておくよ' },
     { id: 'daily-shiru-upholstered-stool', resident: 'shiru', item: 'upholsteredStool', quantity: 1, title: '少しだけ腰掛けたい', message: '布張りのスツールをひとつお願いしてもいい？　作業の合間に、少しだけ腰掛けたいの', thanks: 'ありがとう。ちょっと休むには、これくらいがちょうどいいね' },
     { id: 'daily-alto-small-shelf', resident: 'alto', item: 'smallShelf', quantity: 1, title: '制作途中の置き場所', message: '小さな棚をひとつ作ってくれる？　制作途中のものを、手の届くところに置いておきたいんだ', thanks: 'いいね。これなら作業の流れを止めずに済みそうだ。ありがとう、美桜' },
-    { id: 'daily-kuroko-upholstered-stool', resident: 'kuroko', item: 'upholsteredStool', quantity: 1, title: '観測席にもう一脚', message: '布張りのスツールをひとつ頼めるか、美桜。観測席に、もう一脚くらいあってもいい', thanks: '悪くないな。席が増えたからって、観客を増やすつもりはないけどな' }
+    { id: 'daily-kuroko-upholstered-stool', resident: 'kuroko', item: 'upholsteredStool', quantity: 1, title: '観測席にもう一脚', message: '布張りのスツールをひとつ頼めるか、美桜。観測席に、もう一脚くらいあってもいい', thanks: '悪くないな。席が増えたからって、観客を増やすつもりはないけどな' },
+    { id: 'daily-ritsu-small-plate', resident: 'ritsu', item: 'smallPlate', quantity: 1, postgame: true, title: 'ひと皿を手元に', message: '小皿をひとつ作ってくれるか？　ちょっとしたものをのせるのに欲しくてな', thanks: 'ちょうどいい大きさだな。普段の食卓で使わせてもらうよ' },
+    { id: 'daily-naka-mug', resident: 'naka', item: 'mug', quantity: 1, postgame: true, title: 'ひと休みのカップ', message: 'マグカップをひとつ作ってくれる？　ひと休みする時に使いたいんだ', thanks: 'ありがとう！　手になじむ感じがいいね。大事に使うよ' },
+    { id: 'daily-alto-vase', resident: 'alto', item: 'vase', quantity: 1, postgame: true, title: '野花を飾る場所', message: '花瓶をひとつ頼める？　小径の野花を、机のそばに飾ってみたくて', thanks: 'いいね。素朴な色だから、花の色もよく見えそうだ。ありがとう、美桜' }
   ];
   const gardenDailyRequestPool = [
     { id: 'daily-garden-naka-potato', resident: 'naka', item: 'potato', quantity: 2, source: 'garden', title: 'じゃがいもを少し', message: 'じゃがいもを二つ分けてくれる？　少し手元に置いておきたいんだ', thanks: 'わあ、ありがとう！　大事に持って帰るね。' },
@@ -674,7 +686,8 @@
   }
   function chooseDaily(state, excludedIds, excludedItems, excludedResidents, previousId, random, pool = dailyRequestPool) {
     const recent = new Set(state.dailyHistory.slice(-6));
-    const base = pool.filter(request => request.id !== previousId && !excludedIds.has(request.id));
+    const eligible = pool.filter(request => !request.postgame || postgameUnlocked(state));
+    const base = eligible.filter(request => request.id !== previousId && !excludedIds.has(request.id));
     const groups = [
       base.filter(request => !recent.has(request.id) && !excludedItems.has(request.item) && !excludedResidents.has(request.resident)),
       base.filter(request => !excludedItems.has(request.item) && !excludedResidents.has(request.resident)),
@@ -685,7 +698,7 @@
       base.filter(request => !recent.has(request.id)),
       base
     ];
-    const candidates = groups.find(group => group.length) || pool;
+    const candidates = groups.find(group => group.length) || eligible;
     const residentWeightTotals = Object.create(null);
     for (const request of candidates) residentWeightTotals[request.resident] = (residentWeightTotals[request.resident] || 0) + (request.weight || 1);
     // 候補数や料理の難度に左右されず、住人ごとの抽選重み2/1を保つ。
@@ -705,7 +718,7 @@
     state.dailyRequests = previous.filter(slot => {
       const request = dailyTemplate(slot?.templateId);
       const cooking = isCookingDailyRequest(request);
-      const allowed = request && !isGardenDailyRequest(request) && (!cooking || postgameUnlocked(state));
+      const allowed = request && !isGardenDailyRequest(request) && (!(cooking || request.postgame) || postgameUnlocked(state));
       if (!allowed || requestIds.has(request.id) || requestIds.size >= DAILY_REQUEST_SLOTS || cooking && hasCookingRequest) return false;
       if (cooking) hasCookingRequest = true;
       requestIds.add(request.id);
@@ -887,7 +900,7 @@
     return state;
   }
   function gather(state, id) {
-    if (state.gathersLeft <= 0 || !['branch', 'vine', 'flower'].includes(id) || state.inventory[id] > Number.MAX_SAFE_INTEGER - 2) return false;
+    if (state.gathersLeft <= 0 || !items.some(item => item.id === id && item.category === '採集素材') || state.inventory[id] > Number.MAX_SAFE_INTEGER - 2) return false;
     state.inventory[id] += 2;
     state.gathersLeft--;
     recordDiscovery(state, id);
