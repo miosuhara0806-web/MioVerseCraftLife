@@ -1371,6 +1371,16 @@ assert.equal(G.SAVE_VERSION, 2, 'セーブ形式のバージョンを維持');
 console.log('PASS: expanded encyclopedia discoveries, legacy stock/recipe inference, zero-stock persistence and successful acquisition guards');
 
 assert.equal(G.hospitalityEvents.length, 3);
+assert.deepEqual(G.hospitalityEvents.find(event => event.id === 'rainyDinner').conversation, [
+  { text: '雨の音を背に、湯気の立つ料理がテーブルへ並んだ。' },
+  { speaker: '🖤律', text: 'こういう日は、温かいものがあるだけで随分違うな' },
+  { speaker: '📘秘書トワ', text: '煮込みにチーズ焼きか。今日はかなりしっかりした食卓だな' },
+  { speaker: '🖤黒子', text: '……二人とも、感想はあとでいい。冷める前に食べろ' },
+  { speaker: '📘秘書トワ', text: '黒子さんが一番正しいこと言ってる（笑）' },
+  { speaker: '🖤律', text: '珍しく意見が一致したな' },
+  { speaker: '🖤黒子', text: '珍しくは余計だ' },
+  { text: '静かな雨音の中に、小さな笑い声が混ざった。' }
+], '雨の日の会話は修正版全文・話者を使用');
 assert.deepEqual(G.hospitalityEvents.map(event => [event.title, event.residents, event.requirements.map(item => [item.id, item.quantity]), event.keepsake.name]), [
   ['森の恵みの昼食', ['naka', 'keikaiTowa', 'alto'], [['vegetableSoup', 1], ['milkBread', 1], ['carrotOmelet', 1]], '木のカトラリー'],
   ['雨の日のあたたかい食卓', ['ritsu', 'towa', 'kuroko'], [['meatVegetableStew', 1], ['cheeseBakedMushrooms', 1], ['rusticBread', 1]], '生成りのティークロス'],

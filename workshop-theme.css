@@ -349,15 +349,17 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
 .hospitality-dishes span { color: var(--muted); font-size: 12px; }
 .hospitality-card .hospitality-keepsake { color: var(--green); }
 .hospitality-card > button { margin-top: 5px; min-height: 44px; }
+.hospitality-craft-link { margin-top: 10px; min-height: 44px; background: #f3f1e6; border: 1px solid #d9ddcb; color: var(--green); box-shadow: 0 2px 0 #e3e3d4; font-size: 12px; }
+.hospitality-craft-link:hover { background: #e6ecdd; }
 .hospitality-memories { margin-top: 32px; }
-.hospitality-memories > h2 { color: var(--green); font-size: 20px; }
+.hospitality-memories-content { padding: 16px; }
 .hospitality-memory { margin-top: 12px; padding: 18px; background: #f0f2e7; border: 1px solid var(--line); border-radius: 17px; overflow-wrap: anywhere; }
 .hospitality-memory h3 { font-size: 16px; color: var(--green); }
 .hospitality-memory p { margin: 8px 0 12px; color: var(--muted); font-size: 13px; }
 @media (max-width: 480px) {
   .hospitality-card { padding: 18px 16px; }
   .hospitality-heading h2 { font-size: 19px; }
-  .hospitality-card > button, .hospitality-memory > button { width: 100%; font-size: 12px; }
+  .hospitality-card > button, .hospitality-craft-link, .hospitality-memory > button { width: 100%; font-size: 12px; }
 }
 
 #rest-dialog, #recipe-dialog {

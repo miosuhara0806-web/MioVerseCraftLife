@@ -1736,6 +1736,8 @@ app = launch();
 assert.ok(app.navigation().includes('href="#hospitality"'));
 let hospitalityHtml = app.page('hospitality');
 assert.equal((hospitalityHtml.match(/class="hospitality-card /g) || []).length, 3);
+assert.equal((hospitalityHtml.match(/class="button hospitality-craft-link" href="#craft"/g) || []).length, 3, '不足中の各イベントから既存加工画面への導線を表示');
+assert.ok(hospitalityHtml.includes('<details class="request-history-fold hospitality-memories"><summary><span>もてなしの思い出</span><small>0件</small></summary>'), '思い出は0件でも件数付き・初期状態で閉じる');
 assert.deepEqual(app.state().hospitality, { completed: [], keepsakes: [] });
 for (const event of G.hospitalityEvents) {
   assert.ok(hospitalityHtml.includes(event.title) && hospitalityHtml.includes(event.keepsake.name));
@@ -1754,6 +1756,7 @@ app = launch();
 for (const event of G.hospitalityEvents) {
   hospitalityHtml = app.page('hospitality');
   assert.ok(hospitalityHtml.includes(`data-id="${event.id}" >もてなす</button>`));
+  assert.ok(!hospitalityHtml.includes('hospitality-craft-link'), '料理が揃ったイベントと完了済みイベントには加工導線を出さない');
   const beforeHost = app.state();
   app.click('hospitality-host', event.id);
   assert.equal(app.storyDialogOpen(), true);
@@ -1777,6 +1780,7 @@ for (const event of G.hospitalityEvents) {
   hospitalityHtml = app.page('hospitality');
   assert.ok(hospitalityHtml.includes(`data-id="${event.id}" disabled>もてなし済み</button>`));
   assert.ok(hospitalityHtml.includes('もてなしの思い出'));
+  assert.ok(hospitalityHtml.includes(`<details class="request-history-fold hospitality-memories"><summary><span>もてなしの思い出</span><small>${app.state().hospitality.completed.length}件</small></summary>`), '保存済み完了数を表示し再表示時は閉じる');
   assert.ok(hospitalityHtml.includes(`記念：${event.keepsake.name} ×1`));
   assert.ok(hospitalityHtml.includes(`data-action="hospitality-replay" data-id="${event.id}"`));
   const replayHostSnapshot = JSON.stringify(app.state());
@@ -1794,4 +1798,4 @@ assert.ok(app.page('encyclopedia').includes('49'), '記念品は既存図鑑項�
 assert.ok(app.page('craft').includes('きのこのクリームパスタ'));
 assert.ok(app.page('backyard').includes('小さな鶏小屋'));
 assert.ok(app.page('requests').includes('お礼のしるし'));
-console.log('PASS: hospitality navigation/cards, exact stock/shortage UI, all supplied conversations, persistent one-time completion, safe replay and continuing existing play');
+console.log('PASS: hospitality shortage crafting links, closed/counting memories, navigation/cards, all supplied conversations, persistent one-time completion, safe replay and continuing existing play');
