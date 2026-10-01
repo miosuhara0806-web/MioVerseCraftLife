@@ -1567,3 +1567,29 @@ assert.equal(expandedFour.dailyRequests.length, 4);
 assert.ok(expandedFour.dailyRequests.every(slot => !slot.completed));
 assert.equal(G.currentDailyRequests(expandedFour).filter(r => r.source === 'cooking').length, 1);
 console.log('PASS: four daily slots, old-three preservation, two-plus-two refill, four-slot carryover without drawing, independent fifth garden request, four rewards and reload');
+
+assert.deepEqual(G.ingredients(G.recipes.find(r => r.id === 'linedBox')), [{ id: 'box', cost: 1 }, { id: 'cloth', cost: 1 }]);
+assert.deepEqual(G.ingredients(G.recipes.find(r => r.id === 'cushion')), [{ id: 'dyedCloth', cost: 1 }, { id: 'fiber', cost: 2 }, { id: 'thread', cost: 1 }]);
+assert.deepEqual(G.ingredients(G.recipes.find(r => r.id === 'curtain')), [{ id: 'dyedCloth', cost: 2 }, { id: 'thread', cost: 1 }]);
+const clothBalance = G.restore({ ...postgameRequestSeed, inventory: { box: 1, cloth: 1, dyedCloth: 1, fiber: 2, thread: 1, branch: 9 },
+  dailyRequests: [{ templateId: 'daily-towa-lined-box', completed: false }, { templateId: 'daily-ritsu-cushion', completed: false },
+    { templateId: 'daily-alto-vase', completed: false }, { templateId: 'daily-naka-bag', completed: false }] }, () => 0.99);
+assert.equal(G.craft(clothBalance, 'curtain'), false, 'カーテンは染め布1枚では作れない');
+assert.equal(G.craft(clothBalance, 'linedBox'), true);
+assert.deepEqual(['box', 'cloth', 'dyedCloth', 'linedBox'].map(id => clothBalance.inventory[id]), [0, 0, 1, 1]);
+assert.equal(G.craft(clothBalance, 'cushion'), true);
+assert.deepEqual(['dyedCloth', 'fiber', 'thread', 'cushion'].map(id => clothBalance.inventory[id]), [0, 0, 0, 1]);
+assert.equal(clothBalance.inventory.branch, 9);
+assert.equal(G.deliverDaily(clothBalance, 'daily-towa-lined-box'), true);
+assert.equal(G.deliverDaily(clothBalance, 'daily-ritsu-cushion'), true);
+assert.equal(clothBalance.inventory.linedBox, 0);
+assert.equal(clothBalance.inventory.cushion, 0);
+const clothReload = G.restore(JSON.parse(JSON.stringify(clothBalance)));
+assert.deepEqual(clothReload.inventory, clothBalance.inventory);
+assert.deepEqual(clothReload.dailyRequests, clothBalance.dailyRequests);
+assert.equal(clothReload.day, clothBalance.day);
+const dyedOnlyBox = G.restore({ inventory: { box: 1, dyedCloth: 5 } });
+const dyedOnlyStock = { ...dyedOnlyBox.inventory };
+assert.equal(G.craft(dyedOnlyBox, 'linedBox'), false, '染め布があっても布不足なら制作不可');
+assert.deepEqual(dyedOnlyBox.inventory, dyedOnlyStock);
+console.log('PASS: lighter cloth recipes, unchanged curtain, exact consumption, shortage guards, standard daily deliveries and legacy save persistence');

@@ -69,8 +69,8 @@ const findRequest = id => G.requests.find(request => request.id === id) || daily
 const requestCompleted = request => request.id.startsWith('story-recipe-') ? state.storyProgress[`${request.storyId}Completed`] : request.id.startsWith('daily-') ? request.completed : state.completed.includes(request.id);
 const recipeHints = {
   wreath: 'ツル草 × 2 ＋ 乾燥花 × 2 ＋ 糸 × 1 → 花のリース',
-  linedBox: '小箱 × 1 ＋ 染め布 × 1 → 布張り小箱',
-  cushion: '染め布 × 2 ＋ 植物繊維 × 2 ＋ 糸 × 1 → クッション',
+  linedBox: '小箱 × 1 ＋ 布 × 1 → 布張り小箱',
+  cushion: '染め布 × 1 ＋ 植物繊維 × 2 ＋ 糸 × 1 → クッション',
   bag: 'ツル草 → 植物繊維 → 糸 → 布 → 布袋',
   box: '枝 → 木材 → 板材 → 小箱',
   dye: '野花 → 乾燥花 → 染料',

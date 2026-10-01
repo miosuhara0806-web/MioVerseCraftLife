@@ -159,7 +159,7 @@ for (let i = 0; i < 8; i++) app.click('craft', 'thread'); // 植物繊維2個を
 for (let i = 0; i < 3; i++) app.click('craft', 'cloth');
 app.click('craft-all', 'dryFlower');
 for (let i = 0; i < 3; i++) app.click('craft', 'dye'); // 乾燥花2個をリースに残す
-app.click('craft-all', 'dyedCloth');
+for (let i = 0; i < 2; i++) app.click('craft', 'dyedCloth'); // 布1枚を布張り小箱に残す
 app.click('craft-all', 'wood');
 app.click('craft-all', 'plank');
 app.click('craft', 'box');
@@ -168,12 +168,13 @@ assert.equal(app.state().inventory.dryFlower, 2);
 app.click('craft', 'wreath');
 assert.equal(app.state().inventory.dryFlower, 0);
 assert.equal(app.state().inventory.vine, 0);
-assert.equal(app.state().inventory.dye, 0);
+assert.equal(app.state().inventory.dye, 1);
 app.click('craft', 'linedBox');
 assert.equal(app.state().inventory.box, 0);
+assert.equal(app.state().inventory.cloth, 0);
 assert.equal(app.state().inventory.dyedCloth, 2);
 app.click('craft', 'cushion');
-assert.equal(app.state().inventory.dyedCloth, 0);
+assert.equal(app.state().inventory.dyedCloth, 1);
 assert.equal(app.state().inventory.fiber, 0);
 assert.equal(app.state().completed.length, 6);
 app = launch();
@@ -1912,3 +1913,30 @@ assert.equal(app.state().dailyRequests.length, 4);
 assert.ok(app.state().dailyRequests.every(slot => !slot.completed));
 assert.ok(G.currentDailyRequests(app.state()).filter(request => request.source === 'cooking').length <= 1);
 console.log('PASS: four daily cards plus independent garden card, legacy refill, home guidance, four deliveries/rewards, duplicate guards and reload/next-day UI');
+
+const clothUiSeed = JSON.parse(JSON.stringify(fourUiSeed));
+clothUiSeed.inventory = { box: 1, cloth: 1, dyedCloth: 1, fiber: 2, thread: 1 };
+clothUiSeed.dailyRequests = [{ templateId: 'daily-towa-lined-box', completed: false }, { templateId: 'daily-ritsu-cushion', completed: false },
+  { templateId: 'daily-alto-vase', completed: false }, { templateId: 'daily-naka-bag', completed: false }];
+saved.set('mioverse-craft-v1', JSON.stringify(clothUiSeed));
+app = launch();
+for (const id of ['linedBox', 'cushion']) {
+  assert.match(app.page('craft'), new RegExp(`data-action="craft" data-id="${id}"\\s*>1個つくる`));
+  app.click('craft', id);
+  assert.equal(app.state().inventory[id], 1);
+}
+assert.deepEqual(['box', 'cloth', 'dyedCloth', 'fiber', 'thread'].map(id => app.state().inventory[id]), [0, 0, 0, 0, 0]);
+app.page('requests');
+app.click('view-recipe', 'daily-towa-lined-box');
+assert.ok(app.recipeDialogHtml().includes('布') && !app.recipeDialogHtml().includes('染め布'));
+app.click('recipe-close');
+app.click('view-recipe', 'daily-ritsu-cushion');
+assert.ok(app.recipeDialogHtml().includes('染め布') && app.recipeDialogHtml().includes('× 1'));
+app.click('recipe-close');
+for (const id of ['daily-towa-lined-box', 'daily-ritsu-cushion']) app.click('deliver-daily', id);
+assert.equal(app.state().gratitudePoints, clothUiSeed.gratitudePoints + 2);
+app = launch();
+assert.equal(app.state().inventory.linedBox, 0);
+assert.equal(app.state().inventory.cushion, 0);
+assert.ok(app.state().dailyRequests.slice(0, 2).every(slot => slot.completed));
+console.log('PASS: lighter cloth recipe UI, existing request hints, exact production/delivery, rewards and reload');
