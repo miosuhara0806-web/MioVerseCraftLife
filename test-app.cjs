@@ -1736,8 +1736,8 @@ saved.set('mioverse-craft-v1', JSON.stringify(hospitalityUiSeed));
 app = launch();
 assert.ok(app.navigation().includes('href="#hospitality"'));
 let hospitalityHtml = app.page('hospitality');
-assert.equal((hospitalityHtml.match(/class="hospitality-card /g) || []).length, 3);
-assert.equal((hospitalityHtml.match(/class="button hospitality-craft-link" href="#craft"/g) || []).length, 3, '不足中の各イベントから既存加工画面への導線を表示');
+assert.equal((hospitalityHtml.match(/class="hospitality-card /g) || []).length, 6);
+assert.equal((hospitalityHtml.match(/class="button hospitality-craft-link" href="#craft"/g) || []).length, 6, '不足中の各イベントから既存加工画面への導線を表示');
 assert.ok(hospitalityHtml.includes('<details class="request-history-fold hospitality-memories"><summary><span>もてなしの思い出</span><small>0件</small></summary>'), '思い出は0件でも件数付き・初期状態で閉じる');
 assert.deepEqual(app.state().hospitality, { completed: [], keepsakes: [] });
 for (const event of G.hospitalityEvents) {
@@ -1762,7 +1762,7 @@ for (const event of G.hospitalityEvents) {
   app.click('hospitality-host', event.id);
   assert.equal(app.storyDialogOpen(), true);
   for (const line of event.conversation) {
-    assert.ok(app.storyDialogHtml().includes(line.text));
+    assert.ok(app.storyDialogHtml().includes(line.text.replace(/\n/g, '<br>')));
     if (line.speaker) assert.ok(app.storyDialogHtml().includes(`${line.speaker}<br>`));
   }
   assert.equal(app.storyCompleteLabel(), 'もてなしへ戻る');
@@ -1793,8 +1793,8 @@ for (const event of G.hospitalityEvents) {
 }
 app.page('home'); app.click('rest'); app.click('rest-confirm');
 app = launch();
-assert.equal(app.state().hospitality.completed.length, 3);
-assert.equal(app.state().hospitality.keepsakes.length, 3);
+assert.equal(app.state().hospitality.completed.length, 6);
+assert.equal(app.state().hospitality.keepsakes.length, 6);
 assert.ok(app.page('encyclopedia').includes('54'), '記念品は既存図鑑項目へ追加しない');
 assert.ok(app.page('craft').includes('きのこのクリームパスタ'));
 assert.ok(app.page('backyard').includes('小さな鶏小屋'));
@@ -1940,3 +1940,40 @@ assert.equal(app.state().inventory.linedBox, 0);
 assert.equal(app.state().inventory.cushion, 0);
 assert.ok(app.state().dailyRequests.slice(0, 2).every(slot => slot.completed));
 console.log('PASS: lighter cloth recipe UI, existing request hints, exact production/delivery, rewards and reload');
+
+const hospitalityTwoUiSeed = JSON.parse(JSON.stringify(hospitalityUiSeed));
+hospitalityTwoUiSeed.hospitality = {
+  completed: G.hospitalityEvents.slice(0, 3).map(e => e.id),
+  keepsakes: G.hospitalityEvents.slice(0, 3).map(e => e.keepsake.id)
+};
+for (const food of G.foods) hospitalityTwoUiSeed.inventory[food.id] = 3;
+saved.set('mioverse-craft-v1', JSON.stringify(hospitalityTwoUiSeed));
+app = launch();
+assert.deepEqual(app.state().hospitality, hospitalityTwoUiSeed.hospitality);
+hospitalityHtml = app.page('hospitality');
+assert.equal((hospitalityHtml.match(/class="hospitality-card /g) || []).length, 6);
+assert.equal((hospitalityHtml.match(/class="hospitality-memory"/g) || []).length, 3);
+assert.ok(hospitalityHtml.includes('<small>3件</small>'));
+for (const event of G.hospitalityEvents.slice(3)) {
+  const beforeSecondHost = app.state();
+  app.click('hospitality-host', event.id);
+  for (const line of event.conversation) assert.ok(app.storyDialogHtml().includes(line.text.replace(/\n/g, '<br>')));
+  if (event.id === 'slowMorning') {
+    assert.ok(app.storyDialogHtml().includes('🎭黒子<br>'));
+    assert.ok(!app.storyDialogHtml().includes('🖤黒子'));
+  }
+  app.click('story-complete');
+  assert.deepEqual(app.state().dailyRequestCounts, beforeSecondHost.dailyRequestCounts);
+  assert.equal(app.state().gratitudePoints, beforeSecondHost.gratitudePoints);
+  const beforeSecondReplay = JSON.stringify(app.state());
+  app.click('hospitality-replay', event.id);
+  app.click('story-complete');
+  assert.equal(JSON.stringify(app.state()), beforeSecondReplay);
+  app = launch();
+}
+assert.deepEqual(app.state().hospitality.completed.slice(0, 3), hospitalityTwoUiSeed.hospitality.completed);
+assert.deepEqual(app.state().hospitality.keepsakes.slice(0, 3), hospitalityTwoUiSeed.hospitality.keepsakes);
+assert.equal(app.state().hospitality.completed.length, 6);
+assert.equal(new Set(app.state().hospitality.keepsakes).size, 6);
+assert.ok(app.page('hospitality').includes('<small>6件</small>'));
+console.log('PASS: three legacy hospitality memories preserved, second-set exact conversations, all-six memories, no replay rewards and save reload');

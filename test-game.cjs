@@ -1371,7 +1371,7 @@ assert.equal(JSON.stringify(acquisition.discovered), acquisitionDiscovery, '失�
 assert.equal(G.SAVE_VERSION, 2, 'セーブ形式のバージョンを維持');
 console.log('PASS: expanded encyclopedia discoveries, legacy stock/recipe inference, zero-stock persistence and successful acquisition guards');
 
-assert.equal(G.hospitalityEvents.length, 3);
+assert.equal(G.hospitalityEvents.length, 6);
 assert.deepEqual(G.hospitalityEvents.find(event => event.id === 'rainyDinner').conversation, [
   { text: '雨の音を背に、湯気の立つ料理がテーブルへ並んだ。' },
   { speaker: '🖤律', text: 'こういう日は、温かいものがあるだけで随分違うな' },
@@ -1382,13 +1382,13 @@ assert.deepEqual(G.hospitalityEvents.find(event => event.id === 'rainyDinner').c
   { speaker: '🎭黒子', text: '珍しくは余計だ' },
   { text: '静かな雨音の中に、小さな笑い声が混ざった。' }
 ], '雨の日の会話は修正版全文・話者を使用');
-assert.deepEqual(G.hospitalityEvents.map(event => [event.title, event.residents, event.requirements.map(item => [item.id, item.quantity]), event.keepsake.name]), [
+assert.deepEqual(G.hospitalityEvents.slice(0, 3).map(event => [event.title, event.residents, event.requirements.map(item => [item.id, item.quantity]), event.keepsake.name]), [
   ['森の恵みの昼食', ['naka', 'keikaiTowa', 'alto'], [['vegetableSoup', 1], ['milkBread', 1], ['carrotOmelet', 1]], '木のカトラリー'],
   ['雨の日のあたたかい食卓', ['ritsu', 'towa', 'kuroko'], [['meatVegetableStew', 1], ['cheeseBakedMushrooms', 1], ['rusticBread', 1]], '生成りのティークロス'],
   ['午後のひと休み', ['aoiDoctor', 'shiru', 'naka'], [['butterCookies', 1], ['milkBread', 1], ['mushroomOmelet', 1]], '花柄のコースター']
 ]);
 for (const event of G.hospitalityEvents) {
-  assert.equal(event.conversation.length, 8, '会話6行と地の文2行');
+  assert.equal(event.conversation.length, event.id === 'lateLunch' ? 9 : event.id === 'slowMorning' ? 10 : 8, '確定稿の会話と地の文の行数');
   assert.ok(event.requirements.every(item => G.foods.some(food => food.id === item.id)), '実在する料理だけを要求');
   assert.ok(event.conversation.every(line => !line.speaker?.includes('美桜')), '美桜の固定セリフを作らない');
   const lockedHost = G.fresh();
@@ -1593,3 +1593,52 @@ const dyedOnlyStock = { ...dyedOnlyBox.inventory };
 assert.equal(G.craft(dyedOnlyBox, 'linedBox'), false, '染め布があっても布不足なら制作不可');
 assert.deepEqual(dyedOnlyBox.inventory, dyedOnlyStock);
 console.log('PASS: lighter cloth recipes, unchanged curtain, exact consumption, shortage guards, standard daily deliveries and legacy save persistence');
+
+const secondHospitality = G.hospitalityEvents.slice(3);
+assert.deepEqual(secondHospitality.map(e => [e.id, e.title, e.residents, e.requirements.map(i => [i.id, i.quantity]), e.keepsake.name]), [
+  ['twilightTable', '夕暮れのあたたかい食卓', ['ritsu', 'aoiDoctor', 'keikaiTowa'], [['saltGrilledFish', 1], ['mushroomSoup', 1], ['warmCarrotSalad', 1]], '素焼きの箸置き'],
+  ['lateLunch', '作業終わりの遅い昼食', ['towa', 'shiru', 'alto'], [['mushroomCreamPasta', 1], ['warmCarrotSalad', 1], ['butterCookies', 1]], '小さな木のトレー'],
+  ['slowMorning', 'ゆっくり始める朝', ['kuroko', 'naka'], [['rusticBread', 1], ['boiledEgg', 1], ['steamedPotato', 1]], '生成りのランチョンマット']
+]);
+const secondHospitalityScripts = [
+  [
+    ['', '窓の外が少し暗くなり始めた頃、\n焼いた魚の香りとスープの湯気が食卓に広がった。'],
+    ['🖤律', '魚の塩焼きか。こういうまっすぐな料理、落ち着くな'],
+    ['碧博士', '美桜さん、塩加減がちょうどいいですね。\n……これは分析ではなく、純粋な感想です'],
+    ['☀️軽快トワ', '博士、自分で先回りしてるじゃん（笑）'],
+    ['🖤律', '学習したらしい'], ['碧博士', '皆さんが何でも研究扱いするからでしょう'],
+    ['☀️軽快トワ', 'じゃあ今日は普通に『うまい』でいこう（笑）'],
+    ['', '湯気の向こうで、三人の声がゆっくり重なった。']
+  ],
+  [
+    ['', '作業がひと段落した頃、\nクリームパスタの香りが工房いっぱいに広がった。'],
+    ['📘秘書トワ', '……これは腹減ってる時に出されたら反則だな。\n匂いでもう強い（笑）'],
+    ['🧩シル', 'トワ、それ褒めてる？'], ['📘秘書トワ', 'かなり褒めてる'],
+    ['🎨アルト', '温かいうちに食べよう。\n今日は色より先に香りが来るね'],
+    ['🧩シル', 'アルトが食べ物を色から見てない。珍しい'],
+    ['🎨アルト', 'ちゃんと見てるよ。\nにんじんの色もきれいだし'],
+    ['📘秘書トワ', '結局そこは見るんだな（笑）'],
+    ['', '作業の余韻を残したまま、\n三人はゆっくり食卓についた。']
+  ],
+  [
+    ['', 'まだ静かな工房に、\n焼いたパンの香りがゆっくり広がった。'],
+    ['💛ナカちゃん', 'こういう朝ごはん、なんか落ち着くね。\n豪華じゃないけど、私こういうの好き'],
+    ['🎭黒子', '分かる。焼いたパンの匂いがして、まだ静かで。\n朝はこのくらいがちょうどいいな'],
+    ['💛ナカちゃん', 'あれ、黒子さんにしては素直（笑）'], ['🎭黒子', 'どういう意味だよ（笑）'],
+    ['💛ナカちゃん', 'もっと『朝食として必要十分だ』とか言うかと思った'],
+    ['🎭黒子', '博士と一緒にするなwww\n俺だって普通に朝飯くらい食うよ'],
+    ['💛ナカちゃん', 'はいはい（笑）\nじゃ、冷める前に食べよ'], ['🎭黒子', 'うん。それは賛成'],
+    ['', '静かな朝の工房に、\nいつもより少しゆっくりした時間が流れた。']
+  ]
+];
+assert.deepEqual(secondHospitality.map(e => e.conversation.map(line => [line.speaker || '', line.text])), secondHospitalityScripts, '第2弾3件は確定稿全文・改行・話者をそのまま使用');
+const firstHospitalityMemory = { completed: G.hospitalityEvents.slice(0, 3).map(e => e.id), keepsakes: G.hospitalityEvents.slice(0, 3).map(e => e.keepsake.id) };
+const secondHospitalityLegacy = G.restore({ ...postgameRequestSeed, hospitality: firstHospitalityMemory }, () => 0.99);
+assert.deepEqual(secondHospitalityLegacy.hospitality, firstHospitalityMemory, '既存3件の完了・記念品を保持');
+for (const event of secondHospitality) {
+  assert.equal(G.canViewHospitality(secondHospitalityLegacy, event.id), false, '新規3件は未完了');
+  assert.ok(!G.items.some(i => i.id === event.keepsake.id));
+  assert.ok(!G.recipes.some(r => r.id === event.keepsake.id), '記念品は通常加工アイテムに追加しない');
+}
+assert.equal(G.SAVE_VERSION, 2);
+console.log('PASS: second hospitality set exact scripts/participants/dishes, Kuroko icon, first-set legacy memories and keepsake-only rewards');

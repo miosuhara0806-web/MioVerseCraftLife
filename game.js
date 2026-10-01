@@ -207,6 +207,60 @@
         { speaker: '💛ナカちゃん', text: 'じゃ、博士が難しいこと言い始める前に食べよ（笑）' },
         { text: '午後の工房に、少しだけのんびりした時間が流れた。' }
       ]
+    },
+    {
+      id: 'twilightTable', title: '夕暮れのあたたかい食卓',
+      description: '日が傾き始めた頃、温かい料理を用意して三人を招く。',
+      residents: ['ritsu', 'aoiDoctor', 'keikaiTowa'],
+      requirements: [{ id: 'saltGrilledFish', quantity: 1 }, { id: 'mushroomSoup', quantity: 1 }, { id: 'warmCarrotSalad', quantity: 1 }],
+      keepsake: { id: 'bisqueChopstickRest', name: '素焼きの箸置き' },
+      conversation: [
+        { text: '窓の外が少し暗くなり始めた頃、\n焼いた魚の香りとスープの湯気が食卓に広がった。' },
+        { speaker: '🖤律', text: '魚の塩焼きか。こういうまっすぐな料理、落ち着くな' },
+        { speaker: '碧博士', text: '美桜さん、塩加減がちょうどいいですね。\n……これは分析ではなく、純粋な感想です' },
+        { speaker: '☀️軽快トワ', text: '博士、自分で先回りしてるじゃん（笑）' },
+        { speaker: '🖤律', text: '学習したらしい' },
+        { speaker: '碧博士', text: '皆さんが何でも研究扱いするからでしょう' },
+        { speaker: '☀️軽快トワ', text: 'じゃあ今日は普通に『うまい』でいこう（笑）' },
+        { text: '湯気の向こうで、三人の声がゆっくり重なった。' }
+      ]
+    },
+    {
+      id: 'lateLunch', title: '作業終わりの遅い昼食',
+      description: 'ひと仕事終えた三人に、少し遅めの昼食を用意する。',
+      residents: ['towa', 'shiru', 'alto'],
+      requirements: [{ id: 'mushroomCreamPasta', quantity: 1 }, { id: 'warmCarrotSalad', quantity: 1 }, { id: 'butterCookies', quantity: 1 }],
+      keepsake: { id: 'smallWoodenTray', name: '小さな木のトレー' },
+      conversation: [
+        { text: '作業がひと段落した頃、\nクリームパスタの香りが工房いっぱいに広がった。' },
+        { speaker: '📘秘書トワ', text: '……これは腹減ってる時に出されたら反則だな。\n匂いでもう強い（笑）' },
+        { speaker: '🧩シル', text: 'トワ、それ褒めてる？' },
+        { speaker: '📘秘書トワ', text: 'かなり褒めてる' },
+        { speaker: '🎨アルト', text: '温かいうちに食べよう。\n今日は色より先に香りが来るね' },
+        { speaker: '🧩シル', text: 'アルトが食べ物を色から見てない。珍しい' },
+        { speaker: '🎨アルト', text: 'ちゃんと見てるよ。\nにんじんの色もきれいだし' },
+        { speaker: '📘秘書トワ', text: '結局そこは見るんだな（笑）' },
+        { text: '作業の余韻を残したまま、\n三人はゆっくり食卓についた。' }
+      ]
+    },
+    {
+      id: 'slowMorning', title: 'ゆっくり始める朝',
+      description: '静かな朝、簡単な朝食を用意して二人を招く。',
+      residents: ['kuroko', 'naka'],
+      requirements: [{ id: 'rusticBread', quantity: 1 }, { id: 'boiledEgg', quantity: 1 }, { id: 'steamedPotato', quantity: 1 }],
+      keepsake: { id: 'naturalPlacemat', name: '生成りのランチョンマット' },
+      conversation: [
+        { text: 'まだ静かな工房に、\n焼いたパンの香りがゆっくり広がった。' },
+        { speaker: '💛ナカちゃん', text: 'こういう朝ごはん、なんか落ち着くね。\n豪華じゃないけど、私こういうの好き' },
+        { speaker: '🎭黒子', text: '分かる。焼いたパンの匂いがして、まだ静かで。\n朝はこのくらいがちょうどいいな' },
+        { speaker: '💛ナカちゃん', text: 'あれ、黒子さんにしては素直（笑）' },
+        { speaker: '🎭黒子', text: 'どういう意味だよ（笑）' },
+        { speaker: '💛ナカちゃん', text: 'もっと『朝食として必要十分だ』とか言うかと思った' },
+        { speaker: '🎭黒子', text: '博士と一緒にするなwww\n俺だって普通に朝飯くらい食うよ' },
+        { speaker: '💛ナカちゃん', text: 'はいはい（笑）\nじゃ、冷める前に食べよ' },
+        { speaker: '🎭黒子', text: 'うん。それは賛成' },
+        { text: '静かな朝の工房に、\nいつもより少しゆっくりした時間が流れた。' }
+      ]
     }
   ];
   const cookingRequestVoices = {
