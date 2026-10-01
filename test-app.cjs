@@ -790,12 +790,12 @@ assert.deepEqual(app.state().dailyRequestCounts, storyOriginal.dailyRequestCount
 assert.deepEqual(app.state().thankYouEventViewed, storyOriginal.thankYouEventViewed);
 assert.deepEqual(app.state().discovered, storyOriginal.discovered);
 assert.equal(app.state().day, storyOriginal.day);
-assert.ok(app.page('requests').includes('✓ 読了済み'));
+assert.ok(app.page('memories').includes('data-id="milestone:milestone2"'));
 assert.ok(!app.page('requests').includes('data-action="story-open"'));
 app = launch();
 assert.equal(app.state().storyProgress.milestone2Viewed, true, '再読み込み後も読了を復元');
 app.page('home'); app.page('requests');
-assert.ok(app.page('requests').includes('✓ 読了済み'), '工房から戻っても読了を表示');
+assert.ok(app.page('memories').includes('data-id="milestone:milestone2"'), '工房から戻っても記録を表示');
 app.page('home'); app.click('rest'); app.click('rest-confirm');
 assert.equal(app.state().storyProgress.milestone2Viewed, true, '翌日も読了を維持');
 console.log('PASS: two-thank-you story UI, voluntary read, close guard, legacy data preservation, reload/rest persistence');
@@ -860,7 +860,7 @@ app.page('requests');
 app.click('story-request-event', 'milestone4');
 app.click('story-complete');
 assert.equal(app.state().storyProgress.milestone4EventViewed, true);
-assert.ok(app.page('requests').includes('✓ 達成済み'));
+assert.ok(app.page('memories').includes('data-id="completion:milestone4"'));
 assert.ok(!app.page('requests').includes('data-action="deliver-story"'));
 assert.ok(!app.page('requests').includes('完了の出来事を読む'));
 assert.equal(app.state().day, originalFour.day);
@@ -871,7 +871,7 @@ assert.deepEqual(app.state().thankYouEventViewed, originalFour.thankYouEventView
 assert.deepEqual(app.state().discovered, originalFour.discovered);
 app = launch();
 app.page('home'); app.page('requests');
-assert.ok(app.page('requests').includes('✓ 達成済み'), 'ホームから戻っても達成済み');
+assert.ok(app.page('memories').includes('data-id="completion:milestone4"'), 'ホームから戻っても完了記録を表示');
 app.page('home'); app.click('rest'); app.click('rest-confirm');
 assert.equal(app.state().storyProgress.milestone4Completed, true);
 assert.equal(app.state().storyProgress.milestone4EventViewed, true, '翌日も読了を維持');
@@ -928,7 +928,7 @@ assert.equal(app.state().storyProgress.milestone4Completed, true);
 const giftAfter = JSON.stringify(app.state());
 app.click('story-complete');
 assert.equal(JSON.stringify(app.state()), giftAfter, '受取ボタン連打で二重付与しない');
-assert.ok(app.page('requests').includes('✓ 受取済み'));
+assert.ok(app.page('memories').includes('data-id="milestone:milestone6"'));
 assert.ok(!app.page('requests').includes('data-action="story-open" data-id="milestone6"'));
 app = launch();
 app.page('home'); app.page('requests');
@@ -1011,7 +1011,7 @@ app.click('story-request-event', 'milestone8');
 app.click('story-complete');
 assert.equal(app.state().storyProgress.milestone8EventViewed, true, '最後のボタンで本編クリア');
 assert.ok(app.page('requests').includes('✓ 本編クリア'));
-assert.ok(app.page('requests').includes('✓ 達成済み'));
+assert.ok(app.page('memories').includes('data-id="completion:milestone8"'));
 assert.ok(!app.page('requests').includes('エンディングを見る'));
 assert.ok(app.page('home').includes('class="workshop-sign"'));
 const clearEnding = app.state();
@@ -1177,23 +1177,23 @@ saved.set('mioverse-craft-v1', JSON.stringify(clearEnding));
 app = launch();
 let historyHtml = app.page('requests');
 assert.match(historyHtml, /<details class="request-history-fold"><summary><span>みんなとの記録<\/span><small>8\/8 お礼済み<\/small>/, '記録は人数を示して閉じる');
-assert.match(historyHtml, /<details class="request-history-fold" ><summary><span>特別な出来事<\/span><small>2件<\/small>/, '読了済みの出来事は閉じる');
-assert.match(historyHtml, /<details class="request-history-fold" ><summary><span>特別依頼<\/span><small>2\/2 達成済み<\/small>/, '達成済みの特別依頼は閉じる');
+assert.ok(!historyHtml.includes('特別な出来事'), '読了済みは思い出へ移動');
+assert.ok(!historyHtml.includes('<span>特別依頼</span>'), '閲覧済み完了記録は思い出へ移動');
 assert.ok(historyHtml.indexOf('日常のお願い') < historyHtml.indexOf('みんなとの記録'), '日常依頼を記録より前に置く');
-assert.ok(historyHtml.includes('✓ お礼済み') && historyHtml.includes('工房に残るもの') && historyHtml.includes('工房の看板を掛ける'), '折りたたんでも履歴を残す');
+assert.ok(historyHtml.includes('✓ お礼済み') && !historyHtml.includes('工房に残るもの'));
 const unreadHistory = { ...clearEnding, storyProgress: { ...clearEnding.storyProgress, milestone6Viewed: false, milestone8Completed: false, milestone8EventViewed: false } };
 saved.set('mioverse-craft-v1', JSON.stringify(unreadHistory));
 app = launch();
 historyHtml = app.page('requests');
-assert.match(historyHtml, /<details class="request-history-fold" open><summary><span>特別な出来事<\/span><small>2件 · 未読あり<\/small>/, '未読の出来事は開いて示す');
+assert.match(historyHtml, /<details class="request-history-fold" open><summary><span>特別な出来事<\/span><small>1件 · 未読あり<\/small>/, '未読の出来事は開いて示す');
 const pendingRequest = { ...clearEnding, storyProgress: { ...clearEnding.storyProgress, milestone8Completed: false, milestone8EventViewed: false } };
 saved.set('mioverse-craft-v1', JSON.stringify(pendingRequest));
 app = launch();
-assert.match(app.page('requests'), /<details class="request-history-fold" open><summary><span>特別依頼<\/span><small>1\/2 達成済み<\/small>/, '未達成の特別依頼は開く');
+assert.match(app.page('requests'), /<details class="request-history-fold" open><summary><span>特別依頼<\/span><small>0\/1 達成済み<\/small>/, '未達成の特別依頼は開く');
 const endingUnread = { ...clearEnding, storyProgress: { ...clearEnding.storyProgress, milestone8EventViewed: false } };
 saved.set('mioverse-craft-v1', JSON.stringify(endingUnread));
 app = launch();
-assert.match(app.page('requests'), /<details class="request-history-fold" open><summary><span>特別依頼<\/span><small>2\/2 達成済み · 未読あり<\/small>/, '納品後の未読イベントも見落とさない');
+assert.match(app.page('requests'), /<details class="request-history-fold" open><summary><span>特別依頼<\/span><small>1\/1 達成済み · 未読あり<\/small>/, '納品後の未読イベントも見落とさない');
 assert.equal(app.state().storyProgress.milestone8EventViewed, false, '折りたたみ表示はセーブを変更しない');
 console.log('PASS: collapsible request history summaries, unread/open defaults, completed/closed defaults and daily-request priority');
 
@@ -1742,9 +1742,9 @@ assert.ok(!hospitalityHtml.includes('hospitality-memories'), 'もてなし画面
 assert.ok(app.navigation().includes('href="#memories"'));
 assert.equal((app.navigation().match(/<a href=/g) || []).length, 9);
 const emptyMemories = app.page('memories');
-assert.ok(emptyMemories.includes('<details class="request-history-fold hospitality-memories" open><summary><span>もてなし</span><small>0件</small></summary>'));
+assert.ok(emptyMemories.includes('<details class="request-history-fold hospitality-memories"><summary><span>もてなし</span><small>0件</small></summary>'));
 assert.ok(emptyMemories.includes('工房で過ごした時間を、ここに残していきます。'));
-assert.ok(!emptyMemories.includes('class="hospitality-memory"'));
+assert.ok(!emptyMemories.includes('data-action="hospitality-replay"'));
 app.page('hospitality');
 assert.deepEqual(app.state().hospitality, { completed: [], keepsakes: [] });
 for (const event of G.hospitalityEvents) {
@@ -1789,7 +1789,7 @@ for (const event of G.hospitalityEvents) {
   assert.ok(hospitalityHtml.includes(`data-id="${event.id}" disabled>もてなし済み</button>`));
   assert.ok(!hospitalityHtml.includes('hospitality-memories'));
   hospitalityHtml = app.page('memories');
-  assert.ok(hospitalityHtml.includes(`<details class="request-history-fold hospitality-memories" open><summary><span>もてなし</span><small>${app.state().hospitality.completed.length}件</small></summary>`));
+  assert.ok(hospitalityHtml.includes(`<details class="request-history-fold hospitality-memories"><summary><span>もてなし</span><small>${app.state().hospitality.completed.length}件</small></summary>`));
   for (const pending of G.hospitalityEvents.filter(entry => !app.state().hospitality.completed.includes(entry.id))) assert.ok(!hospitalityHtml.includes(pending.title), '未完了イベントは思い出へ表示しない');
   assert.ok(hospitalityHtml.includes(`記念：${event.keepsake.name} ×1`));
   assert.ok(hospitalityHtml.includes(`data-action="hospitality-replay" data-id="${event.id}"`));
@@ -1963,7 +1963,7 @@ assert.deepEqual(app.state().hospitality, hospitalityTwoUiSeed.hospitality);
 hospitalityHtml = app.page('hospitality');
 assert.equal((hospitalityHtml.match(/class="hospitality-card /g) || []).length, 6);
 hospitalityHtml = app.page('memories');
-assert.equal((hospitalityHtml.match(/class="hospitality-memory"/g) || []).length, 3);
+assert.equal((hospitalityHtml.match(/data-action="hospitality-replay"/g) || []).length, 3);
 assert.ok(hospitalityHtml.includes('<small>3件</small>'));
 for (const event of G.hospitalityEvents.slice(3)) {
   app.page('hospitality');
@@ -1990,3 +1990,57 @@ assert.equal(app.state().hospitality.completed.length, 6);
 assert.equal(new Set(app.state().hospitality.keepsakes).size, 6);
 assert.ok(app.page('memories').includes('<small>6件</small>'));
 console.log('PASS: three legacy hospitality memories preserved, second-set exact conversations, all-six memories, no replay rewards and save reload');
+
+// All memory entries use existing viewed/completed flags and a read-only dialog path.
+const memoryFullSave = app.state();
+let memoriesHtml = app.page('memories');
+assert.equal((memoriesHtml.match(/<details /g) || []).length, 3);
+assert.ok(!memoriesHtml.includes(' open>'));
+assert.ok(memoriesHtml.includes('<span>住人からのお礼</span><small>8件</small>'));
+assert.ok(memoriesHtml.includes('<span>工房の歩み</span><small>6件</small>'));
+const memoryEvents = [
+  ...Object.entries(G.thankYouEvents).map(([id, event]) => [`thanks:${id}`, event]),
+  ...Object.entries(G.storyMilestones).map(([id, event]) => [`milestone:${id}`, event]),
+  ...Object.entries(G.storyRequests).flatMap(([id, event]) => [[`request:${id}`, event], [`completion:${id}`, event.completion]])
+];
+for (const [id, event] of memoryEvents) {
+  assert.ok(memoriesHtml.includes(`data-id="${id}"`));
+  for (const closeAction of ['story-complete', 'story-close']) {
+    const before = JSON.stringify(app.state());
+    const savedBefore = saved.get('mioverse-craft-v1');
+    app.click('memory-replay', id);
+    assert.equal(app.storyDialogOpen(), true);
+    assert.equal(app.storyCompleteLabel(), '思い出へ戻る');
+    for (const paragraph of event.paragraphs) assert.ok(app.storyDialogHtml().includes(paragraph.replace(/\n/g, '<br>')));
+    assert.ok(!app.storyDialogHtml().includes('class="story-reward"'));
+    app.click(closeAction);
+    app.click('story-complete');
+    assert.equal(app.storyDialogOpen(), false);
+    assert.equal(JSON.stringify(app.state()), before, '再閲覧は全ゲーム状態を保持');
+    assert.equal(saved.get('mioverse-craft-v1'), savedBefore, '再閲覧は保存処理も行わない');
+  }
+}
+app = launch();
+assert.equal(app.page('memories'), memoriesHtml, '既存セーブから同じ記録を復元');
+const partialMemorySave = JSON.parse(JSON.stringify(memoryFullSave));
+partialMemorySave.thankYouEventViewed.naka = false;
+partialMemorySave.storyProgress.milestone8EventViewed = false;
+saved.set('mioverse-craft-v1', JSON.stringify(partialMemorySave));
+app = launch();
+memoriesHtml = app.page('memories');
+assert.ok(app.navigation().includes('href="#memories"'), '本編途中にも記録を閲覧できる');
+assert.ok(!memoriesHtml.includes('data-id="thanks:naka"'));
+assert.ok(!memoriesHtml.includes('data-id="completion:milestone8"'));
+assert.ok(app.page('requests').includes('data-action="thank-you-open" data-id="naka"'), '5/5未閲覧の初回導線を保持');
+for (const id of ['thanks:naka', 'completion:milestone8', 'unknown']) {
+  const before = JSON.stringify(app.state());
+  app.click('memory-replay', id);
+  assert.equal(app.storyDialogOpen(), false);
+  assert.equal(JSON.stringify(app.state()), before);
+}
+saved.set('mioverse-craft-v1', JSON.stringify({ ...G.fresh(), introViewed: true }));
+app = launch();
+memoriesHtml = app.page('memories');
+assert.equal((memoriesHtml.match(/<small>0件<\/small>/g) || []).length, 3);
+assert.ok(!memoriesHtml.includes('data-action="memory-replay"'));
+console.log('PASS: three closed memory categories, all 14 existing story/thanks texts, immutable replay/close, hidden unseen events, first-view routes and legacy reload');
