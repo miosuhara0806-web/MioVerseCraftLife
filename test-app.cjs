@@ -1738,7 +1738,14 @@ assert.ok(app.navigation().includes('href="#hospitality"'));
 let hospitalityHtml = app.page('hospitality');
 assert.equal((hospitalityHtml.match(/class="hospitality-card /g) || []).length, 6);
 assert.equal((hospitalityHtml.match(/class="button hospitality-craft-link" href="#craft"/g) || []).length, 6, '不足中の各イベントから既存加工画面への導線を表示');
-assert.ok(hospitalityHtml.includes('<details class="request-history-fold hospitality-memories"><summary><span>もてなしの思い出</span><small>0件</small></summary>'), '思い出は0件でも件数付き・初期状態で閉じる');
+assert.ok(!hospitalityHtml.includes('hospitality-memories'), 'もてなし画面から旧記録欄を移動');
+assert.ok(app.navigation().includes('href="#memories"'));
+assert.equal((app.navigation().match(/<a href=/g) || []).length, 9);
+const emptyMemories = app.page('memories');
+assert.ok(emptyMemories.includes('<details class="request-history-fold hospitality-memories" open><summary><span>もてなし</span><small>0件</small></summary>'));
+assert.ok(emptyMemories.includes('工房で過ごした時間を、ここに残していきます。'));
+assert.ok(!emptyMemories.includes('class="hospitality-memory"'));
+app.page('hospitality');
 assert.deepEqual(app.state().hospitality, { completed: [], keepsakes: [] });
 for (const event of G.hospitalityEvents) {
   assert.ok(hospitalityHtml.includes(event.title) && hospitalityHtml.includes(event.keepsake.name));
@@ -1780,12 +1787,15 @@ for (const event of G.hospitalityEvents) {
   assert.ok(app.state().hospitality.completed.includes(event.id));
   hospitalityHtml = app.page('hospitality');
   assert.ok(hospitalityHtml.includes(`data-id="${event.id}" disabled>もてなし済み</button>`));
-  assert.ok(hospitalityHtml.includes('もてなしの思い出'));
-  assert.ok(hospitalityHtml.includes(`<details class="request-history-fold hospitality-memories"><summary><span>もてなしの思い出</span><small>${app.state().hospitality.completed.length}件</small></summary>`), '保存済み完了数を表示し再表示時は閉じる');
+  assert.ok(!hospitalityHtml.includes('hospitality-memories'));
+  hospitalityHtml = app.page('memories');
+  assert.ok(hospitalityHtml.includes(`<details class="request-history-fold hospitality-memories" open><summary><span>もてなし</span><small>${app.state().hospitality.completed.length}件</small></summary>`));
+  for (const pending of G.hospitalityEvents.filter(entry => !app.state().hospitality.completed.includes(entry.id))) assert.ok(!hospitalityHtml.includes(pending.title), '未完了イベントは思い出へ表示しない');
   assert.ok(hospitalityHtml.includes(`記念：${event.keepsake.name} ×1`));
   assert.ok(hospitalityHtml.includes(`data-action="hospitality-replay" data-id="${event.id}"`));
   const replayHostSnapshot = JSON.stringify(app.state());
   app.click('hospitality-replay', event.id);
+  assert.equal(app.storyCompleteLabel(), '思い出へ戻る');
   assert.equal(app.storyDialogOpen(), true);
   app.click('story-complete');
   assert.equal(app.storyDialogOpen(), false);
@@ -1799,7 +1809,7 @@ assert.ok(app.page('encyclopedia').includes('54'), '記念品は既存図鑑項�
 assert.ok(app.page('craft').includes('きのこのクリームパスタ'));
 assert.ok(app.page('backyard').includes('小さな鶏小屋'));
 assert.ok(app.page('requests').includes('お礼のしるし'));
-console.log('PASS: hospitality shortage crafting links, closed/counting memories, navigation/cards, all supplied conversations, persistent one-time completion, safe replay and continuing existing play');
+console.log('PASS: hospitality crafting links, dedicated memories navigation/counts, completed-only records, persistent one-time completion and state-neutral replay');
 
 const potteryUiIds = ['clay', 'bisque', 'smallPlate', 'mug', 'vase'];
 const clayUiLegacy = JSON.parse(JSON.stringify(clearEnding));
@@ -1952,9 +1962,11 @@ app = launch();
 assert.deepEqual(app.state().hospitality, hospitalityTwoUiSeed.hospitality);
 hospitalityHtml = app.page('hospitality');
 assert.equal((hospitalityHtml.match(/class="hospitality-card /g) || []).length, 6);
+hospitalityHtml = app.page('memories');
 assert.equal((hospitalityHtml.match(/class="hospitality-memory"/g) || []).length, 3);
 assert.ok(hospitalityHtml.includes('<small>3件</small>'));
 for (const event of G.hospitalityEvents.slice(3)) {
+  app.page('hospitality');
   const beforeSecondHost = app.state();
   app.click('hospitality-host', event.id);
   for (const line of event.conversation) assert.ok(app.storyDialogHtml().includes(line.text.replace(/\n/g, '<br>')));
@@ -1966,6 +1978,7 @@ for (const event of G.hospitalityEvents.slice(3)) {
   assert.deepEqual(app.state().dailyRequestCounts, beforeSecondHost.dailyRequestCounts);
   assert.equal(app.state().gratitudePoints, beforeSecondHost.gratitudePoints);
   const beforeSecondReplay = JSON.stringify(app.state());
+  app.page('memories');
   app.click('hospitality-replay', event.id);
   app.click('story-complete');
   assert.equal(JSON.stringify(app.state()), beforeSecondReplay);
@@ -1975,5 +1988,5 @@ assert.deepEqual(app.state().hospitality.completed.slice(0, 3), hospitalityTwoUi
 assert.deepEqual(app.state().hospitality.keepsakes.slice(0, 3), hospitalityTwoUiSeed.hospitality.keepsakes);
 assert.equal(app.state().hospitality.completed.length, 6);
 assert.equal(new Set(app.state().hospitality.keepsakes).size, 6);
-assert.ok(app.page('hospitality').includes('<small>6件</small>'));
+assert.ok(app.page('memories').includes('<small>6件</small>'));
 console.log('PASS: three legacy hospitality memories preserved, second-set exact conversations, all-six memories, no replay rewards and save reload');

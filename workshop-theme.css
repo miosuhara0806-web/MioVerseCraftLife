@@ -448,7 +448,7 @@ footer { border-top-style: dashed; color: var(--muted); }
   .site-header { height: 80px; }
   .layout { padding-top: 0; }
   .sidebar { margin-bottom: 25px; }
-  nav { padding: 6px; background: #eceede; border: 1px solid #e0e3d1; border-radius: 18px; gap: 5px; }
+  nav { grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 6px; background: #eceede; border: 1px solid #e0e3d1; border-radius: 18px; gap: 5px; }
   nav a { min-height: 58px; border-radius: 12px; font-size: 12px; flex-direction: column; gap: 3px; line-height: 1.2; padding: 7px 2px; }
   .nav-icon { width: 20px; height: 20px; flex-basis: 20px; }
   .hero { padding: 30px 26px; border-radius: 22px 22px 36px 22px; }

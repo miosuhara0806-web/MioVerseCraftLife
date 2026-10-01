@@ -2,7 +2,7 @@
 const G = window.MioGame;
 const SAVE_KEY = 'mioverse-craft-v1';
 const names = Object.fromEntries([...G.items, ...G.crops, ...G.foods, ...G.backyardMaterials, ...G.merchantMaterials].map(i => [i.id, i.name]));
-const pages = [['home', '工房', '01'], ['gather', '採集', '02'], ['craft', '加工', '03'], ['inventory', '在庫', '04'], ['requests', '依頼', '05'], ['encyclopedia', '図鑑', '06'], ['backyard', '裏庭', '07'], ['hospitality', 'もてなし', '08']];
+const pages = [['home', '工房', '01'], ['gather', '採集', '02'], ['craft', '加工', '03'], ['inventory', '在庫', '04'], ['requests', '依頼', '05'], ['encyclopedia', '図鑑', '06'], ['backyard', '裏庭', '07'], ['hospitality', 'もてなし', '08'], ['memories', '思い出', '09']];
 const introEvent = {
   title: '小径の工房',
   paragraphs: [
@@ -23,7 +23,7 @@ const navIcons = {
   backyard: '<path d="M3 19h18M7 19v-5m5 5V9m5 10v-5M7 14c-2-1-3-3-3-5 2 0 4 1 5 3m3-3c-2-1-3-3-3-5 2 0 4 1 5 3m3 7c-2-1-3-3-3-5 2 0 4 1 5 3"/>',
   hospitality: '<circle cx="12" cy="12" r="6"/><path d="M2 3v6m3-6v6M2 9h3m-1.5 0v12M22 3v18m0-18c-3 2-3 7 0 9"/>'
 };
-const navIcon = id => `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${navIcons[id]}</svg>`;
+const navIcon = id => `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${navIcons[id === 'memories' ? 'encyclopedia' : id]}</svg>`;
 let state = G.fresh();
 let saveMessage = '自動保存が有効です';
 try {
@@ -177,13 +177,17 @@ function encyclopediaPage() {
     }).join('')}</div></details>`).join('');
 }
 function hospitalityPage() {
-  const completedEvents = G.hospitalityEvents.filter(event => G.canViewHospitality(state, event.id));
   return heading('HOSPITALITY / 08', 'もてなし', '料理をそろえて、住人たちと工房の食卓を囲みましょう。期限はありません。')
     + `<div class="hospitality-list">${G.hospitalityEvents.map(event => {
       const done = G.canViewHospitality(state, event.id);
       const ready = G.canHost(state, event.id);
       return `<article class="hospitality-card ${done ? 'completed' : ''}"><div class="hospitality-heading"><h2>${event.title}</h2><span class="badge">${done ? '完了' : '未完了'}</span></div><p>${event.description}</p><p class="hospitality-guests">参加住人：${event.residents.map(id => G.dailyResidents[id].name).join('・')}</p><h3>用意する料理</h3><ul class="hospitality-dishes">${event.requirements.map(item => `<li><strong>${names[item.id]} ×${item.quantity}</strong><span>現在の所持：${count(item.id)}個${!done && count(item.id) < item.quantity ? ` / あと${item.quantity - count(item.id)}個必要` : ''}</span></li>`).join('')}</ul><p class="hospitality-keepsake">記念：${event.keepsake.name} ×1</p><button data-action="hospitality-host" data-id="${event.id}" ${ready ? '' : 'disabled'}>${done ? 'もてなし済み' : ready ? 'もてなす' : '料理をそろえましょう'}</button>${!done && !ready ? link('craft', '加工画面で作る', 'button hospitality-craft-link') : ''}</article>`;
-    }).join('')}</div><details class="request-history-fold hospitality-memories"><summary><span>もてなしの思い出</span><small>${completedEvents.length}件</small></summary><div class="hospitality-memories-content"><p class="muted">記念品はここに残ります。会話はいつでも読み返せます。</p>${completedEvents.length ? completedEvents.map(event => `<article class="hospitality-memory"><h3>${event.title}</h3><p>記念：${event.keepsake.name} ×1</p><button class="secondary" data-action="hospitality-replay" data-id="${event.id}">会話をもう一度見る</button></article>`).join('') : '<p class="muted">食卓の思い出は、これから少しずつ。</p>'}</div></details>`;
+    }).join('')}</div>`;
+}
+function memoriesPage() {
+  const categories = [{ title: 'もてなし', events: G.hospitalityEvents.filter(event => G.canViewHospitality(state, event.id)) }];
+  return heading('MEMORIES / 09', '思い出', '工房で過ごした時間を、ここに残していきます。')
+    + categories.map(({ title, events }) => `<details class="request-history-fold hospitality-memories" open><summary><span>${title}</span><small>${events.length}件</small></summary><div class="hospitality-memories-content"><p class="muted">記念品はここに残ります。会話はいつでも読み返せます。</p>${events.length ? events.map(event => `<article class="hospitality-memory"><h3>${event.title}</h3><p>記念：${event.keepsake.name} ×1</p><button class="secondary" data-action="hospitality-replay" data-id="${event.id}">会話をもう一度見る</button></article>`).join('') : '<p class="muted">食卓の思い出は、これから少しずつ。</p>'}</div></details>`).join('');
 }
 function requestsPageBase() {
   return heading('REQUESTS / 04', '暮らしのお願い', 'ひと品に、気持ちを添えて。期限はありません。') + `<div class="request-progress"><span>${G.dailyUnlocked(state) ? '固定依頼' : 'お届けした依頼'}</span><strong>${state.completed.length} / ${requestTotal()}${G.dailyUnlocked(state) ? ' 完了' : ''}</strong><progress max="${requestTotal()}" value="${state.completed.length}" aria-label="依頼の達成状況"></progress></div><p class="muted">${G.dailyUnlocked(state) ? '最初の9件をすべてお届けしました。これまでのお礼も読み返せます。' : G.stageTwoUnlocked(state) ? (state.unlockedStage === 3 ? '第3段階の依頼が解放されました。これまでのお礼も読み返せます。' : '第2段階の依頼が解放されました。合計6件をすべて届けると、第3段階の3件が解放されます。') : '最初の3件をすべて届けると、次の3件が解放されます。'}</p><div class="requests-list">${G.visibleRequests(state).map(r => { const done = state.completed.includes(r.id); const ready = count(r.item) >= 1; return `<article class="request-card ${done ? 'completed' : ''}"><div class="resident"><span class="avatar" aria-hidden="true">${r.initial}</span><div><span class="eyebrow">${done ? 'DELIVERED' : 'FROM YOUR NEIGHBOR'}</span><h2>${r.name}</h2></div><span class="badge">${done ? '✓ お届け済み' : '受付中'}</span></div><h3>${r.title}</h3><p class="quote">「${done ? r.thanks : r.message}」</p><div class="delivery"><div><span>お届けするもの</span><strong>${names[r.item]} × 1</strong><small>${done ? '納品済み' : `在庫 ${count(r.item)}個 / 納品時に1個消費`}</small></div><button data-action="deliver" data-id="${r.id}" ${done || !ready ? 'disabled' : ''}>${done ? '達成しました' : ready ? '1個届ける' : '完成品が必要'}</button></div>${!done ? `<p class="request-hint">${recipeHints[r.item]}</p>` : ''}</article>`; }).join('')}</div><div class="bottom-note"><p>各依頼は1回ずつ達成できます。</p>${link('craft', '工房でつくる', 'text-link')}</div>`;
@@ -243,7 +247,7 @@ function showStoryDialog(id, event, label) {
   document.getElementById('story-dialog-content').innerHTML = `<p class="eyebrow">${label}</p><h2 id="story-dialog-title" tabindex="-1">${event.title}</h2><div class="story-dialog-body">${event.paragraphs.map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`).join('')}</div>${event.reward ? `<div class="story-reward"><h3>住人たちからの差し入れ</h3><ul>${event.reward.map(item => `<li>${names[item.id]} ×${item.quantity}</li>`).join('')}</ul></div>` : ''}`;
   document.getElementById('story-close-button').hidden = id === 'intro';
   document.getElementById('story-close-button').textContent = id.startsWith('hospitality:') ? '閉じる' : 'あとで読む';
-  document.getElementById('story-complete-button').textContent = id.startsWith('hospitality:') ? 'もてなしへ戻る' : id === 'intro' ? '工房へ入る' : id === 'milestone8' ? 'これからも工房で暮らす' : event.reward ? '受け取る' : '工房へ戻る';
+  document.getElementById('story-complete-button').textContent = id.startsWith('hospitality:') ? (currentPage === 'memories' ? '思い出へ戻る' : 'もてなしへ戻る') : id === 'intro' ? '工房へ入る' : id === 'milestone8' ? 'これからも工房で暮らす' : event.reward ? '受け取る' : '工房へ戻る';
   storyDialog.showModal();
   document.getElementById('story-dialog-title').focus({ preventScroll: true });
   storyDialog.scrollTop = 0;
@@ -314,8 +318,8 @@ function render() {
   const focus = document.activeElement;
   const focusAction = focus?.dataset.action;
   const focusId = focus?.dataset.id;
-  document.getElementById('navigation').innerHTML = pages.filter(([id]) => !['backyard', 'hospitality'].includes(id) || G.postgameUnlocked(state)).map(([id, name, number]) => `<a href="#${id}" ${id === currentPage ? 'aria-current="page"' : ''}><span class="nav-number">${number}</span>${navIcon(id)}<span class="nav-label">${name}</span>${id === 'requests' ? `<span class="nav-count">${state.completed.length}/${requestTotal()}</span>` : ''}</a>`).join('');
-  document.getElementById('main').innerHTML = ({ home, gather: gatherPage, craft: craftPage, inventory: inventoryPage, requests: requestsPage, encyclopedia: encyclopediaPage, backyard: backyardPage, hospitality: hospitalityPage })[currentPage]();
+  document.getElementById('navigation').innerHTML = pages.filter(([id]) => !['backyard', 'hospitality', 'memories'].includes(id) || G.postgameUnlocked(state)).map(([id, name, number]) => `<a href="#${id}" ${id === currentPage ? 'aria-current="page"' : ''}><span class="nav-number">${number}</span>${navIcon(id)}<span class="nav-label">${name}</span>${id === 'requests' ? `<span class="nav-count">${state.completed.length}/${requestTotal()}</span>` : ''}</a>`).join('');
+  document.getElementById('main').innerHTML = ({ home, gather: gatherPage, craft: craftPage, inventory: inventoryPage, requests: requestsPage, encyclopedia: encyclopediaPage, backyard: backyardPage, hospitality: hospitalityPage, memories: memoriesPage })[currentPage]();
   document.getElementById('gather-limit-note').textContent = G.gatherLimit(state);
   document.getElementById('rest-description').textContent = `翌日になり、採集回数が${G.gatherLimit(state)}回に戻ります。残り回数は持ち越されません。依頼に期限はありません。`;
   document.getElementById('save-status').textContent = saveMessage;
@@ -493,7 +497,7 @@ document.addEventListener('click', event => {
 function navigate() {
   if (storyDialog.open) { storyDialog.close(); activeStoryMilestoneId = null; }
   const hash = location.hash.slice(1);
-  currentPage = pages.some(p => p[0] === hash) && (!['backyard', 'hospitality'].includes(hash) || G.postgameUnlocked(state)) ? hash : 'home';
+  currentPage = pages.some(p => p[0] === hash) && (!['backyard', 'hospitality', 'memories'].includes(hash) || G.postgameUnlocked(state)) ? hash : 'home';
   render();
 }
 window.addEventListener('hashchange', () => {
