@@ -104,9 +104,9 @@ const allFixedIds = G.requests.map(request => request.id);
 const oldCompleteSave = { inventory: { cloth: 7 }, completed: allFixedIds, day: 8, gathersLeft: 1 };
 const daily = G.restore(oldCompleteSave, () => 0);
 assert.equal(G.dailyUnlocked(daily), true);
-assert.equal(daily.dailyRequests.length, 3, '9件達成済みの旧セーブに初回3件を生成');
-assert.equal(new Set(G.currentDailyRequests(daily).map(request => request.id)).size, 3, '同日に依頼IDを重複させない');
-assert.equal(new Set(G.currentDailyRequests(daily).map(request => request.resident)).size, 3, '3人に1枠ずつ生成');
+assert.equal(daily.dailyRequests.length, 4, '9件達成済みの旧セーブに初回4件を生成');
+assert.equal(new Set(G.currentDailyRequests(daily).map(request => request.id)).size, 4, '同日に依頼IDを重複させない');
+assert.equal(new Set(G.currentDailyRequests(daily).map(request => request.resident)).size, 4, '4人に1枠ずつ生成');
 assert.equal(daily.inventory.cloth, 7);
 assert.equal(daily.day, 8);
 assert.deepEqual(G.restore(JSON.parse(JSON.stringify(daily))), daily, '日常依頼と履歴を再読み込みで維持');
@@ -123,11 +123,11 @@ const secondDay = G.currentDailyRequests(daily);
 assert.equal(daily.day, 9);
 assert.ok(carriedIds.every(id => secondDay.some(request => request.id === id)), '未達成枠を翌日に持ち越す');
 assert.ok(!secondDay.some(request => request.id === delivered.id), '直前に達成した依頼を同じ枠へ出さない');
-assert.equal(secondDay.every(request => !request.completed), true, '交換後は3枠とも未達成');
+assert.equal(secondDay.every(request => !request.completed), true, '交換後は4枠とも未達成');
 
 const unchangedIds = secondDay.map(request => request.id);
 G.rest(daily, () => 0.7);
-assert.deepEqual(G.currentDailyRequests(daily).map(request => request.id), unchangedIds, '3件すべて未達成なら翌日も維持');
+assert.deepEqual(G.currentDailyRequests(daily).map(request => request.id), unchangedIds, '4件すべて未達成なら翌日も維持');
 for (const request of G.currentDailyRequests(daily)) {
   daily.inventory[request.item] = Math.max(daily.inventory[request.item], request.quantity);
   assert.equal(G.deliverDaily(daily, request.id), true);
@@ -135,9 +135,9 @@ for (const request of G.currentDailyRequests(daily)) {
 const completedIds = G.currentDailyRequests(daily).map(request => request.id);
 G.rest(daily, () => 0.3);
 const refreshed = G.currentDailyRequests(daily);
-assert.equal(refreshed.length, 3);
-assert.equal(new Set(refreshed.map(request => request.id)).size, 3);
-assert.ok(refreshed.every(request => !completedIds.includes(request.id)), '3件達成後は翌日に3件とも更新');
+assert.equal(refreshed.length, 4);
+assert.equal(new Set(refreshed.map(request => request.id)).size, 4);
+assert.ok(refreshed.every(request => !completedIds.includes(request.id)), '4件達成後は翌日に4件とも更新');
 assert.equal(G.dailyRequestPool.slice(0, 40).length, 40);
 assert.ok(G.dailyRequestPool.every(request => G.recipes.some(recipe => recipe.id === request.item)), '日常依頼は既存レシピだけを要求');
 
@@ -180,13 +180,13 @@ assert.ok(G.currentDailyRequests(G.restore(oldCompleteSave, () => 0.55)).some(re
 const oldFourResidentSave = G.restore({ ...oldCompleteSave, inventory: { bag: 2, cloth: 4 }, day: 15, gathersLeft: 0,
   dailyRequests: [{ templateId: 'daily-keikai-towa-bag', completed: true }, { templateId: 'daily-naka-dry-flower', completed: false }, { templateId: 'daily-towa-box', completed: false }],
   dailyHistory: ['daily-keikai-towa-bag', 'daily-naka-dry-flower', 'daily-towa-box'] });
-assert.deepEqual(oldFourResidentSave.dailyRequests, [
+assert.deepEqual(oldFourResidentSave.dailyRequests.slice(0, 3), [
   { templateId: 'daily-keikai-towa-bag', completed: true }, { templateId: 'daily-naka-dry-flower', completed: false }, { templateId: 'daily-towa-box', completed: false }
 ], '既存4人の進行中3枠と達成状態を維持');
 assert.equal(oldFourResidentSave.day, 15);
 assert.equal(oldFourResidentSave.gathersLeft, 2);
 assert.equal(oldFourResidentSave.inventory.cloth, 4);
-assert.deepEqual(oldFourResidentSave.dailyHistory, ['daily-keikai-towa-bag', 'daily-naka-dry-flower', 'daily-towa-box']);
+assert.deepEqual(oldFourResidentSave.dailyHistory.slice(0, 3), ['daily-keikai-towa-bag', 'daily-naka-dry-flower', 'daily-towa-box']);
 const shiruDelivery = G.restore({ ...oldCompleteSave, inventory: { curtain: 1 }, dailyRequests: [
   { templateId: 'daily-shiru-curtain', completed: false }, { templateId: 'daily-naka-dry-flower', completed: false }, { templateId: 'daily-keikai-towa-bag', completed: false }
 ] });
@@ -212,13 +212,13 @@ assert.ok(G.currentDailyRequests(G.restore(oldCompleteSave, () => 0.7)).some(req
 const oldFiveResidentSave = G.restore({ ...oldCompleteSave, inventory: { bag: 2, curtain: 3 }, day: 28, gathersLeft: 1,
   dailyRequests: [{ templateId: 'daily-shiru-bag', completed: true }, { templateId: 'daily-keikai-towa-wall', completed: false }, { templateId: 'daily-naka-dry-flower', completed: false }],
   dailyHistory: ['daily-shiru-bag', 'daily-keikai-towa-wall', 'daily-naka-dry-flower'] });
-assert.deepEqual(oldFiveResidentSave.dailyRequests, [
+assert.deepEqual(oldFiveResidentSave.dailyRequests.slice(0, 3), [
   { templateId: 'daily-shiru-bag', completed: true }, { templateId: 'daily-keikai-towa-wall', completed: false }, { templateId: 'daily-naka-dry-flower', completed: false }
 ], '既存5人の進行中3枠と達成状態を維持');
 assert.equal(oldFiveResidentSave.day, 28);
 assert.equal(oldFiveResidentSave.gathersLeft, 3);
 assert.equal(oldFiveResidentSave.inventory.curtain, 3);
-assert.deepEqual(oldFiveResidentSave.dailyHistory, ['daily-shiru-bag', 'daily-keikai-towa-wall', 'daily-naka-dry-flower']);
+assert.deepEqual(oldFiveResidentSave.dailyHistory.slice(0, 3), ['daily-shiru-bag', 'daily-keikai-towa-wall', 'daily-naka-dry-flower']);
 const kurokoDelivery = G.restore({ ...oldCompleteSave, inventory: { curtain: 1 }, dailyRequests: [
   { templateId: 'daily-kuroko-curtain', completed: false }, { templateId: 'daily-shiru-bag', completed: false }, { templateId: 'daily-keikai-towa-wall', completed: false }
 ] });
@@ -244,13 +244,13 @@ assert.ok(G.currentDailyRequests(G.restore(oldCompleteSave, () => 0.8)).some(req
 const oldSixResidentSave = G.restore({ ...oldCompleteSave, inventory: { dryFlower: 3, curtain: 2 }, day: 34, gathersLeft: 1,
   dailyRequests: [{ templateId: 'daily-kuroko-wall', completed: true }, { templateId: 'daily-shiru-bag', completed: false }, { templateId: 'daily-keikai-towa-cushion', completed: false }],
   dailyHistory: ['daily-kuroko-wall', 'daily-shiru-bag', 'daily-keikai-towa-cushion'] });
-assert.deepEqual(oldSixResidentSave.dailyRequests, [
+assert.deepEqual(oldSixResidentSave.dailyRequests.slice(0, 3), [
   { templateId: 'daily-kuroko-wall', completed: true }, { templateId: 'daily-shiru-bag', completed: false }, { templateId: 'daily-keikai-towa-cushion', completed: false }
 ], '既存6人の進行中3枠と達成状態を維持');
 assert.equal(oldSixResidentSave.day, 34);
 assert.equal(oldSixResidentSave.gathersLeft, 3);
 assert.equal(oldSixResidentSave.inventory.dryFlower, 3);
-assert.deepEqual(oldSixResidentSave.dailyHistory, ['daily-kuroko-wall', 'daily-shiru-bag', 'daily-keikai-towa-cushion']);
+assert.deepEqual(oldSixResidentSave.dailyHistory.slice(0, 3), ['daily-kuroko-wall', 'daily-shiru-bag', 'daily-keikai-towa-cushion']);
 const altoDelivery = G.restore({ ...oldCompleteSave, inventory: { dryFlower: 2 }, dailyRequests: [
   { templateId: 'daily-alto-dry-flower', completed: false }, { templateId: 'daily-shiru-bag', completed: false }, { templateId: 'daily-kuroko-wall', completed: false }
 ] });
@@ -277,13 +277,13 @@ assert.ok(G.currentDailyRequests(G.restore(oldCompleteSave, () => 0.999)).some(r
 const oldSevenResidentSave = G.restore({ ...oldCompleteSave, inventory: { dryFlower: 3, curtain: 2 }, day: 39, gathersLeft: 1,
   dailyRequests: [{ templateId: 'daily-alto-dye', completed: true }, { templateId: 'daily-kuroko-wall', completed: false }, { templateId: 'daily-shiru-bag', completed: false }],
   dailyHistory: ['daily-alto-dye', 'daily-kuroko-wall', 'daily-shiru-bag'] });
-assert.deepEqual(oldSevenResidentSave.dailyRequests, [
+assert.deepEqual(oldSevenResidentSave.dailyRequests.slice(0, 3), [
   { templateId: 'daily-alto-dye', completed: true }, { templateId: 'daily-kuroko-wall', completed: false }, { templateId: 'daily-shiru-bag', completed: false }
 ], '既存7人の進行中3枠と達成状態を維持');
 assert.equal(oldSevenResidentSave.day, 39);
 assert.equal(oldSevenResidentSave.gathersLeft, 3);
 assert.equal(oldSevenResidentSave.inventory.dryFlower, 3);
-assert.deepEqual(oldSevenResidentSave.dailyHistory, ['daily-alto-dye', 'daily-kuroko-wall', 'daily-shiru-bag']);
+assert.deepEqual(oldSevenResidentSave.dailyHistory.slice(0, 3), ['daily-alto-dye', 'daily-kuroko-wall', 'daily-shiru-bag']);
 const aoiDoctorDelivery = G.restore({ ...oldCompleteSave, inventory: { dryFlower: 2 }, dailyRequests: [
   { templateId: 'daily-aoi-doctor-dry-flower', completed: false }, { templateId: 'daily-alto-dye', completed: false }, { templateId: 'daily-kuroko-wall', completed: false }
 ] });
@@ -332,10 +332,10 @@ assert.equal(legacyAll.day, 23);
 assert.equal(legacyAll.gathersLeft, 3);
 assert.equal(legacyAll.inventory.thread, 3);
 assert.equal(legacyAll.completed.length, 9);
-assert.deepEqual(legacyAll.dailyRequests, [
+assert.deepEqual(legacyAll.dailyRequests.slice(0, 3), [
   { templateId: 'daily-aoi-doctor-dye', completed: true }, { templateId: 'daily-alto-wreath', completed: false }, { templateId: 'daily-kuroko-wall', completed: false }
 ]);
-assert.deepEqual(legacyAll.dailyHistory, ['daily-aoi-doctor-dye', 'daily-alto-wreath', 'daily-kuroko-wall']);
+assert.deepEqual(legacyAll.dailyHistory.slice(0, 3), ['daily-aoi-doctor-dye', 'daily-alto-wreath', 'daily-kuroko-wall']);
 assert.deepEqual(G.restore(JSON.parse(JSON.stringify(legacyAll))).discovered, legacyAll.discovered, '移行済み図鑑をそのまま復元');
 assert.deepEqual(G.restore({ discovered: ['branch', 'branch', 'nonexistent'] }).discovered, ['branch'], '保存済み発見IDを安全に検証');
 assert.deepEqual(G.restore({ discovered: [], completed: G.requests.map(request => request.id) }).discovered, [], '図鑑データがある場合は旧セーブ移行を繰り返さない');
@@ -364,8 +364,8 @@ const oldEncyclopedia = G.restore({ inventory: { plank: 8, dyedCloth: 1, fiber: 
   dailyRequests: [{ templateId: 'daily-aoi-doctor-dye', completed: true }, { templateId: 'daily-alto-wreath', completed: false }, { templateId: 'daily-kuroko-wall', completed: false }],
   dailyHistory: ['daily-aoi-doctor-dye'], discovered: G.items.slice(0, 18).map(item => item.id) }, () => 0);
 assert.equal(oldEncyclopedia.discovered.length, 18);
-assert.deepEqual(oldEncyclopedia.dailyRequests.map(slot => slot.templateId), ['daily-aoi-doctor-dye', 'daily-alto-wreath', 'daily-kuroko-wall']);
-assert.deepEqual(oldEncyclopedia.dailyHistory, ['daily-aoi-doctor-dye']);
+assert.deepEqual(oldEncyclopedia.dailyRequests.slice(0, 3).map(slot => slot.templateId), ['daily-aoi-doctor-dye', 'daily-alto-wreath', 'daily-kuroko-wall']);
+assert.deepEqual(oldEncyclopedia.dailyHistory.slice(0, 1), ['daily-aoi-doctor-dye']);
 assert.equal(oldEncyclopedia.day, 28);
 assert.equal(oldEncyclopedia.gathersLeft, 3);
 assert.equal(G.craft(oldEncyclopedia, 'woodFrame'), true);
@@ -451,8 +451,8 @@ assert.equal(migratedGathers.gathersLeft, 3);
 assert.equal(migratedGathers.day, 27);
 assert.equal(migratedGathers.inventory.plank, 2);
 assert.deepEqual(migratedGathers.completed, allFixedIds);
-assert.deepEqual(migratedGathers.dailyRequests, preservedDaily);
-assert.deepEqual(migratedGathers.dailyHistory, ['daily-towa-box']);
+assert.deepEqual(migratedGathers.dailyRequests.slice(0, 3), preservedDaily);
+assert.deepEqual(migratedGathers.dailyHistory.slice(0, 1), ['daily-towa-box']);
 assert.deepEqual(migratedGathers.discovered, preservedDiscoveries);
 assert.equal(G.restore(JSON.parse(JSON.stringify(migratedGathers))).gathersLeft, 3);
 console.log('PASS: 3-to-5 gather cap, immediate unlock, legacy migration once, five-gather exhaustion and save preservation');
@@ -611,7 +611,7 @@ assert.equal(weightedSave.inventory.bag, 3);
 assert.equal(weightedSave.storyProgress.milestone4Completed, true);
 const activeIds = ['daily-naka-bag', 'daily-ritsu-thread', shiruDaily.id];
 const activeReload = G.restore({ ...weightedSave, dailyRequests: activeIds.map(templateId => ({ templateId, completed: false })) });
-assert.deepEqual(activeReload.dailyRequests.map(slot => slot.templateId), activeIds, '既存の3枠は再抽選しない');
+assert.deepEqual(activeReload.dailyRequests.slice(0, 3).map(slot => slot.templateId), activeIds, '既存の3枠は再抽選しない');
 assert.equal(G.ensureDailyRequests(activeReload, () => 0), false, '抽選ウェイト変更で表示中依頼を差し替えない');
 const sampledResidents = save => {
   const counts = Object.fromEntries(thankYouIds.map(id => [id, 0]));
@@ -717,7 +717,7 @@ const finalLegacy = G.restore(finalBase);
 assert.equal(G.storyRequestUnlocked(finalLegacy, 'milestone8'), true, '旧セーブから即解放');
 assert.equal(finalLegacy.storyProgress.milestone8Completed, false);
 assert.equal(finalLegacy.day, 88);
-assert.deepEqual(finalLegacy.dailyRequests, finalSlots);
+assert.deepEqual(finalLegacy.dailyRequests.slice(0, 3), finalSlots);
 assert.equal(finalLegacy.inventory.bag, 7);
 for (const item of finalRequest.requirements) {
   const shortage = G.restore({ ...finalBase, inventory: { ...finalStock, [item.id]: item.quantity - 1 } });
@@ -744,7 +744,7 @@ assert.equal(G.postgameUnlocked(finalReload), true);
 assert.equal(G.completeStoryRequestEvent(finalReload, 'milestone8'), false, 'エンディングを二重完了しない');
 const clearReload = G.restore(JSON.parse(JSON.stringify(finalReload)));
 assert.equal(G.postgameUnlocked(clearReload), true, '本編クリアを復元');
-assert.deepEqual(clearReload.dailyRequests, finalSlots, '表示中の日常依頼を維持');
+assert.deepEqual(clearReload.dailyRequests.slice(0, 3), finalSlots, '表示中の日常依頼を維持');
 assert.equal(clearReload.day, 88);
 assert.equal(clearReload.gathersLeft, 2);
 assert.equal(clearReload.discovered.includes('bag'), true);
@@ -753,7 +753,7 @@ const craftAmount = clearReload.inventory.thread;
 G.rest(clearReload, () => 0);
 assert.equal(G.postgameUnlocked(clearReload), true, '翌日も本編クリア');
 assert.equal(clearReload.inventory.thread, craftAmount, '日付進行で在庫を変更しない');
-assert.equal(clearReload.dailyRequests.length, 3, 'クリア後も日常依頼が継続');
+assert.equal(clearReload.dailyRequests.length, 4, 'クリア後も日常依頼が継続');
 assert.equal(G.SAVE_VERSION, 2, 'セーブバージョンを変更しない');
 console.log('PASS: eight-thank-you final request, exact atomic delivery, ending read state, restored clear and continuing daily play');
 
@@ -767,7 +767,7 @@ const legacyGarden = G.restore({ ...finalReload, plots: undefined });
 assert.equal(G.postgameUnlocked(legacyGarden), true, '本編クリア済み旧セーブで裏庭を解放');
 assert.deepEqual(legacyGarden.plots, [null, null, null], '旧セーブの畑は3区画とも空き');
 assert.equal(legacyGarden.day, 88);
-assert.deepEqual(legacyGarden.dailyRequests, finalSlots);
+assert.deepEqual(legacyGarden.dailyRequests.slice(0, 3), finalSlots);
 assert.equal(legacyGarden.inventory.bag, 7);
 assert.equal(G.plantCrop(legacyGarden, 0, 'potato'), true);
 assert.equal(G.plantCrop(legacyGarden, 1, 'carrot'), true);
@@ -824,8 +824,8 @@ const preClearGardenGuard = G.restore({ ...oldCompleteSave, dailyRequests: [
 ] }, () => 0);
 assert.equal(G.postgameUnlocked(preClearGardenGuard), false);
 assert.equal(G.currentGardenRequest(preClearGardenGuard), null, '本編未クリアでは保存値からも裏庭依頼を出さない');
-assert.equal(G.currentDailyRequests(preClearGardenGuard).length, 3);
-assert.ok(G.currentDailyRequests(preClearGardenGuard).every(request => !gardenIds.has(request.id)), '通常3枠に畑依頼を混ぜない');
+assert.equal(G.currentDailyRequests(preClearGardenGuard).length, 4);
+assert.ok(G.currentDailyRequests(preClearGardenGuard).every(request => !gardenIds.has(request.id)), '通常4枠に畑依頼を混ぜない');
 
 const postgameRequestSeed = JSON.parse(JSON.stringify(finalReload));
 postgameRequestSeed.dailyRequests = finalSlots.map(slot => ({ ...slot, completed: false }));
@@ -834,8 +834,8 @@ postgameRequestSeed.dailyHistory = [];
 const independentGarden = G.restore(postgameRequestSeed);
 const unchangedDailySlots = JSON.stringify(independentGarden.dailyRequests);
 G.rest(independentGarden, sequence(0, 0, 0));
-assert.deepEqual(JSON.stringify(independentGarden.dailyRequests), unchangedDailySlots, '通常3枠がすべて未達成ならそのまま持ち越す');
-assert.ok(G.currentGardenRequest(independentGarden), '通常3枠が埋まっていても日付更新で裏庭依頼を抽選');
+assert.deepEqual(JSON.stringify(independentGarden.dailyRequests), unchangedDailySlots, '通常4枠がすべて未達成ならそのまま持ち越す');
+assert.ok(G.currentGardenRequest(independentGarden), '通常4枠が埋まっていても日付更新で裏庭依頼を抽選');
 const firstGarden = { ...independentGarden.gardenRequest };
 G.rest(independentGarden, sequence(0, 0, 0));
 assert.deepEqual(independentGarden.gardenRequest, firstGarden, '未達成の裏庭依頼は持ち越し、新規追加しない');
@@ -846,7 +846,7 @@ for (const gardenRoll of [0, 0.4, 0.9]) {
   G.refreshGardenRequest(draw, sequence(0, 0, gardenRoll));
   const request = G.currentGardenRequest(draw);
   assert.ok(request, '裏庭解放後は独立枠へ1件生成');
-  assert.equal(G.currentDailyRequests(draw).length, 3, '通常依頼は従来どおり3枠');
+  assert.equal(G.currentDailyRequests(draw).length, 4, '通常依頼は4枠');
   generatedCropItems.push(request.item);
 }
 assert.deepEqual(generatedCropItems, ['potato', 'carrot', 'wheat'], '3種類の収穫物依頼を生成できる');
@@ -895,7 +895,7 @@ const legacyGardenMigration = G.restore({ ...postgameRequestSeed, gardenRequest:
 ] }, () => 0.5);
 assert.equal(G.currentGardenRequest(legacyGardenMigration).item, 'carrot', '旧方式の畑依頼を独立枠へ移行');
 assert.equal(G.currentGardenRequest(legacyGardenMigration).resident, 'ritsu');
-assert.equal(G.currentDailyRequests(legacyGardenMigration).length, 3, '移行後も通常枠を3件へ補充');
+assert.equal(G.currentDailyRequests(legacyGardenMigration).length, 4, '移行後も通常枠を4件へ補充');
 assert.ok(G.currentDailyRequests(legacyGardenMigration).some(request => request.id === 'daily-towa-box'));
 assert.ok(G.currentDailyRequests(legacyGardenMigration).some(request => request.id === 'daily-shiru-curtain'));
 assert.ok(G.currentDailyRequests(legacyGardenMigration).every(request => !gardenIds.has(request.id)), '旧畑依頼を通常枠へ重複させない');
@@ -1286,12 +1286,13 @@ assert.ok(G.currentDailyRequests(preClearCooking).every(request => request.sourc
 const cookingDrawSeed = { ...postgameRequestSeed, dailyRequests: [
   { templateId: 'daily-naka-bag', completed: true },
   { templateId: 'daily-ritsu-thread', completed: true },
-  { templateId: 'daily-towa-box', completed: true }
+  { templateId: 'daily-towa-box', completed: true },
+  { templateId: 'daily-shiru-cushion', completed: true }
 ] };
 const cookingDraw = G.restore(cookingDrawSeed);
 G.refreshDailyRequests(cookingDraw, sequence(0.34, 0, 0, 0));
 assert.equal(G.currentDailyRequests(cookingDraw).filter(request => request.source === 'cooking').length, 1, '35%判定成功時に料理依頼を1件生成');
-assert.equal(G.currentDailyRequests(cookingDraw).filter(request => request.source !== 'cooking').length, 2, '残りは従来の日常依頼');
+assert.equal(G.currentDailyRequests(cookingDraw).filter(request => request.source !== 'cooking').length, 3, '残りは従来の日常依頼');
 
 const noCookingDraw = G.restore(cookingDrawSeed);
 G.refreshDailyRequests(noCookingDraw, sequence(0.35, 0, 0));
@@ -1496,7 +1497,7 @@ for (let i = 0; i < 500; i++) {
   assert.ok(G.currentDailyRequests(preclear).every(request => !request.postgame));
   const postclear = G.restore({ ...oldClaySave, dailyRequests: [] }, clayRandom);
   const generated = G.currentDailyRequests(postclear);
-  assert.equal(generated.length, 3);
+  assert.equal(generated.length, 4);
   assert.ok(generated.filter(request => request.source === 'cooking').length <= 1);
   generated.filter(request => request.postgame).forEach(request => drawnPottery.add(request.item));
 }
@@ -1519,3 +1520,50 @@ for (const request of potteryRequests) {
 }
 assert.ok(!G.gratitudeExchanges.some(exchange => exchange.rewards.some(item => clayIds.includes(item.id))));
 console.log('PASS: clay gathering caps, four pottery recipes, exact stock/discovery persistence, legacy zeros, postgame-only normal requests, cooking cap and standard delivery rewards');
+
+// 通常4枠への拡張：旧3枠を保持し、持ち越し・料理上限・別枠・報酬を確認。
+assert.equal(G.DAILY_REQUEST_SLOTS, 4);
+const oldThreeSlots = [
+  { templateId: 'daily-cooking-naka-vegetableSoup', completed: false },
+  { templateId: 'daily-ritsu-small-plate', completed: false },
+  { templateId: 'daily-alto-vase', completed: true }
+];
+const expandedFour = G.restore({ ...postgameRequestSeed, dailyRequests: oldThreeSlots,
+  gardenRequest: { resident: 'shiru', cropId: 'potato', completed: false }, gratitudePoints: 7 }, () => 0.99);
+assert.equal(expandedFour.dailyRequests.length, 4);
+assert.deepEqual(expandedFour.dailyRequests.slice(0, 3), oldThreeSlots, '旧3枠の内容・達成状態を保持');
+assert.equal(G.currentDailyRequests(expandedFour).filter(r => r.source === 'cooking').length, 1);
+expandedFour.dailyRequests[3].completed = true;
+const carriedTwo = expandedFour.dailyRequests.slice(0, 2).map(slot => ({ ...slot }));
+G.rest(expandedFour, () => 0);
+assert.equal(expandedFour.dailyRequests.length, 4, '持ち越し2件＋新規2件');
+assert.deepEqual(expandedFour.dailyRequests.slice(0, 2), carriedTwo);
+assert.ok(expandedFour.dailyRequests.every(slot => !slot.completed));
+assert.equal(G.currentDailyRequests(expandedFour).filter(r => r.source === 'cooking').length, 1);
+assert.ok(G.currentGardenRequest(expandedFour), '通常4件とは別に裏庭1件を保持');
+const fullFourBefore = JSON.stringify(expandedFour.dailyRequests);
+let fullFourDraws = 0;
+G.refreshDailyRequests(expandedFour, () => { fullFourDraws++; return 0; });
+assert.equal(fullFourDraws, 0, '未達成4件では通常依頼の抽選を行わない');
+assert.equal(JSON.stringify(expandedFour.dailyRequests), fullFourBefore);
+G.rest(expandedFour, () => 0);
+assert.equal(JSON.stringify(expandedFour.dailyRequests), fullFourBefore, '4件すべて翌日へ持ち越す');
+const beforeFourPoints = expandedFour.gratitudePoints;
+// 手動で在庫を用意するテストでは、入手時の発見記録も補完する。
+expandedFour.discovered = [...G.items, ...G.crops, ...G.foods, ...G.backyardMaterials, ...G.merchantMaterials].map(item => item.id);
+const beforeFourCounts = Object.values(expandedFour.dailyRequestCounts).reduce((sum, n) => sum + n, 0);
+const beforeFourThanks = { ...expandedFour.thankYouEventViewed };
+for (const request of G.currentDailyRequests(expandedFour)) {
+  expandedFour.inventory[request.item] += request.quantity;
+  assert.equal(G.deliverDaily(expandedFour, request.id), true);
+  assert.equal(G.deliverDaily(expandedFour, request.id), false);
+}
+assert.equal(expandedFour.gratitudePoints, beforeFourPoints + 4);
+assert.equal(Object.values(expandedFour.dailyRequestCounts).reduce((sum, n) => sum + n, 0), beforeFourCounts + 4);
+assert.deepEqual(expandedFour.thankYouEventViewed, beforeFourThanks);
+assert.deepEqual(G.restore(JSON.parse(JSON.stringify(expandedFour))), expandedFour);
+G.rest(expandedFour, () => 0);
+assert.equal(expandedFour.dailyRequests.length, 4);
+assert.ok(expandedFour.dailyRequests.every(slot => !slot.completed));
+assert.equal(G.currentDailyRequests(expandedFour).filter(r => r.source === 'cooking').length, 1);
+console.log('PASS: four daily slots, old-three preservation, two-plus-two refill, four-slot carryover without drawing, independent fifth garden request, four rewards and reload');

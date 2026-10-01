@@ -314,8 +314,8 @@ saved.set('mioverse-craft-v1', JSON.stringify(dailySave));
 app = launch();
 let dailyHtml = app.page('requests');
 assert.ok(dailyHtml.includes('日常のお願い'));
-assert.ok(dailyHtml.includes('今日の依頼 3件'));
-assert.equal((dailyHtml.match(/class="request-card daily-request/g) || []).length, 3);
+assert.ok(dailyHtml.includes('今日の依頼 4件'));
+assert.equal((dailyHtml.match(/class="request-card daily-request/g) || []).length, 4);
 assert.ok(dailyHtml.includes('<details class="fixed-history"><summary><span>固定依頼のお礼</span><small>9件</small></summary>'), '固定依頼履歴を初期状態が閉じた details で表示');
 assert.ok(!dailyHtml.includes('<details class="fixed-history" open>'), '固定依頼履歴は初期状態で展開しない');
 assert.equal((dailyHtml.match(/data-action="deliver" data-id=/g) || []).length, 9, '折りたたみ内に固定依頼9件を維持');
@@ -345,7 +345,7 @@ assert.equal(app.state().day, 13);
 assert.ok(carriedDaily.every(id => nextDaily.some(request => request.id === id)), '未達成依頼を画面操作でも持ち越す');
 assert.ok(!nextDaily.some(request => request.id === dailyTarget.id), '納品済み枠だけ翌日に交換');
 app = launch();
-assert.deepEqual(G.currentDailyRequests(app.state()).map(request => request.id), nextDaily.map(request => request.id), '更新後の3件をlocalStorageから復元');
+assert.deepEqual(G.currentDailyRequests(app.state()).map(request => request.id), nextDaily.map(request => request.id), '更新後の4件をlocalStorageから復元');
 console.log('PASS: daily request UI, recipe dialog, craft highlight, manual delivery, carryover, next-day replacement and localStorage reload');
 
 // 軽快トワ5件も既存の日常依頼UI・作り方モーダル・レシピ移動を共用する。
@@ -635,7 +635,7 @@ assert.ok(app.page('home').includes('今日の採集（残り） 3 / 5'));
 assert.ok(app.page('gather').includes('今日の採集（残り） 3 / 5'));
 assert.equal(Number(app.gatherLimitNote()), 5);
 assert.ok(app.restDescription().includes('採集回数が5回に戻ります'));
-assert.deepEqual(app.state().dailyRequests.map(slot => slot.templateId), gatherMigrationSave.dailyRequests.map(slot => slot.templateId));
+assert.deepEqual(app.state().dailyRequests.slice(0, 3).map(slot => slot.templateId), gatherMigrationSave.dailyRequests.map(slot => slot.templateId));
 assert.equal(app.state().day, 31);
 assert.equal(app.state().inventory.plank, 2);
 assert.deepEqual(app.state().discovered, gatherMigrationSave.discovered);
@@ -1148,7 +1148,7 @@ assert.ok(cropDailyHtml.includes('裏庭からのお届け'));
 assert.ok(cropDailyHtml.includes('じゃがいもを少し'));
 assert.ok(cropDailyHtml.includes('じゃがいも × 2'));
 assert.ok(cropDailyHtml.includes('FROM THE BACKYARD'));
-assert.equal((cropDailyHtml.match(/class="request-card daily-request/g) || []).length, 3, '通常依頼は別に3枠表示');
+assert.equal((cropDailyHtml.match(/class="request-card daily-request/g) || []).length, 4, '通常依頼は別に4枠表示');
 assert.match(cropDailyHtml, /data-action="deliver-garden" data-id="garden:naka:potato" disabled>収穫物が必要<\/button>/);
 const cropBeforeShortage = JSON.stringify(app.state());
 app.click('deliver-garden', 'garden:naka:potato');
@@ -1170,7 +1170,7 @@ assert.ok(cropDailyHtml.includes('5 / 5'), '5/5表示は上限表示を維持');
 app = launch();
 assert.equal(app.state().gardenRequest.completed, true);
 assert.equal(app.state().dailyRequestCounts.naka, nakaGardenCountBefore + 1);
-console.log('PASS: independent backyard request UI, shortage label, exact delivery, normal three slots, 5/5 progress and reload');
+console.log('PASS: independent backyard request UI, shortage label, exact delivery, normal four slots, 5/5 progress and reload');
 
 saved.set('mioverse-craft-v1', JSON.stringify(clearEnding));
 app = launch();
@@ -1646,7 +1646,7 @@ cookingRequestUiSave.dailyRequests = [
 saved.set('mioverse-craft-v1', JSON.stringify(cookingRequestUiSave));
 app = launch();
 let cookingRequestHtml = app.page('requests');
-assert.equal((cookingRequestHtml.match(/class="request-card daily-request/g) || []).length, 3, '料理依頼も通常の3枠内に表示');
+assert.equal((cookingRequestHtml.match(/class="request-card daily-request/g) || []).length, 4, '料理依頼も通常の4枠内に表示');
 assert.ok(cookingRequestHtml.includes('バタークッキーをひと皿'));
 assert.ok(cookingRequestHtml.includes('バタークッキー × 1'));
 assert.match(cookingRequestHtml, /data-action="deliver-daily" data-id="daily-cooking-naka-butterCookies" disabled>料理が必要<\/button>/);
@@ -1677,7 +1677,7 @@ assert.ok(app.toastText().includes('お礼のしるし +1（所持：7）'));
 cookingRequestHtml = app.page('requests');
 assert.match(cookingRequestHtml, /data-action="deliver-daily" data-id="daily-cooking-naka-butterCookies" disabled>お届け済み<\/button>/);
 assert.ok(cookingRequestHtml.includes('5 / 5'), '表示上の進捗上限5\/5を維持');
-assert.equal((cookingRequestHtml.match(/class="request-card daily-request/g) || []).length, 3);
+assert.equal((cookingRequestHtml.match(/class="request-card daily-request/g) || []).length, 4);
 app = launch();
 assert.equal(app.state().inventory.butterCookies, 0, '料理在庫の消費を再読込後も維持');
 assert.equal(app.state().gratitudePoints, 7, 'しるし加算を再読込後も維持');
@@ -1874,3 +1874,41 @@ assert.ok(!app.storyDialogHtml().includes('🖤黒子'));
 app.click('story-complete');
 assert.equal(JSON.stringify(app.state()), clayMemoryBefore);
 console.log('PASS: clay gather UI, pottery recipes and standard delivery, inventory/encyclopedia categories and descriptions, old-save zeros, reload and Kuroko icon');
+
+const fourUiSeed = JSON.parse(JSON.stringify(clayUiLegacy));
+fourUiSeed.dailyRequests = [
+  { templateId: 'daily-cooking-naka-vegetableSoup', completed: false },
+  { templateId: 'daily-ritsu-small-plate', completed: false },
+  { templateId: 'daily-alto-vase', completed: false }
+];
+fourUiSeed.gardenRequest = { resident: 'shiru', cropId: 'potato', completed: false };
+fourUiSeed.inventory = Object.fromEntries([...G.items, ...G.foods, ...G.crops].map(item => [item.id, 10]));
+fourUiSeed.gratitudePoints = 7;
+saved.set('mioverse-craft-v1', JSON.stringify(fourUiSeed));
+app = launch();
+assert.deepEqual(app.state().dailyRequests.slice(0, 3), fourUiSeed.dailyRequests);
+assert.equal(app.state().dailyRequests.length, 4);
+assert.ok(app.page('home').includes('4件を受け付けます'));
+let fourUiHtml = app.page('requests');
+assert.ok(fourUiHtml.includes('今日の依頼 4件'));
+assert.equal((fourUiHtml.match(/class="request-card daily-request/g) || []).length, 4);
+assert.equal((fourUiHtml.match(/data-action="deliver-garden"/g) || []).length, 1);
+const fourUiRequests = G.currentDailyRequests(app.state());
+assert.equal(fourUiRequests.filter(request => request.source === 'cooking').length, 1);
+for (const request of fourUiRequests) {
+  const stockBefore = app.state().inventory[request.item];
+  app.click('deliver-daily', request.id);
+  assert.equal(app.state().inventory[request.item], stockBefore - request.quantity);
+  app.click('deliver-daily', request.id);
+}
+assert.equal(app.state().gratitudePoints, 11);
+assert.ok(app.state().dailyRequests.every(slot => slot.completed));
+assert.deepEqual(app.state().gardenRequest, fourUiSeed.gardenRequest);
+const fourUiCompleted = JSON.stringify(app.state());
+app = launch();
+assert.equal(JSON.stringify(app.state()), fourUiCompleted);
+app.page('home'); app.click('rest'); app.click('rest-confirm');
+assert.equal(app.state().dailyRequests.length, 4);
+assert.ok(app.state().dailyRequests.every(slot => !slot.completed));
+assert.ok(G.currentDailyRequests(app.state()).filter(request => request.source === 'cooking').length <= 1);
+console.log('PASS: four daily cards plus independent garden card, legacy refill, home guidance, four deliveries/rewards, duplicate guards and reload/next-day UI');

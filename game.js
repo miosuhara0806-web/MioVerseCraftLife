@@ -457,7 +457,7 @@
   const DAILY_GATHERS = 3;
   const UNLOCKED_DAILY_GATHERS = 5;
   const gatherLimit = state => dailyUnlocked(state) ? UNLOCKED_DAILY_GATHERS : DAILY_GATHERS;
-  const DAILY_REQUEST_SLOTS = 3;
+  const DAILY_REQUEST_SLOTS = 4;
   const GARDEN_REQUEST_CHANCE = 0.35;
   const COOKING_REQUEST_CHANCE = 0.35;
   const MERCHANT_VISIT_INTERVAL = 3;
