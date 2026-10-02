@@ -50,7 +50,8 @@
     { id: 'saltGrilledFish', name: '魚の塩焼き', category: '料理', mark: '魚' },
     { id: 'cheeseBakedMushrooms', name: 'きのこのチーズ焼き', category: '料理', mark: '焼' },
     { id: 'butterCookies', name: 'バタークッキー', category: '料理', mark: '菓' },
-    { id: 'mushroomCreamPasta', name: 'きのこのクリームパスタ', category: '料理', mark: '麺' }
+    { id: 'mushroomCreamPasta', name: 'きのこのクリームパスタ', category: '料理', mark: '麺' },
+    { id: 'scrambledEggs', name: 'ふんわりスクランブルエッグ', category: '料理', mark: '卵' }
   ];
   const backyardMaterials = [
     { id: 'egg', name: '卵', category: '畜産物', mark: '卵' },
@@ -128,7 +129,8 @@
     { id: 'saltGrilledFish', inputs: [{ id: 'fish', cost: 1 }, { id: 'salt', cost: 1 }], group: '料理', kind: 'cooking' },
     { id: 'cheeseBakedMushrooms', inputs: [{ id: 'mushroom', cost: 1 }, { id: 'cheese', cost: 1 }], group: '料理', kind: 'cooking' },
     { id: 'butterCookies', inputs: [{ id: 'wheat', cost: 2 }, { id: 'sugar', cost: 1 }, { id: 'butter', cost: 1 }], group: '料理', kind: 'cooking' },
-    { id: 'mushroomCreamPasta', inputs: [{ id: 'wheat', cost: 2 }, { id: 'mushroom', cost: 1 }, { id: 'milk', cost: 1 }, { id: 'cheese', cost: 1 }], group: '料理', kind: 'cooking' }
+    { id: 'mushroomCreamPasta', inputs: [{ id: 'wheat', cost: 2 }, { id: 'mushroom', cost: 1 }, { id: 'milk', cost: 1 }, { id: 'cheese', cost: 1 }], group: '料理', kind: 'cooking' },
+    { id: 'scrambledEggs', inputs: [{ id: 'egg', cost: 2 }], group: '料理', kind: 'cooking' }
   ];
   recipes.push(...cookingRecipes);
   const requests = [
@@ -513,7 +515,7 @@
   const gatherLimit = state => dailyUnlocked(state) ? UNLOCKED_DAILY_GATHERS : DAILY_GATHERS;
   const DAILY_REQUEST_SLOTS = 4;
   const GARDEN_REQUEST_CHANCE = 0.35;
-  const COOKING_REQUEST_CHANCE = 0.35;
+  const COOKING_REQUEST_CHANCE = 1;
   const MERCHANT_VISIT_INTERVAL = 3;
   const SAVE_VERSION = 2;
   const fresh = () => ({ saveVersion: SAVE_VERSION, introViewed: false, inventory: Object.fromEntries([...items, ...crops, ...foods, ...backyardMaterials, ...merchantMaterials].map(item => [item.id, 0])), plots: [null, null, null], facilityProduction: Object.fromEntries(backyardFacilities.map(facility => [facility.id, null])), merchantVisit: null, hospitality: { completed: [], keepsakes: [] }, completed: [], unlockedStage: 1, day: 1, gathersLeft: DAILY_GATHERS, gatherLimit: DAILY_GATHERS, dailyRequests: [], gardenRequest: null, gratitudePoints: 0, dailyHistory: [], dailyRequestCounts: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, 0])), thankYouEventViewed: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, false])), storyProgress: { ...Object.fromEntries(Object.keys(storyMilestones).map(id => [`${id}Viewed`, false])), ...Object.fromEntries(Object.keys(storyRequests).flatMap(id => [[`${id}Completed`, false], [`${id}EventViewed`, false]])) }, discovered: [] });
@@ -759,10 +761,9 @@
     const weights = candidates.map(request => dailyResidentWeight(state, request.resident) * (request.weight || 1) / residentWeightTotals[request.resident]);
     return chooseWeighted(candidates, weights, random);
   }
-  function shouldAddCookingRequest(state, hasCookingRequest, openSlots, random) {
-    if (!postgameUnlocked(state) || hasCookingRequest || openSlots < 1) return false;
-    const chance = Number(random());
-    return Number.isFinite(chance) && chance >= 0 && chance < COOKING_REQUEST_CHANCE;
+  function shouldAddCookingRequest(state, hasCookingRequest, openSlots) {
+    // 補充できるときだけ料理を1件確保。持ち越しと保存済みの4枠は維持する。
+    return postgameUnlocked(state) && !hasCookingRequest && openSlots > 0;
   }
   function ensureDailyRequests(state, random = Math.random) {
     if (!dailyUnlocked(state)) return false;
@@ -782,7 +783,7 @@
     const usedIds = new Set(state.dailyRequests.map(slot => slot.templateId));
     const usedItems = new Set(state.dailyRequests.map(slot => dailyTemplate(slot.templateId).item));
     const usedResidents = new Set(state.dailyRequests.map(slot => dailyTemplate(slot.templateId).resident));
-    if (shouldAddCookingRequest(state, hasCookingRequest, DAILY_REQUEST_SLOTS - state.dailyRequests.length, random)) {
+    if (shouldAddCookingRequest(state, hasCookingRequest, DAILY_REQUEST_SLOTS - state.dailyRequests.length)) {
       const request = chooseDaily(state, usedIds, usedItems, usedResidents, null, random, cookingDailyRequestPool);
       state.dailyRequests.push({ templateId: request.id, completed: false });
       usedIds.add(request.id);
@@ -819,7 +820,7 @@
     }
     let changed = false;
     const completedSlots = state.dailyRequests.filter(slot => slot.completed);
-    if (shouldAddCookingRequest(state, hasCookingRequest, completedSlots.length, random)) {
+    if (shouldAddCookingRequest(state, hasCookingRequest, completedSlots.length)) {
       const slot = completedSlots.shift();
       const previous = dailyTemplate(slot.templateId);
       const replacement = chooseDaily(state, usedIds, usedItems, usedResidents, previous.id, random, cookingDailyRequestPool);

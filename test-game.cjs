@@ -965,7 +965,8 @@ assert.deepEqual(G.foods.map(food => [food.id, food.name, food.category]), [
   ['saltGrilledFish', '魚の塩焼き', '料理'],
   ['cheeseBakedMushrooms', 'きのこのチーズ焼き', '料理'],
   ['butterCookies', 'バタークッキー', '料理'],
-  ['mushroomCreamPasta', 'きのこのクリームパスタ', '料理']
+  ['mushroomCreamPasta', 'きのこのクリームパスタ', '料理'],
+  ['scrambledEggs', 'ふんわりスクランブルエッグ', '料理']
 ]);
 assert.deepEqual(G.cookingRecipes.map(recipe => [recipe.id, G.ingredients(recipe).map(input => [input.id, input.cost])]), [
   ['steamedPotato', [['potato', 1]]],
@@ -983,7 +984,8 @@ assert.deepEqual(G.cookingRecipes.map(recipe => [recipe.id, G.ingredients(recipe
   ['saltGrilledFish', [['fish', 1], ['salt', 1]]],
   ['cheeseBakedMushrooms', [['mushroom', 1], ['cheese', 1]]],
   ['butterCookies', [['wheat', 2], ['sugar', 1], ['butter', 1]]],
-  ['mushroomCreamPasta', [['wheat', 2], ['mushroom', 1], ['milk', 1], ['cheese', 1]]]
+  ['mushroomCreamPasta', [['wheat', 2], ['mushroom', 1], ['milk', 1], ['cheese', 1]]],
+  ['scrambledEggs', [['egg', 2]]]
 ]);
 assert.ok(G.dailyRequestPool.every(request => !G.foods.some(food => food.id === request.item)), '料理は日常依頼へ追加しない');
 const lockedCooking = G.fresh();
@@ -994,7 +996,7 @@ assert.equal(lockedCooking.inventory.potato, 2);
 assert.equal(lockedCooking.inventory.steamedPotato, 0);
 
 const cookingState = G.restore({ ...postgameRequestSeed, inventory: { potato: 4, carrot: 3, wheat: 4 }, gratitudePoints: 7 });
-assert.equal(G.availableRecipes(cookingState).filter(recipe => recipe.kind === 'cooking').length, 16, 'クリア済み旧セーブで16レシピを即解放');
+assert.equal(G.availableRecipes(cookingState).filter(recipe => recipe.kind === 'cooking').length, 17, 'クリア済み旧セーブで17レシピを即解放');
 assert.ok(G.foods.every(food => cookingState.inventory[food.id] === 0), '旧セーブの料理在庫は0で初期化');
 const dailyBeforeCooking = JSON.stringify(cookingState.dailyRequests);
 const pointsBeforeCooking = G.gratitudePointText(cookingState);
@@ -1268,12 +1270,13 @@ console.log('PASS: Regatowa postgame gating, immediate legacy visit, six atomic 
 
 const cookingRequestIds = new Set(G.cookingDailyRequestPool.map(request => request.id));
 const cookingRequestItems = new Set(G.cookingDailyRequestPool.map(request => request.item));
-assert.equal(G.COOKING_REQUEST_CHANCE, 0.35);
+assert.equal(G.COOKING_REQUEST_CHANCE, 1);
 assert.equal(G.cookingDailyRequestPool.length, Object.keys(G.dailyResidents).length * G.foods.length, '料理と住人の組み合わせをデータ生成');
-assert.deepEqual(cookingRequestItems, new Set(G.foods.map(food => food.id)), '16種類すべてを依頼候補に含む');
+assert.deepEqual(cookingRequestItems, new Set(G.foods.map(food => food.id)), '17種類すべてを依頼候補に含む');
 assert.ok(G.cookingDailyRequestPool.every(request => request.source === 'cooking' && request.quantity === 1));
 for (const food of G.foods.slice(0, 10)) assert.equal(G.cookingRequestWeight(food.id), 2, `${food.name}は自給素材中心の重み2`);
-for (const food of G.foods.slice(10)) assert.equal(G.cookingRequestWeight(food.id), 1, `${food.name}は外来食材使用の重み1`);
+for (const food of G.foods.slice(10, 16)) assert.equal(G.cookingRequestWeight(food.id), 1, `${food.name}は外来食材使用の重み1`);
+assert.equal(G.cookingRequestWeight('scrambledEggs'), 2, 'スクランブルエッグは自給素材料理の重み2');
 
 const preClearCooking = G.restore({ ...oldCompleteSave, dailyRequests: [
   { templateId: 'daily-naka-bag', completed: true },
@@ -1291,12 +1294,12 @@ const cookingDrawSeed = { ...postgameRequestSeed, dailyRequests: [
 ] };
 const cookingDraw = G.restore(cookingDrawSeed);
 G.refreshDailyRequests(cookingDraw, sequence(0.34, 0, 0, 0));
-assert.equal(G.currentDailyRequests(cookingDraw).filter(request => request.source === 'cooking').length, 1, '35%判定成功時に料理依頼を1件生成');
+assert.equal(G.currentDailyRequests(cookingDraw).filter(request => request.source === 'cooking').length, 1, '補充時に料理依頼を1件生成');
 assert.equal(G.currentDailyRequests(cookingDraw).filter(request => request.source !== 'cooking').length, 3, '残りは従来の日常依頼');
 
 const noCookingDraw = G.restore(cookingDrawSeed);
 G.refreshDailyRequests(noCookingDraw, sequence(0.35, 0, 0));
-assert.ok(G.currentDailyRequests(noCookingDraw).every(request => request.source !== 'cooking'), '35%外では従来依頼だけを生成');
+assert.equal(G.currentDailyRequests(noCookingDraw).filter(request => request.source === 'cooking').length, 1, '従来の35%境界でも料理依頼を生成');
 
 let cookingRequestDays = 0;
 for (let roll = 0; roll < 1000; roll++) {
@@ -1304,7 +1307,7 @@ for (let roll = 0; roll < 1000; roll++) {
   G.refreshDailyRequests(draw, sequence(roll / 1000, 0, 0, 0));
   if (G.currentDailyRequests(draw).some(request => request.source === 'cooking')) cookingRequestDays++;
 }
-assert.equal(cookingRequestDays, 350, '新規枝生成日の35%で料理依頼を1件混ぜる');
+assert.equal(cookingRequestDays, 1000, '補充できる全日で料理依頼を1件混ぜる');
 
 const carriedCookingId = 'daily-cooking-ritsu-mushroomCreamPasta';
 const carriedCooking = G.restore({ ...postgameRequestSeed, dailyRequests: [
@@ -1340,7 +1343,7 @@ const cookingDeliveryReload = G.restore(JSON.parse(JSON.stringify(cookingDeliver
 assert.equal(cookingDeliveryReload.dailyRequests.find(slot => cookingRequestIds.has(slot.templateId)).completed, true, '料理依頼の達成状態を再読込で維持');
 assert.equal(cookingDeliveryReload.gratitudePoints, 5);
 assert.equal(G.currentGardenRequest(cookingDeliveryReload), null, '裏庭依頼と独立したまま');
-console.log('PASS: sixteen weighted cooking requests, postgame 35-percent draw, max-one carryover, delivery, gratitude, resident progress and reload');
+console.log('PASS: seventeen weighted cooking requests, guaranteed postgame refill, max-one carryover, delivery, gratitude, resident progress and reload');
 
 const expandedItems = [...G.crops, ...G.backyardMaterials, ...G.merchantMaterials, ...G.foods];
 const encyclopediaLegacySeed = JSON.parse(JSON.stringify(finalReload));
@@ -1642,3 +1645,46 @@ for (const event of secondHospitality) {
 }
 assert.equal(G.SAVE_VERSION, 2);
 console.log('PASS: second hospitality set exact scripts/participants/dishes, Kuroko icon, first-set legacy memories and keepsake-only rewards');
+
+// 今回追加した料理だけを0補完し、既存の有効な全進捗をそのまま復元する。
+const eggLegacy = G.restore({ ...postgameRequestSeed, day: 42, inventory: { egg: 5, branch: 7 }, discovered: ['egg', 'branch'], gardenRequest: { resident: 'ritsu', cropId: 'wheat', completed: false } });
+delete eggLegacy.inventory.scrambledEggs;
+const eggRestored = G.restore(JSON.parse(JSON.stringify(eggLegacy)));
+assert.deepEqual(eggRestored, { ...eggLegacy, inventory: { ...eggLegacy.inventory, scrambledEggs: 0 } });
+assert.ok(!eggRestored.discovered.includes('scrambledEggs'), '旧セーブでは新料理は未発見');
+assert.equal(G.craft(eggRestored, 'scrambledEggs'), true);
+assert.equal(eggRestored.inventory.egg, 3);
+assert.equal(eggRestored.inventory.scrambledEggs, 1);
+assert.ok(eggRestored.discovered.includes('scrambledEggs'));
+assert.equal(G.craft(eggRestored, 'scrambledEggs', 2), false, '卵不足ではまとめ調理を拒否');
+assert.equal(G.craft(eggRestored, 'scrambledEggs'), true);
+assert.equal(eggRestored.inventory.egg, 1);
+assert.equal(eggRestored.inventory.scrambledEggs, 2);
+assert.deepEqual(G.restore(JSON.parse(JSON.stringify(eggRestored))), eggRestored);
+const scrambledRequest = G.cookingDailyRequestPool.find(request => request.item === 'scrambledEggs');
+eggRestored.dailyRequests[0] = { templateId: scrambledRequest.id, completed: false };
+assert.equal(G.deliverDaily(eggRestored, scrambledRequest.id), true);
+assert.equal(eggRestored.inventory.scrambledEggs, 1);
+
+for (let openSlots = 0; openSlots <= 4; openSlots++) {
+  const refill = G.restore({ ...cookingDrawSeed, dailyRequests: cookingDrawSeed.dailyRequests.map((slot, index) => ({ ...slot, completed: index < openSlots })) });
+  const before = JSON.stringify(refill.dailyRequests);
+  const gardenBefore = JSON.stringify(refill.gardenRequest);
+  let draws = 0;
+  G.refreshDailyRequests(refill, () => { draws++; return 0.999; });
+  const generated = G.currentDailyRequests(refill);
+  assert.equal(generated.length, 4);
+  assert.equal(generated.filter(request => request.source === 'cooking').length, openSlots ? 1 : 0, `補充${openSlots}枠でも料理最大1件`);
+  assert.equal(JSON.stringify(refill.gardenRequest), gardenBefore, '裏庭別枠に影響しない');
+  if (!openSlots) { assert.equal(JSON.stringify(refill.dailyRequests), before); assert.equal(draws, 0, '未完了4枠では抽選しない'); }
+  assert.deepEqual(G.restore(JSON.parse(JSON.stringify(refill))), refill);
+}
+const sparseEggLegacy = G.restore({ ...cookingDrawSeed, dailyRequests: cookingDrawSeed.dailyRequests.slice(0, 3).map(slot => ({ ...slot, completed: false })) }, () => 0.999);
+assert.equal(G.currentDailyRequests(sparseEggLegacy).filter(request => request.source === 'cooking').length, 1, '旧3枠セーブの不足1枠にも料理を補充');
+const finishedCooking = G.restore({ ...cookingDrawSeed, dailyRequests: [{ templateId: scrambledRequest.id, completed: true }, ...cookingDrawSeed.dailyRequests.slice(1).map(slot => ({ ...slot, completed: false }))] });
+const finishedBefore = JSON.stringify(finishedCooking.dailyRequests);
+assert.equal(JSON.stringify(G.restore(JSON.parse(JSON.stringify(finishedCooking))).dailyRequests), finishedBefore, '納品済み料理も読み込みだけでは入れ替えない');
+G.refreshDailyRequests(finishedCooking, () => 0.999);
+assert.equal(G.currentDailyRequests(finishedCooking).filter(request => request.source === 'cooking' && !request.completed).length, 1, '納品済み料理の翌日補充も料理1件');
+assert.ok(!finishedCooking.dailyRequests.some(slot => slot.templateId === scrambledRequest.id), '直前の同枠再登場を避ける');
+console.log('PASS: scrambled eggs exact consumption/discovery/delivery, full legacy-state preservation, 0-to-4 guaranteed refills, no full-slot draws, separate garden and completed-cooking reload');
