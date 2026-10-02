@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const G = require('./game.js');
 const saved = new Map();
-function launch() {
+function launch(random = Math.random) {
   const nodes = new Map();
   const handlers = {};
   const node = id => {
@@ -12,7 +12,7 @@ function launch() {
     return nodes.get(id);
   };
   const context = vm.createContext({
-    window: { MioGame: G, addEventListener: (name, fn) => { handlers[name] = fn; }, scrollTo() {} },
+    window: { MioGame: { ...G, restore: data => G.restore(data, random), rest: state => G.rest(state, random), mealConversation: state => G.mealConversation(state, random) }, addEventListener: (name, fn) => { handlers[name] = fn; }, scrollTo() {} },
     document: { getElementById: node, activeElement: null, addEventListener: (name, fn) => { handlers[name] = fn; } },
     localStorage: { getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key, value) },
     location: { hash: '#home' }, setTimeout: () => 0, clearTimeout() {}
@@ -32,6 +32,9 @@ function launch() {
     gratitudeDialogHtml() { return node('gratitude-dialog-content').innerHTML; },
     merchantDialogOpen() { return node('merchant-dialog').open; },
     merchantDialogHtml() { return node('merchant-dialog-content').innerHTML; },
+    mealDialogOpen() { return node('meal-dialog').open; },
+    mealDialogHtml() { return node('meal-dialog-content').innerHTML; },
+    escapeMeal() { node('meal-dialog').close(); },
     toastText() { return node('toast').textContent; },
     thankYouDialogOpen() { return node('thank-you-dialog').open; },
     thankYouDialogHtml() { return node('thank-you-dialog-content').innerHTML; },
@@ -2119,3 +2122,74 @@ for (const [id, name, materials] of [['rusticPudding', '素朴なプリン', '�
 assert.ok(app.page('encyclopedia').includes('9 / 57'));
 assert.ok(app.page('encyclopedia').includes('<small>19種類</small>'));
 console.log('PASS: two new cooking cards, exact click consumption, inventory, 19-food/57-item encyclopedia, discovery, recipe dialog, one-item delivery and complete legacy memories reload');
+
+saved.set('mioverse-craft-v1', JSON.stringify({ ...G.fresh(), introViewed: true }));
+app = launch();
+assert.ok(!app.page('home').includes('今日のまかない'));
+app.click('meal-open');
+assert.equal(app.mealDialogOpen(), false);
+const mealUiLegacy = G.restore({ ...memoryFullSave, day: 127, inventory: Object.fromEntries(G.foods.map(food => [food.id, 2])) });
+delete mealUiLegacy.dailyMeal;
+saved.set('mioverse-craft-v1', JSON.stringify(mealUiLegacy));
+app = launch(() => 0);
+assert.deepEqual(app.state(), { ...mealUiLegacy, dailyMeal: { day: 127, resident: 'naka', completed: false } });
+assert.ok(app.page('home').includes('今日のお客さん：💛ナカちゃん'));
+const mealUiBefore = app.state();
+app = launch(() => 0.999);
+assert.deepEqual(app.state(), mealUiBefore);
+app.click('meal-open');
+for (const food of G.foods) assert.ok(app.mealDialogHtml().includes(food.name));
+assert.equal((app.mealDialogHtml().match(/在庫 2個/g) || []).length, 19);
+assert.ok(!app.mealDialogHtml().includes('data-id="egg"'));
+app.click('meal-cancel');
+assert.equal(app.mealDialogOpen(), false);
+assert.deepEqual(app.state(), mealUiBefore);
+app.click('meal-open'); app.escapeMeal();
+assert.deepEqual(app.state(), mealUiBefore, 'Escape相当の閉じる操作は在庫も完了も変えない');
+app.click('meal-open'); app.click('meal-select', 'rusticPudding');
+assert.deepEqual(app.state(), mealUiBefore, '料理選択・第一台詞では消費しない');
+app.click('meal-next');
+assert.deepEqual(app.state(), mealUiBefore, '最終台詞を表示中も消費しない');
+app = launch(() => 0.8);
+assert.deepEqual(app.state(), mealUiBefore, '途中再読込では料理は消費せず当日の住人を維持');
+app.click('meal-open'); app.click('meal-select', 'rusticPudding'); app.click('meal-cancel');
+assert.deepEqual(app.state(), mealUiBefore, '会話キャンセルも消費・完了なし');
+app.click('meal-open'); app.click('meal-select', 'rusticPudding'); app.click('meal-next'); app.click('meal-next');
+const mealUiExpected = JSON.parse(JSON.stringify(mealUiBefore));
+mealUiExpected.inventory.rusticPudding--;
+mealUiExpected.dailyMeal.completed = true;
+assert.deepEqual(app.state(), mealUiExpected, '最終終了ボタンだけで1皿と当日完了を一度に保存');
+assert.ok(app.page('home').includes('今日はもう済ませました'));
+app.click('meal-next'); app.click('meal-open');
+assert.equal(app.mealDialogOpen(), false);
+assert.deepEqual(app.state(), mealUiExpected, '連打で二重消費しない');
+app = launch();
+assert.deepEqual(app.state(), mealUiExpected);
+assert.ok(app.page('home').includes('今日はもう済ませました'));
+const mealMemoryBefore = app.page('memories');
+assert.ok(!mealMemoryBefore.includes('まかない'));
+app.page('home'); app.click('rest'); app.click('rest-confirm');
+assert.equal(app.state().day, 128);
+assert.equal(app.state().dailyMeal.completed, false);
+assert.ok(app.page('home').includes('まかないを出す'));
+const noFoodMeal = { ...mealUiBefore, inventory: Object.fromEntries(Object.keys(mealUiBefore.inventory).map(id => [id, 0])) };
+saved.set('mioverse-craft-v1', JSON.stringify(noFoodMeal)); app = launch();
+assert.ok(app.page('home').includes('出せる料理がありません'));
+assert.ok(app.page('home').includes('href="#craft"') && app.page('home').includes('加工画面で作る'));
+app.click('meal-open'); assert.equal(app.mealDialogOpen(), false);
+for (const [resident, guest] of Object.entries(G.mealGuests)) {
+  for (let pattern = 0; pattern < 3; pattern++) {
+    const seed = { ...mealUiBefore, dailyMeal: { day: 127, resident, completed: false } };
+    saved.set('mioverse-craft-v1', JSON.stringify(seed));
+    app = launch(() => (pattern + 0.5) / 3);
+    app.page('home'); app.click('meal-open'); app.click('meal-select', 'saltButterBread');
+    assert.ok(app.mealDialogHtml().includes(`${guest.name}「${guest.conversations[pattern][0]}」`));
+    app.click('meal-next');
+    assert.ok(app.mealDialogHtml().includes(`${guest.name}「${guest.conversations[pattern][1]}」`));
+    app.click('meal-next');
+    assert.equal(app.state().inventory.saltButterBread, 1);
+    assert.equal(app.state().day, 127);
+    assert.equal(app.state().dailyMeal.completed, true);
+  }
+}
+console.log('PASS: daily meal home gating, all foods/stock selection, cancel/Escape/interrupted reload, 24 exact dialogue flows, one-dish atomic completion, duplicate guards, no rewards/progress/history and next day');

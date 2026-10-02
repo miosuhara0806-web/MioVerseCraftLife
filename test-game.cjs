@@ -1741,3 +1741,64 @@ for (const id of pantryFoods) {
   assert.equal(G.craft(locked, id), false, '本編未クリアでは追加料理も調理不可');
 }
 console.log('PASS: pudding and salt butter bread, exact/batch consumption, atomic shortages, eight-resident weighted candidates, delivery/refill and full legacy-state preservation');
+
+{
+assert.deepEqual(Object.fromEntries(Object.values(G.mealGuests).map(guest => [guest.name, guest.conversations])), require('./test-meal-dialogue.json'), '8人×3パターンの確定台詞を一字一句保持');
+const mealLegacy = G.restore({ ...pantryLegacy, day: 127, inventory: Object.fromEntries([...G.items, ...G.foods, ...G.crops, ...G.backyardMaterials, ...G.merchantMaterials].map(item => [item.id, 2])) });
+delete mealLegacy.dailyMeal;
+const mealState = G.restore(mealLegacy, () => 0);
+assert.deepEqual(mealState, { ...mealLegacy, dailyMeal: { day: 127, resident: 'naka', completed: false } }, '旧セーブはまかないの初期項目だけ補い全進捗を保持');
+assert.deepEqual(G.mealFoods(mealState), G.foods, '全19料理を定義から取得');
+const selectedFoods = G.restore({ ...mealState, inventory: { boiledEgg: 1, rusticPudding: 2, saltButterBread: 0, egg: 5 } }, () => 0);
+assert.deepEqual(G.mealFoods(selectedFoods).map(food => food.id), ['boiledEgg', 'rusticPudding'], '料理在庫が1以上のものだけを選べる');
+assert.deepEqual(G.restore(JSON.parse(JSON.stringify(mealState)), () => 0.999), mealState, '再読込は抽選し直さない');
+assert.equal(G.ensureDailyMeal(mealState, () => { throw Error('同日に抽選しない'); }), false);
+const residentIds = Object.keys(G.mealGuests);
+for (let index = 0; index < residentIds.length; index++) {
+  const guestState = G.restore(mealLegacy, () => (index + 0.5) / 8);
+  assert.equal(guestState.dailyMeal.resident, residentIds[index]);
+  for (let pattern = 0; pattern < 3; pattern++) assert.deepEqual(G.mealConversation(guestState, () => (pattern + 0.5) / 3), G.mealGuests[residentIds[index]].conversations[pattern]);
+}
+const mealResidentDraws = Object.fromEntries(residentIds.map(id => [id, 0]));
+for (let roll = 0; roll < 800; roll++) mealResidentDraws[G.restore(mealLegacy, () => (roll + 0.5) / 800).dailyMeal.resident]++;
+assert.ok(Object.values(mealResidentDraws).every(count => count === 100), '8人は同確率');
+const mealBefore = JSON.parse(JSON.stringify(mealState));
+assert.equal(G.serveDailyMeal(mealState, 'branch', 127, 'naka'), false);
+assert.equal(G.serveDailyMeal(mealState, 'rusticPudding', 126, 'naka'), false);
+assert.equal(G.serveDailyMeal(mealState, 'rusticPudding', 127, 'ritsu'), false);
+assert.deepEqual(mealState, mealBefore);
+assert.equal(G.serveDailyMeal(mealState, 'rusticPudding', 127, 'naka'), true);
+const mealExpected = JSON.parse(JSON.stringify(mealBefore));
+mealExpected.inventory.rusticPudding--;
+mealExpected.dailyMeal.completed = true;
+assert.deepEqual(mealState, mealExpected, '料理1個と当日完了以外の日付・報酬・全進捗を変更しない');
+assert.equal(G.serveDailyMeal(mealState, 'saltButterBread', 127, 'naka'), false);
+assert.equal(G.mealConversation(mealState), null);
+const mealReload = G.restore(JSON.parse(JSON.stringify(mealState)), () => 0.9);
+assert.deepEqual(mealReload, mealState);
+assert.equal(G.serveDailyMeal(mealReload, 'rusticPudding', 127, 'naka'), false);
+G.rest(mealReload, () => 0.999);
+assert.equal(mealReload.day, 128);
+assert.deepEqual(mealReload.dailyMeal, { day: 128, resident: 'aoiDoctor', completed: false });
+assert.equal(G.serveDailyMeal(mealReload, 'saltButterBread', 127, 'naka'), false, '前日の会話からの完了を拒否');
+const missedMeal = G.restore(mealLegacy, () => 0);
+G.rest(missedMeal, () => 0.999);
+assert.deepEqual(missedMeal.dailyMeal, { day: 128, resident: 'aoiDoctor', completed: false }, '未実施も翌日へ繰り越さない');
+assert.deepEqual(missedMeal.inventory, mealBefore.inventory, '未実施で翌日に進んでも料理は減らない');
+const lockedMeal = G.fresh();
+lockedMeal.inventory.boiledEgg = 2;
+assert.equal(G.ensureDailyMeal(lockedMeal), false);
+assert.deepEqual(G.mealFoods(lockedMeal), []);
+assert.equal(G.serveDailyMeal(lockedMeal, 'boiledEgg', 1, 'naka'), false);
+const emptyMeal = G.restore({ ...mealLegacy, inventory: {} }, () => 0);
+assert.deepEqual(G.mealFoods(emptyMeal), []);
+assert.equal(G.serveDailyMeal(emptyMeal, 'boiledEgg', 127, 'naka'), false);
+const hugeMeal = G.restore({ ...mealLegacy, day: '9007199254740993' }, () => 0);
+G.rest(hugeMeal, () => 0.999);
+assert.deepEqual(hugeMeal.dailyMeal, { day: '9007199254740994', resident: 'aoiDoctor', completed: false });
+assert.deepEqual(G.restore(JSON.parse(JSON.stringify(hugeMeal))), hugeMeal);
+for (const invalid of [{ day: 126, resident: 'naka', completed: true }, { day: 127, resident: 'toString', completed: true }, { day: 128, resident: 'naka', completed: true }]) {
+  assert.deepEqual(G.restore({ ...mealLegacy, dailyMeal: invalid }, () => 0).dailyMeal, { day: 127, resident: 'naka', completed: false });
+}
+console.log('PASS: daily meal gating, 24 exact conversations, equal daily guest draws, full legacy preservation, all foods, atomic no-reward completion, duplicate/reload/stale guards, skipped days and huge days');
+}

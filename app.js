@@ -48,6 +48,10 @@ const gratitudeDialog = document.getElementById('gratitude-dialog');
 const merchantDialog = document.getElementById('merchant-dialog');
 const thankYouDialog = document.getElementById('thank-you-dialog');
 const storyDialog = document.getElementById('story-dialog');
+const mealDialog = document.getElementById('meal-dialog');
+let pendingMeal = null;
+mealDialog.addEventListener?.('close', () => { pendingMeal = null; });
+mealDialog.addEventListener?.('cancel', () => { pendingMeal = null; });
 thankYouDialog.addEventListener?.('close', () => { activeThankYouResidentId = null; });
 storyDialog.addEventListener?.('close', () => { activeStoryMilestoneId = null; });
 storyDialog.addEventListener?.('cancel', event => { if (activeStoryMilestoneId === 'intro') event.preventDefault(); });
@@ -106,9 +110,31 @@ function home() {
   const merchantCard = merchant ? `<section class="merchant-card ${merchant.present ? 'present' : ''}" aria-labelledby="merchant-card-title"><div><p class="eyebrow">TRAVELING MERCHANT</p><h2 id="merchant-card-title">行商人</h2><p>${merchant.present ? 'レガトワが来ています' : `次の来訪まで あと${merchant.daysUntil}日`}</p>${merchant.present ? '<small>「美桜ーーー！今日はいいもん持ってきたぞ！！」</small>' : '<small>日付が進むと、3日ごとに工房へ立ち寄ります。</small>'}</div>${merchant.present ? '<button data-action="merchant-open">品物を見る</button>' : '<span class="merchant-away">旅の途中</span>'}</section>` : '';
   return `${dayStatus()}<section class="hero"><p class="eyebrow">A LITTLE WORKSHOP IN THE WOODS</p><h1>森の恵みで、<br>暮らしをひとつ。</h1><p>小径で集めて、工房でつくる。<br>あなたの手仕事を、住人たちが待っています。</p>${link('gather', '森の小径へ')}<span class="hero-stamp" aria-hidden="true">森<br>と<br>暮らす</span></section>${state.storyProgress.milestone8Completed ? '<div class="workshop-sign"><small>Mio Verse</small><strong>小径の工房</strong></div>' : ''}
     <div class="stats"><div><span>在庫の合計</span><strong>${total()} <small>個</small></strong></div><div><span>住人へのお届け</span><strong>${done} <small>/ ${requestTotal()} 件</small></strong></div><div><span>今日のペース</span><strong class="slow">のんびり</strong></div></div>
-    ${backyardNotice}${merchantCard}
+    ${backyardNotice}${merchantCard}${dailyMealCard()}
     <section><div class="section-title"><h2>工房での過ごし方</h2><span>急がず、ひとつずつ</span></div><div class="steps"><a href="#gather"><span class="step-number">01 / GATHER</span><h3>森で集める</h3><p>枝、ツル草、野花。<br>好きな素材を選んで採集。</p><span class="text-link">採集へ →</span></a><a href="#craft"><span class="step-number">02 / CRAFT</span><h3>手を動かす</h3><p>素材を少しずつ加工して、<br>暮らしの道具をつくる。</p><span class="text-link">加工へ →</span></a><a href="#requests"><span class="step-number">03 / GIVE</span><h3>住人へ届ける</h3><p>できあがった品物で、<br>小さなお願いを叶える。</p><span class="text-link">依頼へ →</span></a></div></section>
     <section class="note"><span class="note-icon" aria-hidden="true">✳</span><div><h3>${done === G.requests.length ? '日常のお願いが届いています' : G.stageTwoUnlocked(state) ? '新しい3件のお願いが届いています' : 'はじめのひと品に、布袋はいかが？'}</h3><p>${done === G.requests.length ? `8人の住人から届く日常のお願いのうち、${G.DAILY_REQUEST_SLOTS}件を受け付けます。お届け済みの枠は「今日は休む」と翌日に入れ替わります。` : G.stageTwoUnlocked(state) ? (state.unlockedStage === 3 ? '乾燥花はリースに、小箱は布張りに。素材の使い道を選びながら、新しい品物をつくってみましょう。' : '布と染料、そして木材。素材を組み合わせて、窓辺や壁を彩る品物をつくってみましょう。') : 'ツル草を1回採集 → 植物繊維を2個 → 糸を2個 → 布を1個 → 布袋を1個。ナカちゃんに届けてみましょう。'}</p></div></section>`;
+}
+function dailyMealCard() {
+  if (!G.postgameUnlocked(state) || !state.dailyMeal) return '';
+  const meal = state.dailyMeal;
+  const guest = G.mealGuests[meal.resident];
+  const available = G.mealFoods(state).length > 0;
+  return `<section class="daily-meal-card" aria-labelledby="daily-meal-title"><div><h2 id="daily-meal-title">今日のまかない</h2>${meal.completed ? '<p>今日はもう済ませました</p>' : `<p>今日のお客さん：${guest.name}</p>${available ? '' : '<small>出せる料理がありません</small>'}`}</div>${meal.completed ? '' : available ? '<button data-action="meal-open">まかないを出す</button>' : link('craft', '加工画面で作る')}</section>`;
+}
+function openMealSelection() {
+  if (!G.postgameUnlocked(state) || !state.dailyMeal || state.dailyMeal.completed || !G.mealFoods(state).length || mealDialog.open) return;
+  pendingMeal = null;
+  document.getElementById('meal-dialog-content').innerHTML = `<h2 id="meal-dialog-title" tabindex="-1">今日のまかない</h2><p>今日のお客さん：${G.mealGuests[state.dailyMeal.resident].name}</p><div class="meal-food-list">${G.mealFoods(state).map(food => `<button class="secondary" data-action="meal-select" data-id="${food.id}"><span>${food.name}</span><small>在庫 ${count(food.id)}個</small></button>`).join('')}</div><div class="meal-dialog-actions"><button class="secondary" data-action="meal-cancel">キャンセル</button></div>`;
+  mealDialog.showModal();
+  document.getElementById('meal-dialog-title').focus({ preventScroll: true });
+  mealDialog.scrollTop = 0;
+}
+function renderMealConversation() {
+  const meal = pendingMeal;
+  const guest = G.mealGuests[meal.resident];
+  document.getElementById('meal-dialog-content').innerHTML = `<h2 id="meal-dialog-title" tabindex="-1">今日のまかない</h2><p class="meal-dish">${names[meal.foodId]}をひと皿</p><div class="meal-conversation"><p>${guest.name}「${meal.lines[meal.step]}」</p></div><div class="meal-dialog-actions"><button class="secondary" data-action="meal-cancel">キャンセル</button><button data-action="meal-next">${meal.step === meal.lines.length - 1 ? 'ごちそうさま' : '次へ'}</button></div>`;
+  document.getElementById('meal-dialog-title').focus({ preventScroll: true });
+  mealDialog.scrollTop = 0;
 }
 function gatherPage() {
   const descriptions = { branch: '木漏れ日の下に落ちた、手になじむ枝。', vine: '道ばたに伸びる、しなやかなツル草。', flower: '小径を彩る、やさしい色の野花。' };
@@ -349,6 +375,27 @@ document.addEventListener('click', event => {
   const button = event.target.closest('button[data-action]');
   if (!button || button.disabled) return;
   const { action, id } = button.dataset;
+  if (action === 'meal-open') { openMealSelection(); return; }
+  if (action === 'meal-cancel') { pendingMeal = null; mealDialog.close(); return; }
+  if (action === 'meal-select') {
+    if (!mealDialog.open || pendingMeal || !G.mealFoods(state).some(food => food.id === id)) return;
+    const lines = G.mealConversation(state);
+    if (!lines) return;
+    pendingMeal = { day: state.day, resident: state.dailyMeal.resident, foodId: id, lines, step: 0 };
+    renderMealConversation();
+    return;
+  }
+  if (action === 'meal-next') {
+    if (!mealDialog.open || !pendingMeal) return;
+    if (pendingMeal.step < pendingMeal.lines.length - 1) { pendingMeal.step++; renderMealConversation(); return; }
+    const meal = pendingMeal;
+    pendingMeal = null;
+    const completed = G.serveDailyMeal(state, meal.foodId, meal.day, meal.resident);
+    mealDialog.close();
+    if (completed) { save(); render(); }
+    document.getElementById('main').focus({ preventScroll: true });
+    return;
+  }
   if (action === 'hospitality-host') {
     if (!G.host(state, id)) return;
     save(); render();
@@ -517,6 +564,7 @@ document.addEventListener('click', event => {
   if (message) { save(); render(); notify(message); }
 });
 function navigate() {
+  if (mealDialog.open) { pendingMeal = null; mealDialog.close(); }
   if (storyDialog.open) { storyDialog.close(); activeStoryMilestoneId = null; }
   const hash = location.hash.slice(1);
   currentPage = pages.some(p => p[0] === hash) && (!['backyard', 'hospitality'].includes(hash) || G.postgameUnlocked(state)) ? hash : 'home';

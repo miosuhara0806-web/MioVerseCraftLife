@@ -549,3 +549,25 @@ footer { border-top-style: dashed; color: var(--muted); }
   .backyard-request { margin-top: -12px; padding: 18px 16px; }
   .backyard-request-heading { align-items: flex-start; }
 }
+
+.daily-meal-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 28px; padding: 20px 24px; background: var(--paper); border: 1px solid var(--line); border-radius: 17px; box-shadow: var(--card-shadow); min-width: 0; }
+.daily-meal-card h2 { margin: 0 0 8px; color: var(--green); font-family: "Yu Mincho", serif; font-size: 20px; font-weight: 500; }
+.daily-meal-card p { margin: 0; font-size: 13px; }
+.daily-meal-card small { display: block; margin-top: 8px; color: var(--muted); }
+.daily-meal-card > div { min-width: 0; }
+.daily-meal-card > button, .daily-meal-card > a { flex-shrink: 0; font-size: 12px; }
+#meal-dialog { color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 17px; padding: 26px; width: 480px; max-width: calc(100% - 24px); max-height: calc(100dvh - 24px); overflow: auto; overscroll-behavior: contain; overflow-wrap: anywhere; }
+#meal-dialog::backdrop { background: #25352c80; }
+#meal-dialog h2 { font-family: "Yu Mincho", serif; color: var(--green); font-size: 22px; font-weight: 500; margin-bottom: 15px; }
+.meal-food-list { display: grid; gap: 9px; margin: 20px 0; }
+.meal-food-list button { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 5px 12px; width: 100%; text-align: left; padding: 12px 14px; font-size: 13px; }
+.meal-food-list small { font-size: 11px; white-space: nowrap; }
+.meal-conversation { line-height: 1.9; font-size: 14px; margin: 20px 0; }
+.meal-dish { color: var(--muted); font-size: 12px; }
+.meal-dialog-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+.meal-dialog-actions button { flex: 1; font-size: 12px; }
+@media (max-width: 480px) {
+  .daily-meal-card { flex-direction: column; align-items: stretch; padding: 18px 16px; }
+  #meal-dialog { padding: 20px 18px; }
+  .meal-dialog-actions { flex-direction: column; }
+}

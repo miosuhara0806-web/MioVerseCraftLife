@@ -9,9 +9,9 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="workshop-theme.css?v=memories-v1">
-  <script src="game.js?v=cooking-pudding-bread-v1" defer></script>
-  <script src="app.js?v=memories-all-v1" defer></script>
+  <link rel="stylesheet" href="workshop-theme.css?v=daily-meal-v1">
+  <script src="game.js?v=daily-meal-v1" defer></script>
+  <script src="app.js?v=daily-meal-v1" defer></script>
 </head>
 <body>
   <div class="app-shell">
@@ -43,6 +43,9 @@
   <dialog id="thank-you-dialog" aria-labelledby="thank-you-title">
     <div id="thank-you-dialog-content"></div>
     <div class="thank-you-actions"><button class="secondary" data-action="thank-you-close">あとで読む</button><button data-action="thank-you-complete">ありがとう</button></div>
+  </dialog>
+  <dialog id="meal-dialog" aria-labelledby="meal-dialog-title">
+    <div id="meal-dialog-content"></div>
   </dialog>
   <dialog id="story-dialog" aria-labelledby="story-dialog-title">
     <div id="story-dialog-content"></div>

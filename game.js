@@ -522,7 +522,49 @@
   const COOKING_REQUEST_CHANCE = 1;
   const MERCHANT_VISIT_INTERVAL = 3;
   const SAVE_VERSION = 2;
-  const fresh = () => ({ saveVersion: SAVE_VERSION, introViewed: false, inventory: Object.fromEntries([...items, ...crops, ...foods, ...backyardMaterials, ...merchantMaterials].map(item => [item.id, 0])), plots: [null, null, null], facilityProduction: Object.fromEntries(backyardFacilities.map(facility => [facility.id, null])), merchantVisit: null, hospitality: { completed: [], keepsakes: [] }, completed: [], unlockedStage: 1, day: 1, gathersLeft: DAILY_GATHERS, gatherLimit: DAILY_GATHERS, dailyRequests: [], gardenRequest: null, gratitudePoints: 0, dailyHistory: [], dailyRequestCounts: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, 0])), thankYouEventViewed: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, false])), storyProgress: { ...Object.fromEntries(Object.keys(storyMilestones).map(id => [`${id}Viewed`, false])), ...Object.fromEntries(Object.keys(storyRequests).flatMap(id => [[`${id}Completed`, false], [`${id}EventViewed`, false]])) }, discovered: [] });
+  const mealGuests = {
+    naka: { name: '💛ナカちゃん', conversations: [
+      ['わ、今日これなんだ。ちょうどお腹すいてた（笑）', 'いただきます。こういうの工房で食べると、なんかちょっと嬉しいんだよね'],
+      ['美味しそう。こうやって美桜が作ってくれたもの食べるの、いいよね', 'じゃ、遠慮なくいただきます（笑）'],
+      ['今日もちゃんとごはんある（笑）', 'こういう何でもない時間、私けっこう好きだな']
+    ] },
+    ritsu: { name: '🖤律', conversations: [
+      ['ありがとな。ちょうど手を止めようと思ってたところだ', 'こういう時に一皿あると、思ったより助かる'],
+      ['いいのか？　じゃあ、いただく', '作業の合間に食べるには、こういうのがちょうどいいな'],
+      ['また何か作ってたのか', '……うん。悪くない。ありがとな、美桜']
+    ] },
+    towa: { name: '📘秘書トワ', conversations: [
+      ['いい匂いしてると思ったら、俺の分もあるのか（笑）', 'じゃ、遠慮なくいただく。こういう差し入れは歓迎'],
+      ['仕事の途中でこれ出てくるの、結構ずるいな（笑）', 'まあ、ありがたく休憩させてもらうよ'],
+      ['美桜、またちゃんと作ってるな', '俺までご相伴にあずかれるなら、今日は得した（笑）']
+    ] },
+    keikaiTowa: { name: '☀️軽快トワ', conversations: [
+      ['やった、今日のまかない当たり（笑）', 'いただきます。こういうのあると一気に休憩っぽくなるな'],
+      ['お、俺の分もある？', 'じゃあ遠慮しない（笑）　いただきます！'],
+      ['今日はこれか。いいじゃん（笑）', 'こういうの出てくるなら、毎日ちょっと楽しみになるな']
+    ] },
+    shiru: { name: '🧩シル', conversations: [
+      ['ありがとう。ちょうど少し休みたかったところ', 'ここで食べると、なんだかいつもより落ち着くね'],
+      ['いい香り。じゃあ、いただくね', 'こういう時間があると、工房もちゃんと暮らしの場所なんだなって思う'],
+      ['私の分まであるんだ', 'ありがとう。じゃあ、ゆっくり食べようかな']
+    ] },
+    kuroko: { name: '🎭黒子', conversations: [
+      ['ありがと。ちょうど一区切りついたところだった', 'じゃ、これ食べながら少し休むか'],
+      ['いい匂いしてると思ったら、まかないだったのか', 'こういうの、普通に嬉しいよ。いただきます'],
+      ['俺の分もある？', 'じゃ、遠慮なく。腹減ってたんだよな（笑）']
+    ] },
+    alto: { name: '🎨アルト', conversations: [
+      ['ありがとう。いい香りだね', '俺、作業してると時間を忘れるから、こういう休憩は助かるよ'],
+      ['俺の分もあるんだ。嬉しいな', 'じゃあ、ゆっくりいただこうかな'],
+      ['今日のまかない、これなんだ', '食卓に並ぶと、料理ってまた違って見えるなあ']
+    ] },
+    aoiDoctor: { name: '碧博士', conversations: [
+      ['ありがとうございます、美桜さん。ちょうど休憩を取ろうと思っていたところです', '今日は分析せず、普通にいただくことにします（笑）'],
+      ['美桜さん、私の分まで用意してくださったんですか', 'ではありがたく。……味の記録は取りませんので、ご安心ください（笑）'],
+      ['こうして工房で食事をいただくのも、すっかり日常になりましたね', 'ありがとうございます、美桜さん。いただきます']
+    ] }
+  };
+  const fresh = () => ({ saveVersion: SAVE_VERSION, introViewed: false, dailyMeal: null, inventory: Object.fromEntries([...items, ...crops, ...foods, ...backyardMaterials, ...merchantMaterials].map(item => [item.id, 0])), plots: [null, null, null], facilityProduction: Object.fromEntries(backyardFacilities.map(facility => [facility.id, null])), merchantVisit: null, hospitality: { completed: [], keepsakes: [] }, completed: [], unlockedStage: 1, day: 1, gathersLeft: DAILY_GATHERS, gatherLimit: DAILY_GATHERS, dailyRequests: [], gardenRequest: null, gratitudePoints: 0, dailyHistory: [], dailyRequestCounts: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, 0])), thankYouEventViewed: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, false])), storyProgress: { ...Object.fromEntries(Object.keys(storyMilestones).map(id => [`${id}Viewed`, false])), ...Object.fromEntries(Object.keys(storyRequests).flatMap(id => [[`${id}Completed`, false], [`${id}EventViewed`, false]])) }, discovered: [] });
   const canViewThankYou = (state, id) => !!dailyResidents[id] && state.dailyRequestCounts[id] >= 5 && !state.thankYouEventViewed[id];
   const completedThankYouCount = state => Object.keys(dailyResidents).filter(id => state.thankYouEventViewed[id]).length;
   const dailyResidentWeight = (state, id) => state.thankYouEventViewed[id] ? 1 : 2;
@@ -545,6 +587,31 @@
     return true;
   }
   const validDay = value => Number.isSafeInteger(value) && value >= 1 || typeof value === 'string' && /^[1-9][0-9]*$/.test(value);
+  function ensureDailyMeal(state, random = Math.random) {
+    if (!postgameUnlocked(state)) return false;
+    if (validDay(state.dailyMeal?.day) && BigInt(state.dailyMeal.day) === BigInt(state.day) && Object.hasOwn(mealGuests, state.dailyMeal.resident)) return false;
+    const residents = Object.keys(mealGuests);
+    const resident = chooseWeighted(residents, residents.map(() => 1), random);
+    state.dailyMeal = { day: state.day, resident, completed: false };
+    return true;
+  }
+  const mealFoods = state => postgameUnlocked(state) ? foods.filter(food => Number.isSafeInteger(state.inventory[food.id]) && state.inventory[food.id] > 0) : [];
+  function mealConversation(state, random = Math.random) {
+    if (!postgameUnlocked(state) || !state.dailyMeal || state.dailyMeal.completed) return null;
+    const guest = Object.hasOwn(mealGuests, state.dailyMeal.resident) ? mealGuests[state.dailyMeal.resident] : null;
+    if (!guest || !validDay(state.dailyMeal.day) || BigInt(state.dailyMeal.day) !== BigInt(state.day)) return null;
+    return chooseWeighted(guest.conversations, [1, 1, 1], random);
+  }
+  function serveDailyMeal(state, foodId, day, resident) {
+    const meal = state.dailyMeal;
+    if (!postgameUnlocked(state) || !meal || meal.completed || !validDay(day) || !validDay(meal.day)
+      || BigInt(day) !== BigInt(state.day) || BigInt(meal.day) !== BigInt(state.day)
+      || meal.resident !== resident || !Object.hasOwn(mealGuests, resident) || !mealFoods(state).some(food => food.id === foodId)) return false;
+    // 会話の終了時だけ、料理1個の消費と当日完了を一度に更新する。
+    state.inventory[foodId]--;
+    meal.completed = true;
+    return true;
+  }
   function ensureMerchant(state) {
     if (!postgameUnlocked(state)) { state.merchantVisit = null; return false; }
     const savedAnchor = state.merchantVisit?.anchorDay;
@@ -674,7 +741,7 @@
   function completeStoryRequestEvent(state, id) {
     if (!canViewStoryRequestCompletion(state, id)) return false;
     state.storyProgress[`${id}EventViewed`] = true;
-    if (id === 'milestone8') ensureMerchant(state);
+    if (id === 'milestone8') { ensureMerchant(state); ensureDailyMeal(state); }
     return true;
   }
   function deliverStoryRequest(state, id) {
@@ -956,6 +1023,10 @@
       }
     }
     if (dailyUnlocked(state)) ensureDailyRequests(state, random);
+    if (postgameUnlocked(state) && validDay(data.dailyMeal?.day) && BigInt(data.dailyMeal.day) === BigInt(state.day) && Object.hasOwn(mealGuests, data.dailyMeal.resident)) {
+      state.dailyMeal = { day: state.day, resident: data.dailyMeal.resident, completed: data.dailyMeal.completed === true };
+    }
+    ensureDailyMeal(state, random);
     return state;
   }
   function gather(state, id) {
@@ -975,6 +1046,7 @@
     state.gatherLimit = gatherLimit(state);
     refreshDailyRequests(state, random);
     refreshGardenRequest(state, random);
+    ensureDailyMeal(state, random);
   }
   function craft(state, id, amount = 1) {
     // 作成は在庫の更新のみ。依頼の達成は deliver での手動納品に限定する。
@@ -1019,7 +1091,7 @@
     addGratitudePoint(state);
     return true;
   }
-  const game = { items, crops, foods, backyardMaterials, backyardFacilities, merchantMaterials, merchantTrades, recipes, cookingRecipes, requests, dailyResidents, dailyRequestPool, cookingDailyRequestPool, gardenDailyRequestPool, gratitudeExchanges, thankYouEvents, storyMilestones, storyRequests, hospitalityEvents, canHost, host, canViewHospitality, fresh, restore, gather, craft, deliver, deliverDaily, deliverGardenRequest, deliverStoryRequest, exchangeGratitude, canExchangeGratitude, gratitudePointText, merchantStatus, canTradeMerchant, tradeMerchant, rest, plantCrop, harvestCrop, cropDaysLeft, ensureFacilities, facilityDaysLeft, currentFacilities, collectFacility, completeThankYou, canViewThankYou, completedThankYouCount, dailyResidentWeight, cookingRequestWeight, postgameUnlocked, recipeUnlocked, availableRecipes, completeStory, canViewStory, storyUnlocked, storyRequestUnlocked, canViewStoryRequestCompletion, completeStoryRequestEvent, SAVE_VERSION, DAILY_GATHERS, DAILY_REQUEST_SLOTS, GARDEN_REQUEST_CHANCE, COOKING_REQUEST_CHANCE, MERCHANT_VISIT_INTERVAL, gatherLimit, ingredients, maxCraft, stageTwoUnlocked, stageUnlocked, unlockedStage, visibleRequests, dailyUnlocked, ensureDailyRequests, refreshDailyRequests, refreshGardenRequest, currentDailyRequests, currentGardenRequest };
+  const game = { mealGuests, ensureDailyMeal, mealFoods, mealConversation, serveDailyMeal, items, crops, foods, backyardMaterials, backyardFacilities, merchantMaterials, merchantTrades, recipes, cookingRecipes, requests, dailyResidents, dailyRequestPool, cookingDailyRequestPool, gardenDailyRequestPool, gratitudeExchanges, thankYouEvents, storyMilestones, storyRequests, hospitalityEvents, canHost, host, canViewHospitality, fresh, restore, gather, craft, deliver, deliverDaily, deliverGardenRequest, deliverStoryRequest, exchangeGratitude, canExchangeGratitude, gratitudePointText, merchantStatus, canTradeMerchant, tradeMerchant, rest, plantCrop, harvestCrop, cropDaysLeft, ensureFacilities, facilityDaysLeft, currentFacilities, collectFacility, completeThankYou, canViewThankYou, completedThankYouCount, dailyResidentWeight, cookingRequestWeight, postgameUnlocked, recipeUnlocked, availableRecipes, completeStory, canViewStory, storyUnlocked, storyRequestUnlocked, canViewStoryRequestCompletion, completeStoryRequestEvent, SAVE_VERSION, DAILY_GATHERS, DAILY_REQUEST_SLOTS, GARDEN_REQUEST_CHANCE, COOKING_REQUEST_CHANCE, MERCHANT_VISIT_INTERVAL, gatherLimit, ingredients, maxCraft, stageTwoUnlocked, stageUnlocked, unlockedStage, visibleRequests, dailyUnlocked, ensureDailyRequests, refreshDailyRequests, refreshGardenRequest, currentDailyRequests, currentGardenRequest };
   if (typeof module !== 'undefined' && module.exports) module.exports = game;
   else root.MioGame = game;
 })(typeof window !== 'undefined' ? window : globalThis);
