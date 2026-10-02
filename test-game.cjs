@@ -966,7 +966,9 @@ assert.deepEqual(G.foods.map(food => [food.id, food.name, food.category]), [
   ['cheeseBakedMushrooms', 'きのこのチーズ焼き', '料理'],
   ['butterCookies', 'バタークッキー', '料理'],
   ['mushroomCreamPasta', 'きのこのクリームパスタ', '料理'],
-  ['scrambledEggs', 'ふんわりスクランブルエッグ', '料理']
+  ['scrambledEggs', 'ふんわりスクランブルエッグ', '料理'],
+  ['rusticPudding', '素朴なプリン', '料理'],
+  ['saltButterBread', '塩バターパン', '料理']
 ]);
 assert.deepEqual(G.cookingRecipes.map(recipe => [recipe.id, G.ingredients(recipe).map(input => [input.id, input.cost])]), [
   ['steamedPotato', [['potato', 1]]],
@@ -985,7 +987,9 @@ assert.deepEqual(G.cookingRecipes.map(recipe => [recipe.id, G.ingredients(recipe
   ['cheeseBakedMushrooms', [['mushroom', 1], ['cheese', 1]]],
   ['butterCookies', [['wheat', 2], ['sugar', 1], ['butter', 1]]],
   ['mushroomCreamPasta', [['wheat', 2], ['mushroom', 1], ['milk', 1], ['cheese', 1]]],
-  ['scrambledEggs', [['egg', 2]]]
+  ['scrambledEggs', [['egg', 2]]],
+  ['rusticPudding', [['egg', 2], ['milk', 1], ['sugar', 1]]],
+  ['saltButterBread', [['wheat', 2], ['salt', 1], ['butter', 1]]]
 ]);
 assert.ok(G.dailyRequestPool.every(request => !G.foods.some(food => food.id === request.item)), '料理は日常依頼へ追加しない');
 const lockedCooking = G.fresh();
@@ -996,7 +1000,7 @@ assert.equal(lockedCooking.inventory.potato, 2);
 assert.equal(lockedCooking.inventory.steamedPotato, 0);
 
 const cookingState = G.restore({ ...postgameRequestSeed, inventory: { potato: 4, carrot: 3, wheat: 4 }, gratitudePoints: 7 });
-assert.equal(G.availableRecipes(cookingState).filter(recipe => recipe.kind === 'cooking').length, 17, 'クリア済み旧セーブで17レシピを即解放');
+assert.equal(G.availableRecipes(cookingState).filter(recipe => recipe.kind === 'cooking').length, 19, 'クリア済み旧セーブで19レシピを即解放');
 assert.ok(G.foods.every(food => cookingState.inventory[food.id] === 0), '旧セーブの料理在庫は0で初期化');
 const dailyBeforeCooking = JSON.stringify(cookingState.dailyRequests);
 const pointsBeforeCooking = G.gratitudePointText(cookingState);
@@ -1272,7 +1276,7 @@ const cookingRequestIds = new Set(G.cookingDailyRequestPool.map(request => reque
 const cookingRequestItems = new Set(G.cookingDailyRequestPool.map(request => request.item));
 assert.equal(G.COOKING_REQUEST_CHANCE, 1);
 assert.equal(G.cookingDailyRequestPool.length, Object.keys(G.dailyResidents).length * G.foods.length, '料理と住人の組み合わせをデータ生成');
-assert.deepEqual(cookingRequestItems, new Set(G.foods.map(food => food.id)), '17種類すべてを依頼候補に含む');
+assert.deepEqual(cookingRequestItems, new Set(G.foods.map(food => food.id)), '19種類すべてを依頼候補に含む');
 assert.ok(G.cookingDailyRequestPool.every(request => request.source === 'cooking' && request.quantity === 1));
 for (const food of G.foods.slice(0, 10)) assert.equal(G.cookingRequestWeight(food.id), 2, `${food.name}は自給素材中心の重み2`);
 for (const food of G.foods.slice(10, 16)) assert.equal(G.cookingRequestWeight(food.id), 1, `${food.name}は外来食材使用の重み1`);
@@ -1343,7 +1347,7 @@ const cookingDeliveryReload = G.restore(JSON.parse(JSON.stringify(cookingDeliver
 assert.equal(cookingDeliveryReload.dailyRequests.find(slot => cookingRequestIds.has(slot.templateId)).completed, true, '料理依頼の達成状態を再読込で維持');
 assert.equal(cookingDeliveryReload.gratitudePoints, 5);
 assert.equal(G.currentGardenRequest(cookingDeliveryReload), null, '裏庭依頼と独立したまま');
-console.log('PASS: seventeen weighted cooking requests, guaranteed postgame refill, max-one carryover, delivery, gratitude, resident progress and reload');
+console.log('PASS: nineteen weighted cooking requests, guaranteed postgame refill, max-one carryover, delivery, gratitude, resident progress and reload');
 
 const expandedItems = [...G.crops, ...G.backyardMaterials, ...G.merchantMaterials, ...G.foods];
 const encyclopediaLegacySeed = JSON.parse(JSON.stringify(finalReload));
@@ -1688,3 +1692,52 @@ G.refreshDailyRequests(finishedCooking, () => 0.999);
 assert.equal(G.currentDailyRequests(finishedCooking).filter(request => request.source === 'cooking' && !request.completed).length, 1, '納品済み料理の翌日補充も料理1件');
 assert.ok(!finishedCooking.dailyRequests.some(slot => slot.templateId === scrambledRequest.id), '直前の同枠再登場を避ける');
 console.log('PASS: scrambled eggs exact consumption/discovery/delivery, full legacy-state preservation, 0-to-4 guaranteed refills, no full-slot draws, separate garden and completed-cooking reload');
+
+const pantryFoods = ['rusticPudding', 'saltButterBread'];
+const pantryLegacy = G.restore({ ...postgameRequestSeed, day: 47, inventory: { egg: 6, milk: 3, sugar: 2, wheat: 6, salt: 3, butter: 2, scrambledEggs: 4 }, discovered: ['egg', 'milk', 'sugar', 'wheat', 'salt', 'butter', 'scrambledEggs'], hospitality: { completed: G.hospitalityEvents.map(event => event.id) }, gardenRequest: { resident: 'ritsu', cropId: 'wheat', completed: false }, gratitudePoints: 12 });
+for (const id of pantryFoods) delete pantryLegacy.inventory[id];
+const pantryRestored = G.restore(JSON.parse(JSON.stringify(pantryLegacy)));
+assert.deepEqual(pantryRestored, { ...pantryLegacy, inventory: { ...pantryLegacy.inventory, rusticPudding: 0, saltButterBread: 0 } }, '今回追加した2品の0補完以外は全進捗を維持');
+for (const id of pantryFoods) {
+  const recipe = G.cookingRecipes.find(entry => entry.id === id);
+  assert.ok(!pantryRestored.discovered.includes(id));
+  assert.equal(G.cookingRequestWeight(id), 1, '外来食材料理の既存ウェイト1');
+  const candidates = G.cookingDailyRequestPool.filter(request => request.item === id);
+  assert.equal(candidates.length, Object.keys(G.dailyResidents).length);
+  assert.ok(candidates.every(request => request.quantity === 1 && request.weight === 1 && request.source === 'cooking'));
+  for (const input of recipe.inputs) {
+    const shortage = G.restore(JSON.parse(JSON.stringify(pantryRestored)));
+    shortage.inventory[input.id] = input.cost - 1;
+    const before = JSON.stringify(shortage);
+    assert.equal(G.craft(shortage, id), false);
+    assert.equal(JSON.stringify(shortage), before, `${id}: ${input.id}不足なら他素材も発見状態も変えない`);
+  }
+  const cooked = G.restore(JSON.parse(JSON.stringify(pantryRestored)));
+  const before = { ...cooked.inventory };
+  assert.equal(G.craft(cooked, id), true);
+  for (const input of recipe.inputs) assert.equal(cooked.inventory[input.id], before[input.id] - input.cost);
+  assert.equal(cooked.inventory[id], 1);
+  assert.ok(cooked.discovered.includes(id));
+  assert.deepEqual(G.restore(JSON.parse(JSON.stringify(cooked))), cooked);
+  assert.equal(G.maxCraft(cooked, recipe), 1, '残り外来食材がまとめ調理の上限');
+  assert.equal(G.craft(cooked, id), true);
+  assert.equal(cooked.inventory[id], 2);
+  const request = candidates[0];
+  cooked.dailyRequests = [{ templateId: request.id, completed: false }, ...postgameRequestSeed.dailyRequests.slice(1)];
+  const points = cooked.gratitudePoints;
+  const count = cooked.dailyRequestCounts[request.resident];
+  assert.equal(G.deliverDaily(cooked, request.id), true);
+  assert.equal(cooked.inventory[id], 1);
+  assert.equal(cooked.gratitudePoints, points + 1);
+  assert.equal(cooked.dailyRequestCounts[request.resident], count + 1);
+  G.refreshDailyRequests(cooked, () => 0.999);
+  assert.equal(G.currentDailyRequests(cooked).filter(entry => entry.source === 'cooking').length, 1);
+  const batch = G.restore(JSON.parse(JSON.stringify(pantryRestored)));
+  assert.equal(G.craft(batch, id, 2), true);
+  for (const input of recipe.inputs) assert.equal(batch.inventory[input.id], before[input.id] - input.cost * 2);
+  assert.equal(batch.inventory[id], 2);
+  const locked = G.fresh();
+  locked.inventory = { ...pantryRestored.inventory };
+  assert.equal(G.craft(locked, id), false, '本編未クリアでは追加料理も調理不可');
+}
+console.log('PASS: pudding and salt butter bread, exact/batch consumption, atomic shortages, eight-resident weighted candidates, delivery/refill and full legacy-state preservation');

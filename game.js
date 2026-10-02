@@ -51,7 +51,9 @@
     { id: 'cheeseBakedMushrooms', name: 'きのこのチーズ焼き', category: '料理', mark: '焼' },
     { id: 'butterCookies', name: 'バタークッキー', category: '料理', mark: '菓' },
     { id: 'mushroomCreamPasta', name: 'きのこのクリームパスタ', category: '料理', mark: '麺' },
-    { id: 'scrambledEggs', name: 'ふんわりスクランブルエッグ', category: '料理', mark: '卵' }
+    { id: 'scrambledEggs', name: 'ふんわりスクランブルエッグ', category: '料理', mark: '卵' },
+    { id: 'rusticPudding', name: '素朴なプリン', category: '料理', mark: '菓' },
+    { id: 'saltButterBread', name: '塩バターパン', category: '料理', mark: '麦' }
   ];
   const backyardMaterials = [
     { id: 'egg', name: '卵', category: '畜産物', mark: '卵' },
@@ -130,7 +132,9 @@
     { id: 'cheeseBakedMushrooms', inputs: [{ id: 'mushroom', cost: 1 }, { id: 'cheese', cost: 1 }], group: '料理', kind: 'cooking' },
     { id: 'butterCookies', inputs: [{ id: 'wheat', cost: 2 }, { id: 'sugar', cost: 1 }, { id: 'butter', cost: 1 }], group: '料理', kind: 'cooking' },
     { id: 'mushroomCreamPasta', inputs: [{ id: 'wheat', cost: 2 }, { id: 'mushroom', cost: 1 }, { id: 'milk', cost: 1 }, { id: 'cheese', cost: 1 }], group: '料理', kind: 'cooking' },
-    { id: 'scrambledEggs', inputs: [{ id: 'egg', cost: 2 }], group: '料理', kind: 'cooking' }
+    { id: 'scrambledEggs', inputs: [{ id: 'egg', cost: 2 }], group: '料理', kind: 'cooking' },
+    { id: 'rusticPudding', inputs: [{ id: 'egg', cost: 2 }, { id: 'milk', cost: 1 }, { id: 'sugar', cost: 1 }], group: '料理', kind: 'cooking' },
+    { id: 'saltButterBread', inputs: [{ id: 'wheat', cost: 2 }, { id: 'salt', cost: 1 }, { id: 'butter', cost: 1 }], group: '料理', kind: 'cooking' }
   ];
   recipes.push(...cookingRecipes);
   const requests = [
