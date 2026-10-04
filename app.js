@@ -51,6 +51,25 @@ const merchantDialog = document.getElementById('merchant-dialog');
 const thankYouDialog = document.getElementById('thank-you-dialog');
 const storyDialog = document.getElementById('story-dialog');
 const mealDialog = document.getElementById('meal-dialog');
+const backupDialog = document.getElementById('backup-dialog');
+const backupInput = document.getElementById('backup-file');
+let pendingBackup = null;
+backupDialog.addEventListener?.('close', () => { pendingBackup = null; });
+backupDialog.addEventListener?.('cancel', () => { pendingBackup = null; });
+backupInput.addEventListener?.('change', async () => {
+  const file = backupInput.files?.[0];
+  backupInput.value = '';
+  if (!file) return;
+  pendingBackup = null;
+  try {
+    const restored = parseSaveBackup(await file.text());
+    // ファイル読み込み中に画面を離れた場合は、復元確認を開かない。
+    if (currentPage !== 'home') return;
+    pendingBackup = restored;
+    document.getElementById('backup-summary').textContent = `${restored.day}日目のセーブを復元します。`;
+    backupDialog.showModal();
+  } catch (error) { notify(error.message?.includes('現在のセーブは変更していません') ? error.message : 'バックアップを読み込めませんでした。現在のセーブは変更していません。'); }
+});
 let pendingMeal = null;
 mealDialog.addEventListener?.('close', () => { pendingMeal = null; });
 mealDialog.addEventListener?.('cancel', () => { pendingMeal = null; });
@@ -98,6 +117,85 @@ function notify(message) {
   toast.classList.add('visible');
   toastTimer = setTimeout(() => toast.classList.remove('visible'), 5500);
 }
+function exportSaveBackup() {
+  let url;
+  let anchor;
+  try {
+    const now = new Date();
+    const pad = value => String(value).padStart(2, '0');
+    const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`;
+    const backup = { game: 'MioVerseCraftLife', exportedAt: now.toISOString(), saveVersion: state.saveVersion, save: state };
+    url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }));
+    anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `mioverse-komichi-save-${stamp}.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    notify('セーブを書き出しました。ダウンロードしたJSONファイルを保管してください。');
+  } catch { notify('セーブを書き出せませんでした。現在のセーブは変更していません。'); }
+  finally {
+    anchor?.remove();
+    // ダウンロードが開始される前にURLを破棄しない。
+    if (url) setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+}
+function parseSaveBackup(text) {
+  let backup;
+  try { backup = JSON.parse(text); }
+  catch { throw new Error('JSONファイルが壊れているため読み込めません。現在のセーブは変更していません。'); }
+  const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+  const validDay = value => Number.isSafeInteger(value) && value >= 1 || typeof value === 'string' && /^[1-9][0-9]*$/.test(value);
+  const data = backup?.save;
+  if (!object(backup) || backup.game !== 'MioVerseCraftLife' || !object(data)) {
+    throw new Error('小径の工房のバックアップファイルではありません。現在のセーブは変更していません。');
+  }
+  if (backup.saveVersion !== G.SAVE_VERSION || data.saveVersion !== G.SAVE_VERSION) {
+    throw new Error('このセーブのバージョンには対応していません。現在のセーブは変更していません。');
+  }
+  const fresh = G.fresh();
+  const invalidShape = Object.entries(fresh).some(([key, example]) => {
+    if (!Object.hasOwn(data, key)) return true;
+    if (key === 'day' || key === 'gratitudePoints') return false;
+    if (example === null) return data[key] !== null && !object(data[key]);
+    if (Array.isArray(example)) return !Array.isArray(data[key]);
+    if (object(example)) return !object(data[key]);
+    return typeof data[key] !== typeof example;
+  });
+  if (!validDay(data.day) || !object(data.inventory) || !['branch', 'vine', 'flower'].every(id => Object.hasOwn(data.inventory, id)) ||
+      Object.values(data.inventory).some(value => !Number.isSafeInteger(value) || value < 0) ||
+      !Array.isArray(data.completed) || data.completed.some(id => !G.requests.some(request => request.id === id)) ||
+      !Number.isInteger(data.gathersLeft) || data.gathersLeft < 0 || data.gathersLeft > G.gatherLimit(data) || invalidShape ||
+      !(Number.isSafeInteger(data.gratitudePoints) && data.gratitudePoints >= 0 || typeof data.gratitudePoints === 'string' && /^(0|[1-9][0-9]*)$/.test(data.gratitudePoints))) {
+    throw new Error('セーブ本体に必要な情報がないか、内容が壊れています。現在のセーブは変更していません。');
+  }
+  // 通常の読み込みと同じ補完・検証を利用し、ここでは保存しない。
+  return G.restore(data);
+}
+function restoreSaveBackup() {
+  if (!backupDialog.open || !pendingBackup) return;
+  const previousState = state;
+  const previousPage = currentPage;
+  const previousMessage = saveMessage;
+  try {
+    const serialized = JSON.stringify(pendingBackup);
+    state = pendingBackup;
+    currentPage = 'home';
+    saveMessage = 'バックアップから復元しました';
+    render(false);
+    // 描画まで成功してから一度だけ保存。setItem失敗時は元の値が維持される。
+    localStorage.setItem(SAVE_KEY, serialized);
+  } catch {
+    state = previousState;
+    currentPage = previousPage;
+    saveMessage = previousMessage;
+    try { render(false); } catch { /* 保存データはまだ変更していない。 */ }
+    notify('復元できませんでした。現在のセーブは変更していません。');
+    return;
+  }
+  pendingBackup = null;
+  backupDialog.close();
+  notify('バックアップから復元しました。');
+}
 function home() {
   const done = state.completed.length;
   const merchant = G.merchantStatus(state);
@@ -114,7 +212,8 @@ function home() {
     <div class="stats"><div><span>在庫の合計</span><strong>${total()} <small>個</small></strong></div><div><span>住人へのお届け</span><strong>${done} <small>/ ${requestTotal()} 件</small></strong></div><div><span>今日のペース</span><strong class="slow">のんびり</strong></div></div>
     ${backyardNotice}${merchantCard}${dailyMealCard()}
     <section><div class="section-title"><h2>工房での過ごし方</h2><span>急がず、ひとつずつ</span></div><div class="steps"><a href="#gather"><span class="step-number">01 / GATHER</span><h3>森で集める</h3><p>枝、ツル草、野花。<br>好きな素材を選んで採集。</p><span class="text-link">採集へ →</span></a><a href="#craft"><span class="step-number">02 / CRAFT</span><h3>手を動かす</h3><p>素材を少しずつ加工して、<br>暮らしの道具をつくる。</p><span class="text-link">加工へ →</span></a><a href="#requests"><span class="step-number">03 / GIVE</span><h3>住人へ届ける</h3><p>できあがった品物で、<br>小さなお願いを叶える。</p><span class="text-link">依頼へ →</span></a></div></section>
-    <section class="note"><span class="note-icon" aria-hidden="true">✳</span><div><h3>${done === G.requests.length ? '日常のお願いが届いています' : G.stageTwoUnlocked(state) ? '新しい3件のお願いが届いています' : 'はじめのひと品に、布袋はいかが？'}</h3><p>${done === G.requests.length ? `8人の住人から届く日常のお願いのうち、${G.DAILY_REQUEST_SLOTS}件を受け付けます。お届け済みの枠は「今日は休む」と翌日に入れ替わります。` : G.stageTwoUnlocked(state) ? (state.unlockedStage === 3 ? '乾燥花はリースに、小箱は布張りに。素材の使い道を選びながら、新しい品物をつくってみましょう。' : '布と染料、そして木材。素材を組み合わせて、窓辺や壁を彩る品物をつくってみましょう。') : 'ツル草を1回採集 → 植物繊維を2個 → 糸を2個 → 布を1個 → 布袋を1個。ナカちゃんに届けてみましょう。'}</p></div></section>`;
+    <section class="note"><span class="note-icon" aria-hidden="true">✳</span><div><h3>${done === G.requests.length ? '日常のお願いが届いています' : G.stageTwoUnlocked(state) ? '新しい3件のお願いが届いています' : 'はじめのひと品に、布袋はいかが？'}</h3><p>${done === G.requests.length ? `8人の住人から届く日常のお願いのうち、${G.DAILY_REQUEST_SLOTS}件を受け付けます。お届け済みの枠は「今日は休む」と翌日に入れ替わります。` : G.stageTwoUnlocked(state) ? (state.unlockedStage === 3 ? '乾燥花はリースに、小箱は布張りに。素材の使い道を選びながら、新しい品物をつくってみましょう。' : '布と染料、そして木材。素材を組み合わせて、窓辺や壁を彩る品物をつくってみましょう。') : 'ツル草を1回採集 → 植物繊維を2個 → 糸を2個 → 布を1個 → 布袋を1個。ナカちゃんに届けてみましょう。'}</p></div></section>
+    <section class="save-backup-card" aria-labelledby="save-backup-title"><h2 id="save-backup-title">セーブのバックアップ</h2><p>今の進行をJSONファイルに保存できます。端末の外にも保管しておくと、データが消えた時に復元できます。</p><div class="save-backup-actions"><button class="secondary" data-action="backup-export">セーブを書き出す</button><button class="secondary" data-action="backup-import">セーブを読み込む</button></div></section>`;
 }
 function dailyMealCard() {
   if (!G.postgameUnlocked(state) || !state.dailyMeal) return '';
@@ -397,6 +496,10 @@ document.addEventListener('click', event => {
   const button = event.target.closest('button[data-action]');
   if (!button || button.disabled) return;
   const { action, id } = button.dataset;
+  if (action === 'backup-export') { exportSaveBackup(); return; }
+  if (action === 'backup-import') { backupInput.value = ''; backupInput.click(); return; }
+  if (action === 'backup-cancel') { pendingBackup = null; backupDialog.close(); return; }
+  if (action === 'backup-confirm') { restoreSaveBackup(); return; }
   if (action === 'meal-open') { openMealSelection(); return; }
   if (action === 'meal-cancel') { pendingMeal = null; mealDialog.close(); return; }
   if (action === 'meal-select') {
@@ -587,6 +690,7 @@ document.addEventListener('click', event => {
   if (message) { save(); render(); notify(message); }
 });
 function navigate() {
+  if (backupDialog.open) { pendingBackup = null; backupDialog.close(); }
   if (mealDialog.open) { pendingMeal = null; mealDialog.close(); }
   if (storyDialog.open) { storyDialog.close(); activeStoryMilestoneId = null; }
   const hash = location.hash.slice(1);

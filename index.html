@@ -9,9 +9,9 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="workshop-theme.css?v=craft-fold-v1">
+  <link rel="stylesheet" href="workshop-theme.css?v=save-backup-v1">
   <script src="game.js?v=daily-meal-v1" defer></script>
-  <script src="app.js?v=craft-fold-v1" defer></script>
+  <script src="app.js?v=save-backup-v1" defer></script>
 </head>
 <body>
   <div class="app-shell">
@@ -23,6 +23,13 @@
     <footer>Mio Verse · GATHER, CRAFT & GIVE <span>採集と生産の生活ゲーム</span></footer>
   </div>
   <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+  <input id="backup-file" type="file" accept=".json,application/json" hidden>
+  <dialog id="backup-dialog" aria-labelledby="backup-title" aria-describedby="backup-description">
+    <h2 id="backup-title">セーブを復元しますか？</h2>
+    <p id="backup-summary"></p>
+    <p id="backup-description">現在のセーブデータを、このバックアップ内容で上書きします。元に戻せません。よろしいですか？</p>
+    <div class="save-backup-actions"><button class="secondary" data-action="backup-cancel" autofocus>キャンセル</button><button data-action="backup-confirm">復元する</button></div>
+  </dialog>
   <dialog id="rest-dialog" aria-labelledby="rest-title" aria-describedby="rest-description">
     <h2 id="rest-title">今日はここまでにしますか？</h2>
     <p id="rest-description">翌日になり、採集回数が3回に戻ります。残り回数は持ち越されません。依頼に期限はありません。</p>

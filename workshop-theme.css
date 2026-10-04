@@ -578,3 +578,16 @@ footer { border-top-style: dashed; color: var(--muted); }
   .craft-fold > summary { padding: 13px 14px; gap: 8px; }
   .craft-fold-content { padding: 16px 10px; }
 }
+
+.save-backup-card { margin-top: 28px; padding: 22px; border: 1px solid var(--line); border-radius: 17px; background: var(--paper); }
+.save-backup-card h2, #backup-dialog h2 { color: var(--green); font-family: "Yu Mincho", serif; font-size: 21px; font-weight: 500; }
+.save-backup-card p, #backup-dialog p { color: var(--muted); font-size: 13px; line-height: 1.9; }
+.save-backup-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.save-backup-actions button { min-height: 44px; }
+#backup-dialog { color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 17px; padding: 26px; width: 480px; max-width: calc(100% - 24px); max-height: calc(100dvh - 24px); overflow: auto; overflow-wrap: anywhere; }
+#backup-dialog::backdrop { background: #25352c80; }
+@media (max-width: 380px) {
+  .save-backup-card, #backup-dialog { padding: 20px 18px; }
+  .save-backup-actions { flex-direction: column; }
+  .save-backup-actions button { width: 100%; }
+}

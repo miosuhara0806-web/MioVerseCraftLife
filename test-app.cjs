@@ -7,19 +7,34 @@ const saved = new Map();
 function launch(random = Math.random) {
   const nodes = new Map();
   const handlers = {};
+  const downloads = [];
+  let storageFailure = false;
+  let renderFailure = false;
   const node = id => {
-    if (!nodes.has(id)) nodes.set(id, { innerHTML: '', textContent: '', classList: { add() {}, remove() {} }, focus() {}, open: false, showModal() { this.open = true; }, close() { this.open = false; } });
+    if (!nodes.has(id)) {
+      const listeners = {};
+      let html = '';
+      nodes.set(id, { get innerHTML() { return html; }, set innerHTML(value) { if (id === 'main' && renderFailure) { renderFailure = false; throw new Error('render failure'); } html = value; }, textContent: '', classList: { add() {}, remove() {} }, focus() {}, click() { this.clicked = true; }, open: false, listeners, addEventListener(name, fn) { listeners[name] = fn; }, showModal() { this.open = true; }, close() { this.open = false; listeners.close?.(); } });
+    }
     return nodes.get(id);
   };
   const context = vm.createContext({
     window: { MioGame: { ...G, restore: data => G.restore(data, random), rest: state => G.rest(state, random), mealConversation: state => G.mealConversation(state, random) }, addEventListener: (name, fn) => { handlers[name] = fn; }, scrollTo() {} },
-    document: { getElementById: node, activeElement: null, addEventListener: (name, fn) => { handlers[name] = fn; } },
-    localStorage: { getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key, value) },
+    document: { getElementById: node, activeElement: null, addEventListener: (name, fn) => { handlers[name] = fn; }, body: { appendChild() {} }, createElement: () => ({ click() { downloads.push({ filename: this.download, blob: this.blob }); }, set href(url) { this.blob = url; }, remove() {} }) },
+    Blob, URL: { createObjectURL: blob => blob, revokeObjectURL() {} },
+    localStorage: { getItem: key => saved.get(key) ?? null, setItem: (key, value) => { if (storageFailure) throw new Error('quota'); saved.set(key, value); } },
     location: { hash: '#home' }, setTimeout: () => 0, clearTimeout() {}
   });
   vm.runInContext(fs.readFileSync('./app.js', 'utf8'), context);
   return {
     click(action, id) { handlers.click({ target: { closest: () => ({ dataset: { action, id }, disabled: false }) } }); },
+    downloads() { return downloads; },
+    filePickerClicked() { return node('backup-file').clicked; },
+    async selectBackup(text) { node('backup-file').files = text === null ? [] : [{ text: async () => text }]; await node('backup-file').listeners.change(); },
+    backupDialogOpen() { return node('backup-dialog').open; },
+    escapeBackup() { node('backup-dialog').listeners.cancel?.(); node('backup-dialog').close(); },
+    failStorage(value) { storageFailure = value; },
+    failNextRender() { renderFailure = true; },
     page(id) { context.location.hash = '#' + id; handlers.hashchange(); return node('main').innerHTML; },
     navigation() { return node('navigation').innerHTML; },
     gatherLimitNote() { return node('gather-limit-note').textContent; },
@@ -2232,3 +2247,75 @@ const after = app.state(); app = launch(); assert.deepEqual(app.state(), after);
 assert.equal((app.page('craft').match(/data-craft-category="[^"]+" open/g) || []).length, 0, '再読み込みも閉じる・保存項目追加なし');
 console.log('PASS: three craft folds with dynamic counts/order, all 41 recipes, targeted category-only opening/highlight, normal reset, unchanged save, single/batch crafting and reload');
 }
+
+(async () => {
+  const seed = G.restore({ ...memoryFullSave, day: 127, inventory: Object.fromEntries(Object.keys(G.fresh().inventory).map(id => [id, 23])), dailyMeal: { day: 127, resident: 'ritsu', completed: true } });
+  saved.set('mioverse-craft-v1', JSON.stringify(seed));
+  let backupApp = launch();
+  const original = backupApp.state();
+  const originalText = saved.get('mioverse-craft-v1');
+  assert.ok(backupApp.page('home').includes('セーブを書き出す'));
+  assert.ok(backupApp.page('home').includes('セーブを読み込む'));
+  backupApp.click('backup-export');
+  const download = backupApp.downloads()[0];
+  assert.match(download.filename, /^mioverse-komichi-save-\d{8}-\d{4}\.json$/);
+  assert.equal(download.blob.type, 'application/json');
+  const exported = await download.blob.text();
+  const envelope = JSON.parse(exported);
+  assert.equal(envelope.game, 'MioVerseCraftLife');
+  assert.equal(envelope.saveVersion, G.SAVE_VERSION);
+  assert.ok(Number.isFinite(Date.parse(envelope.exportedAt)));
+  assert.deepEqual(envelope.save, original, '全セーブ項目を欠落なく書き出す');
+  assert.equal(saved.get('mioverse-craft-v1'), originalText, '書き出しは保存を変更しない');
+
+  backupApp.click('backup-import'); assert.equal(backupApp.filePickerClicked(), true);
+  await backupApp.selectBackup(null);
+  assert.equal(saved.get('mioverse-craft-v1'), originalText);
+  for (const invalid of ['{broken', '{}', '[]', 'null', JSON.stringify({ ...envelope, game: 'AnotherGame' }), JSON.stringify({ ...envelope, save: undefined }), JSON.stringify({ ...envelope, saveVersion: 99 }), JSON.stringify({ ...envelope, save: { ...original, day: 0 } }), JSON.stringify({ ...envelope, save: { ...original, inventory: {} } }), JSON.stringify({ ...envelope, save: { ...original, inventory: { ...original.inventory, egg: -1 } } }), JSON.stringify({ ...envelope, save: { ...original, dailyRequests: 'broken' } })]) {
+    await backupApp.selectBackup(invalid);
+    assert.equal(backupApp.backupDialogOpen(), false);
+    assert.ok(backupApp.toastText().includes('現在のセーブは変更していません'));
+    assert.equal(saved.get('mioverse-craft-v1'), originalText, '不正ファイルは現在セーブを一切変えない');
+  }
+  for (const key of Object.keys(original)) {
+    const truncated = { ...original }; delete truncated[key];
+    await backupApp.selectBackup(JSON.stringify({ ...envelope, save: truncated }));
+    assert.equal(backupApp.backupDialogOpen(), false, `欠落した${key}を拒否`);
+    assert.equal(saved.get('mioverse-craft-v1'), originalText);
+  }
+  await backupApp.selectBackup(exported);
+  assert.equal(backupApp.backupDialogOpen(), true);
+  assert.equal(saved.get('mioverse-craft-v1'), originalText, '確認前は保存しない');
+  backupApp.click('backup-cancel');
+  assert.equal(saved.get('mioverse-craft-v1'), originalText);
+  backupApp.click('backup-confirm');
+  assert.equal(saved.get('mioverse-craft-v1'), originalText, 'キャンセル後の遅延確認も無効');
+  await backupApp.selectBackup(exported); backupApp.escapeBackup();
+  assert.equal(saved.get('mioverse-craft-v1'), originalText, 'Escapeキャンセル');
+
+  backupApp.click('rest'); backupApp.click('rest-confirm');
+  backupApp.click('gather', 'branch');
+  const advanced = backupApp.state();
+  const advancedText = saved.get('mioverse-craft-v1');
+  assert.equal(advanced.day, 128);
+  await backupApp.selectBackup(exported);
+  backupApp.failStorage(true); backupApp.click('backup-confirm'); backupApp.failStorage(false);
+  assert.equal(saved.get('mioverse-craft-v1'), advancedText, '保存エラーは元の保存を維持');
+  assert.ok(backupApp.page('home').includes('128日目'), '保存エラーは実行状態も戻す');
+  await backupApp.selectBackup(exported);
+  backupApp.failNextRender(); backupApp.click('backup-confirm');
+  assert.equal(saved.get('mioverse-craft-v1'), advancedText, '描画エラーは書き込まない');
+  assert.ok(backupApp.page('home').includes('128日目'));
+  await backupApp.selectBackup(exported); backupApp.click('backup-confirm');
+  assert.deepEqual(backupApp.state(), original, '全進捗・日数・在庫・依頼・図鑑・まかない等を元に戻す');
+  assert.equal(backupApp.backupDialogOpen(), false);
+  backupApp.click('backup-confirm'); assert.deepEqual(backupApp.state(), original, '二重確認を無効化');
+  backupApp = launch(); assert.deepEqual(backupApp.state(), original, '再読み込み後も全復元内容を保持');
+  backupApp.click('gather', 'branch');
+  assert.equal(backupApp.state().inventory.branch, original.inventory.branch + 2, '復元後も通常の自動保存');
+  const huge = { ...envelope, save: { ...original, day: '9007199254740993127', dailyMeal: { day: '9007199254740993127', resident: 'ritsu', completed: true } } };
+  await backupApp.selectBackup(JSON.stringify(huge)); backupApp.click('backup-confirm');
+  assert.equal(backupApp.state().day, huge.save.day);
+  assert.deepEqual(backupApp.state().dailyMeal, huge.save.dailyMeal);
+  console.log('PASS: complete JSON export/date filename, file selection, validation/cancel/Escape, atomic restore failures, every progress field, duplicate guard, huge days, reload and unchanged autosave');
+})().catch(error => { console.error(error); process.exitCode = 1; });
