@@ -2236,14 +2236,31 @@ const foldSeed = G.restore({ ...memoryFullSave, inventory: Object.fromEntries(Ob
 saved.set('mioverse-craft-v1', JSON.stringify(foldSeed)); app = launch();
 const before = app.state();
 let html = app.page('craft');
-const categories = ['加工素材', '完成品', '料理'];
-const categoryOf = recipe => recipe.kind === 'cooking' ? '料理' : G.items.find(item => item.id === recipe.id).category === '中間素材' ? '加工素材' : '完成品';
+const expectedGroups = {
+  '木のしごと': ['wood', 'plank', 'box', 'woodFrame'],
+  '布のしごと': ['fiber', 'thread', 'cloth', 'bag'],
+  '花のしごと': ['dryFlower', 'dye', 'dyedCloth'],
+  '土のしごと': ['bisque', 'smallPlate', 'mug', 'vase'],
+  '組み合わせのしごと': ['curtain', 'wallHanging', 'wreath', 'linedBox', 'cushion'],
+  '家具のしごと': ['smallShelf', 'upholsteredStool'],
+  '料理': G.cookingRecipes.map(recipe => recipe.id)
+};
+const categories = Object.keys(expectedGroups);
+const categoryOf = recipe => categories.find(category => expectedGroups[category].includes(recipe.id));
+assert.ok(!html.includes('data-craft-category="加工素材"') && !html.includes('data-craft-category="完成品"'), '旧大分類を撤去');
+const shownRecipeIds = [...html.matchAll(/data-recipe-id="([^"]+)"/g)].map(match => match[1]);
+assert.deepEqual(shownRecipeIds.slice().sort(), G.availableRecipes(before).map(recipe => recipe.id).sort(), '全41レシピを重複・欠落なく表示');
 for (const category of categories) {
   const section = html.match(new RegExp(`<details class="craft-fold encyclopedia-fold" data-craft-category="${category}">([\\s\\S]*?)<\\/details>`))?.[1];
   assert.ok(section, `${category}は初期状態で閉じる`);
-  const expected = G.availableRecipes(before).filter(recipe => categoryOf(recipe) === category);
+  const expected = expectedGroups[category];
   assert.ok(section.includes(`<small>${expected.length}件</small>`));
-  assert.deepEqual([...section.matchAll(/data-recipe-id="([^"]+)"/g)].map(match => match[1]), expected.map(recipe => recipe.id), 'カテゴリ内の順序と全レシピを維持');
+  assert.deepEqual([...section.matchAll(/data-recipe-id="([^"]+)"/g)].map(match => match[1]), expected, '実材料の制作系統と工程順を維持');
+  for (const id of expected) {
+    for (const input of G.ingredients(G.recipes.find(recipe => recipe.id === id))) {
+      if (expected.includes(input.id)) assert.ok(expected.indexOf(input.id) < expected.indexOf(id), '同系統内の素材レシピを先に表示');
+    }
+  }
 }
 assert.deepEqual(app.state(), before, '描画と折りたたみはセーブを変更しない');
 for (const request of foldTargets) {
@@ -2257,6 +2274,19 @@ for (const request of foldTargets) {
   assert.equal((html.match(/data-craft-category="[^"]+" open/g) || []).length, 0, '通常遷移で閉じる');
 }
 assert.deepEqual(app.state(), before);
+for (const item of ['box', 'thread', 'dyedCloth', 'vase', 'cushion', 'smallShelf', 'rusticPudding']) {
+  const request = [...G.dailyRequestPool, ...G.cookingDailyRequestPool].find(request => request.item === item);
+  const targetSeed = G.restore({ ...before, dailyRequests: [{ templateId: request.id, completed: false }] });
+  saved.set('mioverse-craft-v1', JSON.stringify(targetSeed)); app = launch();
+  const targetBefore = app.state();
+  app.page('requests'); app.click('view-recipe', request.id); app.click('recipe-go-craft');
+  const targetHtml = app.page('craft');
+  assert.ok(targetHtml.includes(`data-craft-category="${categoryOf(G.recipes.find(recipe => recipe.id === item))}" open`), `${item}から新しい系統を展開`);
+  assert.equal((targetHtml.match(/data-craft-category="[^"]+" open/g) || []).length, 1);
+  assert.ok(targetHtml.includes(`recipe recipe-highlight" data-recipe-id="${item}"`));
+  assert.deepEqual(app.state(), targetBefore, '7系統の導線でセーブを変更しない');
+}
+saved.set('mioverse-craft-v1', JSON.stringify(before)); app = launch(); app.page('craft');
 app.click('craft', 'bisque');
 assert.equal(app.state().inventory.clay, 18);
 assert.equal(app.state().inventory.bisque, 21);
@@ -2265,7 +2295,7 @@ assert.equal(app.state().inventory.wheat, 0);
 assert.equal(app.state().inventory.saltButterBread, 30);
 const after = app.state(); app = launch(); assert.deepEqual(app.state(), after);
 assert.equal((app.page('craft').match(/data-craft-category="[^"]+" open/g) || []).length, 0, '再読み込みも閉じる・保存項目追加なし');
-console.log('PASS: three craft folds with dynamic counts/order, all 41 recipes, targeted category-only opening/highlight, normal reset, unchanged save, single/batch crafting and reload');
+console.log('PASS: seven production-line folds with dynamic counts/process order, all 41 recipes, targeted category-only opening/highlight, normal reset, unchanged save, single/batch crafting and reload');
 }
 
 (async () => {

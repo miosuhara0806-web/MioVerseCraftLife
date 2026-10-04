@@ -242,12 +242,21 @@ function gatherPage() {
   const gatherItems = G.items.filter(item => item.category === '採集素材');
   return heading('GATHER / 01', '森の小径', '気になる素材を選んで、ひと休みするように採集。') + dayStatus() + `<div class="location-note"><span>採集できるもの · ${gatherItems.length}種類</span><span>毎回2個 / 待ち時間なし</span></div><div class="gather-grid">${gatherItems.map(i => `<article class="gather-card ${i.id}"><div class="material-mark" aria-hidden="true">${i.mark}</div><p class="eyebrow">FOREST MATERIAL</p><h2>${i.name}</h2><p>${i.description || descriptions[i.id]}</p><div class="owned">現在の在庫 <strong>${count(i.id)} 個</strong></div><button data-action="gather" data-id="${i.id}" ${state.gathersLeft === 0 ? 'disabled' : ''}>${i.name}を採集 <span>＋2</span></button></article>`).join('')}</div><div class="bottom-note"><p>${state.gathersLeft === 0 ? '今日はもう十分集めたようです。工房で作業するか、今日は休みましょう。' : `採集は1日${G.gatherLimit(state)}回。加工・納品には回数制限がありません。`}</p>${link('craft', '集めた素材を加工する', 'text-link')}${state.gathersLeft === 0 ? link('home', '工房で休む', 'text-link') : ''}</div>`;
 }
-const craftCategory = recipe => recipe.kind === 'cooking' ? '料理' : G.items.find(item => item.id === recipe.id)?.category === '中間素材' ? '加工素材' : '完成品';
+// 加工画面だけの分類。レシピ定義や在庫・図鑑の分類は変更しない。
+const craftGroupOverrides = { woodFrame: '木のしごと', dyedCloth: '花のしごと' };
+const craftCategory = recipe => recipe.kind === 'cooking' ? '料理' : craftGroupOverrides[recipe.id] || recipe.group;
+const craftChains = {
+  '木のしごと': '枝 → 木材 → 板材 → 小箱・木枠',
+  '布のしごと': 'ツル草 → 植物繊維 → 糸 → 布 → 布袋',
+  '花のしごと': '野花 → 乾燥花 → 染料 → 染め布',
+  '土のしごと': '粘土 → 素焼き → 小皿・マグカップ・花瓶',
+  '組み合わせのしごと': '木・布・花の素材を組み合わせて、暮らしの品へ',
+  '家具のしごと': '木枠を使って、小さな棚・布張りスツールへ',
+  '料理': '裏庭の収穫物を使って、素朴なひと皿を作ります。'
+};
 function craftPageBase() {
   const available = G.availableRecipes(state);
-  const materialRecipes = available.filter(recipe => recipe.kind !== 'cooking');
-  const cookingRecipes = available.filter(recipe => recipe.kind === 'cooking');
-  const groups = materialRecipes.reduce((result, recipe) => { if (!result.includes(recipe.group)) result.push(recipe.group); return result; }, []);
+  const groups = [...new Set([...Object.keys(craftChains), ...available.map(craftCategory)])].filter(group => available.some(recipe => craftCategory(recipe) === group));
   const recipeCard = recipe => {
     const inputs = G.ingredients(recipe);
     const max = G.maxCraft(state, recipe);
@@ -256,13 +265,11 @@ function craftPageBase() {
     return `<article class="recipe${highlight}" data-recipe-id="${recipe.id}" tabindex="-1"><div><h3>${names[recipe.id]} <span class="yield">＋1個</span></h3><p>${inputs.map(input => `${names[input.id]} ${input.cost}個`).join(' ＋ ')} <span class="arrow">→</span> ${names[recipe.id]} 1個</p><small>${inputs.map(input => `${names[input.id]}の在庫 ${count(input.id)} / 必要 ${input.cost}${count(input.id) < input.cost ? '（不足）' : ''}`).join(' · ')} · ${names[recipe.id]}の在庫 ${count(recipe.id)}</small></div><div class="recipe-actions"><button data-action="craft" data-id="${recipe.id}" ${max < 1 ? 'disabled' : ''}>${max < 1 ? `${missing.map(input => names[input.id]).join('・')}が不足` : '1個つくる'}</button>${max > 1 ? `<button class="secondary" data-action="craft-all" data-id="${recipe.id}">まとめて${max}個</button>` : ''}</div></article>`;
   };
   const fold = (category, recipes, content) => `<details class="craft-fold encyclopedia-fold" data-craft-category="${category}"${openCraftCategories.has(category) ? ' open' : ''}><summary><h2>${category}</h2><small>${recipes.length}件</small></summary><div class="craft-fold-content">${content}</div></details>`;
-  const materialSections = ['加工素材', '完成品'].map(category => {
-    const categoryRecipes = materialRecipes.filter(recipe => craftCategory(recipe) === category);
-    const sections = groups.filter(group => categoryRecipes.some(recipe => recipe.group === group)).map(group => `<section class="recipe-section"><h2>${group}</h2><p class="chain">${group === '木のしごと' ? '枝 → 木材 → 板材 → 小箱' : group === '布のしごと' ? 'ツル草 → 植物繊維 → 糸 → 布 → 布袋' : group === '花のしごと' ? '野花 → 乾燥花 → 染料' : group === '土のしごと' ? '粘土 → 素焼き → 小皿・マグカップ・花瓶' : '素材・中間素材・完成品を組み合わせて、暮らしの品へ'}</p><div class="recipe-list">${categoryRecipes.filter(recipe => recipe.group === group).map(recipeCard).join('')}</div></section>`).join('');
-    return fold(category, categoryRecipes, sections);
+  const sections = groups.map(category => {
+    const categoryRecipes = available.filter(recipe => craftCategory(recipe) === category);
+    return fold(category, categoryRecipes, `<p class="chain">${craftChains[category] || ''}</p><section class="recipe-section${category === '料理' ? ' cooking-recipes' : ''}"><div class="recipe-list">${categoryRecipes.map(recipeCard).join('')}</div></section>`);
   }).join('');
-  const cookingSection = cookingRecipes.length ? fold('料理', cookingRecipes, `<p class="chain">裏庭の収穫物を使って、素朴なひと皿を作ります。</p><section class="recipe-section cooking-recipes"><div class="recipe-list">${cookingRecipes.map(recipeCard).join('')}</div></section>`) : '';
-  return heading('CRAFT / 02', '手仕事の時間', '素材をつないで、ひとつの品物へ。加工はすぐに完了します。') + '<div class="craft-category"><p class="eyebrow">MATERIAL CRAFT</p><h2>素材加工</h2><p>森で集めた素材を、暮らしに使う品へ整えます。</p></div>' + materialSections + cookingSection + `<div class="bottom-note">${link('gather', '素材を集める', 'text-link')}${link('requests', 'できた品物を届ける', 'text-link')}</div>`;
+  return heading('CRAFT / 02', '手仕事の時間', '素材をつないで、ひとつの品物へ。加工はすぐに完了します。') + '<div class="craft-category"><p class="eyebrow">MATERIAL CRAFT</p><h2>素材加工</h2><p>森で集めた素材を、暮らしに使う品へ整えます。</p></div>' + sections + `<div class="bottom-note">${link('gather', '素材を集める', 'text-link')}${link('requests', 'できた品物を届ける', 'text-link')}</div>`;
 }
 function craftPage() {
   return craftPageBase();
