@@ -504,7 +504,7 @@ document.addEventListener('click', event => {
   if (action === 'meal-cancel') { pendingMeal = null; mealDialog.close(); return; }
   if (action === 'meal-select') {
     if (!mealDialog.open || pendingMeal || !G.mealFoods(state).some(food => food.id === id)) return;
-    const lines = G.mealConversation(state);
+    const lines = G.mealConversation(state, undefined, id);
     if (!lines) return;
     pendingMeal = { day: state.day, resident: state.dailyMeal.resident, foodId: id, lines, step: 0 };
     renderMealConversation();

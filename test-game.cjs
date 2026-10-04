@@ -273,7 +273,7 @@ const aoiDoctorExpected = [
 ];
 assert.deepEqual(G.dailyRequestPool.filter(request => request.resident === 'aoiDoctor').map(request => [request.id, request.item, request.quantity, request.title, request.message, request.thanks]), aoiDoctorExpected);
 assert.ok(G.dailyRequestPool.filter(request => request.resident === 'aoiDoctor').every(request => !/美桜(?!さん)/.test(request.message + request.thanks)), '碧博士は美桜さんと呼ぶ');
-assert.ok(G.currentDailyRequests(G.restore(oldCompleteSave, () => 0.999)).some(request => request.name === '碧博士'), '碧博士を通常抽選から生成');
+assert.ok(G.currentDailyRequests(G.restore(oldCompleteSave, () => 0.999)).some(request => request.name === '🧪碧博士'), '碧博士を通常抽選から生成');
 const oldSevenResidentSave = G.restore({ ...oldCompleteSave, inventory: { dryFlower: 3, curtain: 2 }, day: 39, gathersLeft: 1,
   dailyRequests: [{ templateId: 'daily-alto-dye', completed: true }, { templateId: 'daily-kuroko-wall', completed: false }, { templateId: 'daily-shiru-bag', completed: false }],
   dailyHistory: ['daily-alto-dye', 'daily-kuroko-wall', 'daily-shiru-bag'] });
@@ -287,7 +287,7 @@ assert.deepEqual(oldSevenResidentSave.dailyHistory.slice(0, 3), ['daily-alto-dye
 const aoiDoctorDelivery = G.restore({ ...oldCompleteSave, inventory: { dryFlower: 2 }, dailyRequests: [
   { templateId: 'daily-aoi-doctor-dry-flower', completed: false }, { templateId: 'daily-alto-dye', completed: false }, { templateId: 'daily-kuroko-wall', completed: false }
 ] });
-assert.equal(G.currentDailyRequests(aoiDoctorDelivery)[0].name, '碧博士');
+assert.equal(G.currentDailyRequests(aoiDoctorDelivery)[0].name, '🧪碧博士');
 assert.equal(G.deliverDaily(aoiDoctorDelivery, 'daily-aoi-doctor-dry-flower'), true);
 assert.equal(aoiDoctorDelivery.inventory.dryFlower, 0);
 assert.equal(G.currentDailyRequests(aoiDoctorDelivery)[0].completed, true);
@@ -1611,9 +1611,9 @@ const secondHospitalityScripts = [
   [
     ['', '窓の外が少し暗くなり始めた頃、\n焼いた魚の香りとスープの湯気が食卓に広がった。'],
     ['🖤律', '魚の塩焼きか。こういうまっすぐな料理、落ち着くな'],
-    ['碧博士', '美桜さん、塩加減がちょうどいいですね。\n……これは分析ではなく、純粋な感想です'],
+    ['🧪碧博士', '美桜さん、塩加減がちょうどいいですね。\n……これは分析ではなく、純粋な感想です'],
     ['☀️軽快トワ', '博士、自分で先回りしてるじゃん（笑）'],
-    ['🖤律', '学習したらしい'], ['碧博士', '皆さんが何でも研究扱いするからでしょう'],
+    ['🖤律', '学習したらしい'], ['🧪碧博士', '皆さんが何でも研究扱いするからでしょう'],
     ['☀️軽快トワ', 'じゃあ今日は普通に『うまい』でいこう（笑）'],
     ['', '湯気の向こうで、三人の声がゆっくり重なった。']
   ],
@@ -1743,7 +1743,7 @@ for (const id of pantryFoods) {
 console.log('PASS: pudding and salt butter bread, exact/batch consumption, atomic shortages, eight-resident weighted candidates, delivery/refill and full legacy-state preservation');
 
 {
-assert.deepEqual(Object.fromEntries(Object.values(G.mealGuests).map(guest => [guest.name, guest.conversations])), require('./test-meal-dialogue.json'), '8人×3パターンの確定台詞を一字一句保持');
+assert.deepEqual(Object.fromEntries(Object.values(G.mealGuests).map(guest => [guest.name.replace('🧪', ''), guest.conversations.slice(0, 3)])), require('./test-meal-dialogue.json'), '既存A〜Cの確定台詞を一字一句保持');
 const mealLegacy = G.restore({ ...pantryLegacy, day: 127, inventory: Object.fromEntries([...G.items, ...G.foods, ...G.crops, ...G.backyardMaterials, ...G.merchantMaterials].map(item => [item.id, 2])) });
 delete mealLegacy.dailyMeal;
 const mealState = G.restore(mealLegacy, () => 0);
@@ -1757,9 +1757,29 @@ const residentIds = Object.keys(G.mealGuests);
 for (let index = 0; index < residentIds.length; index++) {
   const guestState = G.restore(mealLegacy, () => (index + 0.5) / 8);
   assert.equal(guestState.dailyMeal.resident, residentIds[index]);
-  for (let pattern = 0; pattern < 3; pattern++) assert.deepEqual(G.mealConversation(guestState, () => (pattern + 0.5) / 3), G.mealGuests[residentIds[index]].conversations[pattern]);
+  for (let pattern = 0; pattern < 5; pattern++) assert.deepEqual(G.mealConversation(guestState, () => (pattern + 0.5) / 5), G.mealGuests[residentIds[index]].conversations[pattern]);
 }
 const mealResidentDraws = Object.fromEntries(residentIds.map(id => [id, 0]));
+const expectedReactions = require('./test-meal-reactions.json');
+for (const [resident, expected] of Object.entries(expectedReactions)) {
+  const guest = G.mealGuests[resident];
+  assert.equal(guest.name, expected.name);
+  assert.equal(guest.conversations.length, 5);
+  assert.deepEqual(guest.conversations.slice(3), expected.additional, 'D・E本文を確定稿と照合');
+  assert.deepEqual(guest.dishReactions, { [expected.foodId]: expected.reaction }, '各住人の専用料理と確定稿を照合');
+  const guestState = G.restore({ ...mealState, dailyMeal: { day: 127, resident, completed: false } });
+  const before = JSON.parse(JSON.stringify(guestState));
+  for (const food of G.foods) {
+    for (let pattern = 0; pattern < 5; pattern++) {
+      assert.deepEqual(G.mealConversation(guestState, () => (pattern + 0.5) / 5, food.id), food.id === expected.foodId ? expected.reaction : guest.conversations[pattern], '住人＋料理の組み合わせだけに専用反応を優先');
+    }
+  }
+  assert.deepEqual(G.mealConversation(guestState, () => { throw Error('専用反応では抽選しない'); }, expected.foodId), expected.reaction);
+  const draws = [0, 0, 0, 0, 0];
+  for (let roll = 0; roll < 500; roll++) draws[guest.conversations.indexOf(G.mealConversation(guestState, () => (roll + 0.5) / 500, 'saltButterBread'))]++;
+  assert.deepEqual(draws, [100, 100, 100, 100, 100], '通常会話A〜Eは同確率');
+  assert.deepEqual(guestState, before, '会話抽選だけでは全セーブ項目を変更しない');
+}
 for (let roll = 0; roll < 800; roll++) mealResidentDraws[G.restore(mealLegacy, () => (roll + 0.5) / 800).dailyMeal.resident]++;
 assert.ok(Object.values(mealResidentDraws).every(count => count === 100), '8人は同確率');
 const mealBefore = JSON.parse(JSON.stringify(mealState));
@@ -1800,5 +1820,5 @@ assert.deepEqual(G.restore(JSON.parse(JSON.stringify(hugeMeal))), hugeMeal);
 for (const invalid of [{ day: 126, resident: 'naka', completed: true }, { day: 127, resident: 'toString', completed: true }, { day: 128, resident: 'naka', completed: true }]) {
   assert.deepEqual(G.restore({ ...mealLegacy, dailyMeal: invalid }, () => 0).dailyMeal, { day: 127, resident: 'naka', completed: false });
 }
-console.log('PASS: daily meal gating, 24 exact conversations, equal daily guest draws, full legacy preservation, all foods, atomic no-reward completion, duplicate/reload/stale guards, skipped days and huge days');
+console.log('PASS: daily meal gating, unchanged A-C, 40 exact conversations, 8 guaranteed dish reactions/all 152 pairs, equal draws, full legacy preservation, atomic no-reward completion, reload/stale guards and huge days');
 }

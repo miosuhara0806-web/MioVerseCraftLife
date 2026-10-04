@@ -19,7 +19,7 @@ function launch(random = Math.random) {
     return nodes.get(id);
   };
   const context = vm.createContext({
-    window: { MioGame: { ...G, restore: data => G.restore(data, random), rest: state => G.rest(state, random), mealConversation: state => G.mealConversation(state, random) }, addEventListener: (name, fn) => { handlers[name] = fn; }, scrollTo() {} },
+    window: { MioGame: { ...G, restore: data => G.restore(data, random), rest: state => G.rest(state, random), mealConversation: (state, unused, foodId) => G.mealConversation(state, random, foodId) }, addEventListener: (name, fn) => { handlers[name] = fn; }, scrollTo() {} },
     document: { getElementById: node, activeElement: null, addEventListener: (name, fn) => { handlers[name] = fn; }, body: { appendChild() {} }, createElement: () => ({ click() { downloads.push({ filename: this.download, blob: this.blob }); }, set href(url) { this.blob = url; }, remove() {} }) },
     Blob, URL: { createObjectURL: blob => blob, revokeObjectURL() {} },
     localStorage: { getItem: key => saved.get(key) ?? null, setItem: (key, value) => { if (storageFailure) throw new Error('quota'); saved.set(key, value); } },
@@ -531,7 +531,7 @@ for (const request of aoiDoctorRequests) {
   saved.set('mioverse-craft-v1', JSON.stringify(aoiDoctorState));
   app = launch();
   const html = app.page('requests');
-  assert.ok(html.includes('<h2>碧博士</h2>'), `${request.id}: 碧博士名を表示`);
+  assert.ok(html.includes('<h2>🧪碧博士</h2>'), `${request.id}: 碧博士名を表示`);
   assert.ok(html.includes(request.title) && html.includes(request.message));
   assert.ok(html.includes(`${G.items.find(item => item.id === request.item).name} × ${request.quantity}`));
   assert.ok(html.includes('<details class="fixed-history">'));
@@ -2194,10 +2194,10 @@ assert.ok(app.page('home').includes('出せる料理がありません'));
 assert.ok(app.page('home').includes('href="#craft"') && app.page('home').includes('加工画面で作る'));
 app.click('meal-open'); assert.equal(app.mealDialogOpen(), false);
 for (const [resident, guest] of Object.entries(G.mealGuests)) {
-  for (let pattern = 0; pattern < 3; pattern++) {
+  for (let pattern = 0; pattern < 5; pattern++) {
     const seed = { ...mealUiBefore, dailyMeal: { day: 127, resident, completed: false } };
     saved.set('mioverse-craft-v1', JSON.stringify(seed));
-    app = launch(() => (pattern + 0.5) / 3);
+    app = launch(() => (pattern + 0.5) / 5);
     app.page('home'); app.click('meal-open'); app.click('meal-select', 'saltButterBread');
     assert.ok(app.mealDialogHtml().includes(`${guest.name}「${guest.conversations[pattern][0]}」`));
     app.click('meal-next');
@@ -2208,7 +2208,27 @@ for (const [resident, guest] of Object.entries(G.mealGuests)) {
     assert.equal(app.state().dailyMeal.completed, true);
   }
 }
-console.log('PASS: daily meal home gating, all foods/stock selection, cancel/Escape/interrupted reload, 24 exact dialogue flows, one-dish atomic completion, duplicate guards, no rewards/progress/history and next day');
+console.log('PASS: daily meal home gating, all foods/stock selection, cancel/Escape/interrupted reload, 40 exact dialogue flows, one-dish atomic completion, duplicate guards, no rewards/progress/history and next day');
+for (const [resident, expected] of Object.entries(require('./test-meal-reactions.json'))) {
+  saved.set('mioverse-craft-v1', JSON.stringify({ ...mealUiBefore, dailyMeal: { day: 127, resident, completed: false } }));
+  app = launch(() => 0.999);
+  const before = app.state();
+  app.page('home'); app.click('meal-open'); app.click('meal-select', expected.foodId);
+  assert.ok(app.mealDialogHtml().includes(`${expected.name}「${expected.reaction[0]}」`));
+  app.click('meal-cancel'); assert.deepEqual(app.state(), before, '専用反応の途中キャンセルでも消費しない');
+  app.click('meal-open'); app.click('meal-select', expected.foodId); app.click('meal-next');
+  assert.ok(app.mealDialogHtml().includes(`${expected.name}「${expected.reaction[1]}」`));
+  assert.deepEqual(app.state(), before, '専用反応の会話終了前は保存を変更しない');
+  app.click('meal-next');
+  const after = JSON.parse(JSON.stringify(before)); after.inventory[expected.foodId]--; after.dailyMeal.completed = true;
+  assert.deepEqual(app.state(), after, '専用反応でも料理1皿と完了状態以外は変えない');
+  app.click('meal-next'); app = launch(); app.click('meal-open');
+  assert.equal(app.mealDialogOpen(), false); assert.deepEqual(app.state(), after, '再読み込みでも二重消費しない');
+}
+assert.ok(app.page('requests').includes('🧪碧博士'), '依頼・住人記録の表示名');
+assert.ok(app.page('memories').includes('🧪碧博士'), '思い出の住人表示');
+assert.ok(app.page('hospitality').includes('🧪碧博士'), 'もてなし参加住人の表示');
+console.log('PASS: all 8 dedicated reaction UI flows, exact labels/text, cancel/no rewards, atomic single consumption, daily/reload guards and doctor display names');
 
 {
 const foldTargets = [G.dailyRequestPool.find(request => request.item === 'thread'), G.dailyRequestPool.find(request => request.item === 'vase'), G.cookingDailyRequestPool.find(request => request.item === 'rusticPudding')];

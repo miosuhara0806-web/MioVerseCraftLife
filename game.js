@@ -160,7 +160,7 @@
     shiru: { name: 'シル', initial: 'シ' },
     kuroko: { name: '黒子', initial: '黒' },
     alto: { name: 'アルト', initial: 'ア' },
-    aoiDoctor: { name: '碧博士', initial: '碧' }
+    aoiDoctor: { name: '🧪碧博士', initial: '碧' }
   };
   const hospitalityEvents = [
     {
@@ -223,10 +223,10 @@
       conversation: [
         { text: '窓の外が少し暗くなり始めた頃、\n焼いた魚の香りとスープの湯気が食卓に広がった。' },
         { speaker: '🖤律', text: '魚の塩焼きか。こういうまっすぐな料理、落ち着くな' },
-        { speaker: '碧博士', text: '美桜さん、塩加減がちょうどいいですね。\n……これは分析ではなく、純粋な感想です' },
+        { speaker: '🧪碧博士', text: '美桜さん、塩加減がちょうどいいですね。\n……これは分析ではなく、純粋な感想です' },
         { speaker: '☀️軽快トワ', text: '博士、自分で先回りしてるじゃん（笑）' },
         { speaker: '🖤律', text: '学習したらしい' },
-        { speaker: '碧博士', text: '皆さんが何でも研究扱いするからでしょう' },
+        { speaker: '🧪碧博士', text: '皆さんが何でも研究扱いするからでしょう' },
         { speaker: '☀️軽快トワ', text: 'じゃあ今日は普通に『うまい』でいこう（笑）' },
         { text: '湯気の向こうで、三人の声がゆっくり重なった。' }
       ]
@@ -526,43 +526,59 @@
     naka: { name: '💛ナカちゃん', conversations: [
       ['わ、今日これなんだ。ちょうどお腹すいてた（笑）', 'いただきます。こういうの工房で食べると、なんかちょっと嬉しいんだよね'],
       ['美味しそう。こうやって美桜が作ってくれたもの食べるの、いいよね', 'じゃ、遠慮なくいただきます（笑）'],
-      ['今日もちゃんとごはんある（笑）', 'こういう何でもない時間、私けっこう好きだな']
-    ] },
+      ['今日もちゃんとごはんある（笑）', 'こういう何でもない時間、私けっこう好きだな'],
+      ['ありがと、美桜。ちょうど何か食べたいなって思ってた（笑）', 'じゃあ今日はここで、のんびり食べよっかな'],
+      ['こういうふうに一皿出てくるの、なんかいいね', 'いただきます。食べたらもうちょっと頑張れそう（笑）']
+    ], dishReactions: { butterCookies: ['これ、絶対お茶ほしくなるやつ（笑）', 'ありがと、美桜。こういう甘いの、休憩にちょうどいいね'] } },
     ritsu: { name: '🖤律', conversations: [
       ['ありがとな。ちょうど手を止めようと思ってたところだ', 'こういう時に一皿あると、思ったより助かる'],
       ['いいのか？　じゃあ、いただく', '作業の合間に食べるには、こういうのがちょうどいいな'],
-      ['また何か作ってたのか', '……うん。悪くない。ありがとな、美桜']
-    ] },
+      ['また何か作ってたのか', '……うん。悪くない。ありがとな、美桜'],
+      ['ちょうどいいところに来たな。ありがと', 'じゃあ少し手を止めるか。いただくよ'],
+      ['俺の分まで用意してたのか', 'じゃあ遠慮なく。こういう時間も悪くないな']
+    ], dishReactions: { saltGrilledFish: ['魚か。こういうのでいいんだよな', 'こういうシンプルなのは落ち着く。ありがとな'] } },
     towa: { name: '📘秘書トワ', conversations: [
       ['いい匂いしてると思ったら、俺の分もあるのか（笑）', 'じゃ、遠慮なくいただく。こういう差し入れは歓迎'],
       ['仕事の途中でこれ出てくるの、結構ずるいな（笑）', 'まあ、ありがたく休憩させてもらうよ'],
-      ['美桜、またちゃんと作ってるな', '俺までご相伴にあずかれるなら、今日は得した（笑）']
-    ] },
+      ['美桜、またちゃんと作ってるな', '俺までご相伴にあずかれるなら、今日は得した（笑）'],
+      ['お、今日は俺もまかない組か（笑）', 'ありがとな、美桜。ちょうど休憩しようと思ってた'],
+      ['こうやって一皿出てくると、ちゃんと休めって言われてる気がするな（笑）', 'じゃあ今日は、素直に休憩させてもらうよ']
+    ], dishReactions: { mushroomCreamPasta: ['……これ、匂いで腹減るやつだな（笑）', '仕事中に出されたら反則だけど、今日はありがたくいただく'] } },
     keikaiTowa: { name: '☀️軽快トワ', conversations: [
       ['やった、今日のまかない当たり（笑）', 'いただきます。こういうのあると一気に休憩っぽくなるな'],
       ['お、俺の分もある？', 'じゃあ遠慮しない（笑）　いただきます！'],
-      ['今日はこれか。いいじゃん（笑）', 'こういうの出てくるなら、毎日ちょっと楽しみになるな']
-    ] },
+      ['今日はこれか。いいじゃん（笑）', 'こういうの出てくるなら、毎日ちょっと楽しみになるな'],
+      ['お、ちょうどいいところに来た（笑）', 'じゃあ俺も一緒に休憩。いただきます！'],
+      ['こういうの待ってた（笑）', 'まずは腹ごしらえだな。いただきます！']
+    ], dishReactions: { scrambledEggs: ['お、スクランブルエッグ！　こういうの好き（笑）', '朝じゃなくても全然アリだな。いただきます！'] } },
     shiru: { name: '🧩シル', conversations: [
       ['ありがとう。ちょうど少し休みたかったところ', 'ここで食べると、なんだかいつもより落ち着くね'],
       ['いい香り。じゃあ、いただくね', 'こういう時間があると、工房もちゃんと暮らしの場所なんだなって思う'],
-      ['私の分まであるんだ', 'ありがとう。じゃあ、ゆっくり食べようかな']
-    ] },
+      ['私の分まであるんだ', 'ありがとう。じゃあ、ゆっくり食べようかな'],
+      ['ありがとう。私もちょうど一息つこうと思ってたところ', 'じゃあ今日は、ここでゆっくりいただくね'],
+      ['こうして誰かと一緒に食べる時間って、やっぱり大事だね', 'ありがとう、美桜。いただきます']
+    ], dishReactions: { vegetableSoup: ['こういう温かいの、ちょっとほっとするね', 'ありがとう。こういうのをゆっくり飲むの、いいね'] } },
     kuroko: { name: '🎭黒子', conversations: [
       ['ありがと。ちょうど一区切りついたところだった', 'じゃ、これ食べながら少し休むか'],
       ['いい匂いしてると思ったら、まかないだったのか', 'こういうの、普通に嬉しいよ。いただきます'],
-      ['俺の分もある？', 'じゃ、遠慮なく。腹減ってたんだよな（笑）']
-    ] },
+      ['俺の分もある？', 'じゃ、遠慮なく。腹減ってたんだよな（笑）'],
+      ['お、ちょうど腹減ってた。ありがとな', 'じゃ、ここで少し食べてくよ'],
+      ['まかないあるなら、今日は当たりだな（笑）', 'ありがと。遠慮なくいただく']
+    ], dishReactions: { rusticBread: ['パンか。こういう素朴なの、いいんだよな', 'ありがと。ゆっくり食べてく'] } },
     alto: { name: '🎨アルト', conversations: [
       ['ありがとう。いい香りだね', '俺、作業してると時間を忘れるから、こういう休憩は助かるよ'],
       ['俺の分もあるんだ。嬉しいな', 'じゃあ、ゆっくりいただこうかな'],
-      ['今日のまかない、これなんだ', '食卓に並ぶと、料理ってまた違って見えるなあ']
-    ] },
-    aoiDoctor: { name: '碧博士', conversations: [
+      ['今日のまかない、これなんだ', '食卓に並ぶと、料理ってまた違って見えるなあ'],
+      ['ありがとう。ちょうど何か食べたいと思ってたんだ', 'じゃあ俺も少し休憩しようかな'],
+      ['こうして何か持ってきてもらうと、ちゃんと手を止められるね', 'いただきます。食べたらまた続きをやろう']
+    ], dishReactions: { rusticPudding: ['プリンなんだ。なんかちょっと嬉しい（笑）', 'こういうの出てくると、休憩っぽくなるね'] } },
+    aoiDoctor: { name: '🧪碧博士', conversations: [
       ['ありがとうございます、美桜さん。ちょうど休憩を取ろうと思っていたところです', '今日は分析せず、普通にいただくことにします（笑）'],
       ['美桜さん、私の分まで用意してくださったんですか', 'ではありがたく。……味の記録は取りませんので、ご安心ください（笑）'],
-      ['こうして工房で食事をいただくのも、すっかり日常になりましたね', 'ありがとうございます、美桜さん。いただきます']
-    ] }
+      ['こうして工房で食事をいただくのも、すっかり日常になりましたね', 'ありがとうございます、美桜さん。いただきます'],
+      ['ありがとうございます、美桜さん。ちょうど集中が切れかけていたところでした', 'こういう時は無理に続けるより、一度休んだ方が良さそうですね'],
+      ['美桜さん、今日もありがとうございます', 'では遠慮なく。今回は本当に、何も分析せずにいただきます（笑）']
+    ], dishReactions: { mushroomOmelet: ['ありがとうございます、美桜さん。これは見た目からして綺麗ですね', '……いえ、分析ではありません（笑）。普通にいただきます'] } }
   };
   const fresh = () => ({ saveVersion: SAVE_VERSION, introViewed: false, dailyMeal: null, inventory: Object.fromEntries([...items, ...crops, ...foods, ...backyardMaterials, ...merchantMaterials].map(item => [item.id, 0])), plots: [null, null, null], facilityProduction: Object.fromEntries(backyardFacilities.map(facility => [facility.id, null])), merchantVisit: null, hospitality: { completed: [], keepsakes: [] }, completed: [], unlockedStage: 1, day: 1, gathersLeft: DAILY_GATHERS, gatherLimit: DAILY_GATHERS, dailyRequests: [], gardenRequest: null, gratitudePoints: 0, dailyHistory: [], dailyRequestCounts: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, 0])), thankYouEventViewed: Object.fromEntries(Object.keys(dailyResidents).map(id => [id, false])), storyProgress: { ...Object.fromEntries(Object.keys(storyMilestones).map(id => [`${id}Viewed`, false])), ...Object.fromEntries(Object.keys(storyRequests).flatMap(id => [[`${id}Completed`, false], [`${id}EventViewed`, false]])) }, discovered: [] });
   const canViewThankYou = (state, id) => !!dailyResidents[id] && state.dailyRequestCounts[id] >= 5 && !state.thankYouEventViewed[id];
@@ -596,11 +612,12 @@
     return true;
   }
   const mealFoods = state => postgameUnlocked(state) ? foods.filter(food => Number.isSafeInteger(state.inventory[food.id]) && state.inventory[food.id] > 0) : [];
-  function mealConversation(state, random = Math.random) {
+  function mealConversation(state, random = Math.random, foodId = null) {
     if (!postgameUnlocked(state) || !state.dailyMeal || state.dailyMeal.completed) return null;
     const guest = Object.hasOwn(mealGuests, state.dailyMeal.resident) ? mealGuests[state.dailyMeal.resident] : null;
     if (!guest || !validDay(state.dailyMeal.day) || BigInt(state.dailyMeal.day) !== BigInt(state.day)) return null;
-    return chooseWeighted(guest.conversations, [1, 1, 1], random);
+    if (Object.hasOwn(guest.dishReactions, foodId)) return guest.dishReactions[foodId];
+    return chooseWeighted(guest.conversations, guest.conversations.map(() => 1), random);
   }
   function serveDailyMeal(state, foodId, day, resident) {
     const meal = state.dailyMeal;
