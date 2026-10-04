@@ -824,8 +824,9 @@ for (const item of ['smallShelf', 'upholsteredStool', 'cushion']) {
   assert.equal(app.recipeDialogOpen(), true);
   assert.ok(app.recipeDialogHtml().includes(G.items.find(entry => entry.id === item).name));
   app.click('recipe-go-craft');
-  assert.ok(app.page('craft').includes(`data-recipe-id="${item}"`), `${item} の加工レシピへ移動`);
-  assert.ok(app.page('craft').includes(`recipe recipe-highlight" data-recipe-id="${item}"`), `${item} を強調`);
+  const targetCraftHtml = app.page('craft');
+  assert.ok(targetCraftHtml.includes(`data-recipe-id="${item}"`), `${item} の加工レシピへ移動`);
+  assert.ok(targetCraftHtml.includes(`recipe recipe-highlight" data-recipe-id="${item}"`), `${item} を強調`);
   app.page('requests');
 }
 let fourState = app.state();
@@ -2193,3 +2194,41 @@ for (const [resident, guest] of Object.entries(G.mealGuests)) {
   }
 }
 console.log('PASS: daily meal home gating, all foods/stock selection, cancel/Escape/interrupted reload, 24 exact dialogue flows, one-dish atomic completion, duplicate guards, no rewards/progress/history and next day');
+
+{
+const foldTargets = [G.dailyRequestPool.find(request => request.item === 'thread'), G.dailyRequestPool.find(request => request.item === 'vase'), G.cookingDailyRequestPool.find(request => request.item === 'rusticPudding')];
+const foldSeed = G.restore({ ...memoryFullSave, inventory: Object.fromEntries(Object.keys(G.fresh().inventory).map(id => [id, 20])), dailyRequests: [...foldTargets, G.dailyRequestPool.find(request => request.item === 'bag')].map(request => ({ templateId: request.id, completed: false })) });
+saved.set('mioverse-craft-v1', JSON.stringify(foldSeed)); app = launch();
+const before = app.state();
+let html = app.page('craft');
+const categories = ['加工素材', '完成品', '料理'];
+const categoryOf = recipe => recipe.kind === 'cooking' ? '料理' : G.items.find(item => item.id === recipe.id).category === '中間素材' ? '加工素材' : '完成品';
+for (const category of categories) {
+  const section = html.match(new RegExp(`<details class="craft-fold encyclopedia-fold" data-craft-category="${category}">([\\s\\S]*?)<\\/details>`))?.[1];
+  assert.ok(section, `${category}は初期状態で閉じる`);
+  const expected = G.availableRecipes(before).filter(recipe => categoryOf(recipe) === category);
+  assert.ok(section.includes(`<small>${expected.length}件</small>`));
+  assert.deepEqual([...section.matchAll(/data-recipe-id="([^"]+)"/g)].map(match => match[1]), expected.map(recipe => recipe.id), 'カテゴリ内の順序と全レシピを維持');
+}
+assert.deepEqual(app.state(), before, '描画と折りたたみはセーブを変更しない');
+for (const request of foldTargets) {
+  app.page('requests'); app.click('view-recipe', request.id); app.click('recipe-go-craft');
+  html = app.page('craft');
+  const target = G.recipes.find(recipe => recipe.id === request.item);
+  assert.ok(html.includes(`data-craft-category="${categoryOf(target)}" open`));
+  assert.equal((html.match(/data-craft-category="[^"]+" open/g) || []).length, 1, '対象カテゴリだけ開く');
+  assert.ok(html.includes(`recipe recipe-highlight" data-recipe-id="${target.id}"`));
+  html = app.page('craft');
+  assert.equal((html.match(/data-craft-category="[^"]+" open/g) || []).length, 0, '通常遷移で閉じる');
+}
+assert.deepEqual(app.state(), before);
+app.click('craft', 'bisque');
+assert.equal(app.state().inventory.clay, 18);
+assert.equal(app.state().inventory.bisque, 21);
+app.click('craft-all', 'saltButterBread');
+assert.equal(app.state().inventory.wheat, 0);
+assert.equal(app.state().inventory.saltButterBread, 30);
+const after = app.state(); app = launch(); assert.deepEqual(app.state(), after);
+assert.equal((app.page('craft').match(/data-craft-category="[^"]+" open/g) || []).length, 0, '再読み込みも閉じる・保存項目追加なし');
+console.log('PASS: three craft folds with dynamic counts/order, all 41 recipes, targeted category-only opening/highlight, normal reset, unchanged save, single/batch crafting and reload');
+}

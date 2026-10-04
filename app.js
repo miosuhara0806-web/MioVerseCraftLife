@@ -37,6 +37,8 @@ try {
 let currentPage = 'home';
 let toastTimer;
 let highlightedRecipeId = null;
+let pendingRecipeNavigation = null;
+let openCraftCategories = new Set();
 let recipeHighlightTimer;
 let activeRecipeRequestId = null;
 let activeThankYouResidentId = null;
@@ -141,6 +143,7 @@ function gatherPage() {
   const gatherItems = G.items.filter(item => item.category === '採集素材');
   return heading('GATHER / 01', '森の小径', '気になる素材を選んで、ひと休みするように採集。') + dayStatus() + `<div class="location-note"><span>採集できるもの · ${gatherItems.length}種類</span><span>毎回2個 / 待ち時間なし</span></div><div class="gather-grid">${gatherItems.map(i => `<article class="gather-card ${i.id}"><div class="material-mark" aria-hidden="true">${i.mark}</div><p class="eyebrow">FOREST MATERIAL</p><h2>${i.name}</h2><p>${i.description || descriptions[i.id]}</p><div class="owned">現在の在庫 <strong>${count(i.id)} 個</strong></div><button data-action="gather" data-id="${i.id}" ${state.gathersLeft === 0 ? 'disabled' : ''}>${i.name}を採集 <span>＋2</span></button></article>`).join('')}</div><div class="bottom-note"><p>${state.gathersLeft === 0 ? '今日はもう十分集めたようです。工房で作業するか、今日は休みましょう。' : `採集は1日${G.gatherLimit(state)}回。加工・納品には回数制限がありません。`}</p>${link('craft', '集めた素材を加工する', 'text-link')}${state.gathersLeft === 0 ? link('home', '工房で休む', 'text-link') : ''}</div>`;
 }
+const craftCategory = recipe => recipe.kind === 'cooking' ? '料理' : G.items.find(item => item.id === recipe.id)?.category === '中間素材' ? '加工素材' : '完成品';
 function craftPageBase() {
   const available = G.availableRecipes(state);
   const materialRecipes = available.filter(recipe => recipe.kind !== 'cooking');
@@ -153,8 +156,13 @@ function craftPageBase() {
     const highlight = highlightedRecipeId === recipe.id ? ' recipe-highlight' : '';
     return `<article class="recipe${highlight}" data-recipe-id="${recipe.id}" tabindex="-1"><div><h3>${names[recipe.id]} <span class="yield">＋1個</span></h3><p>${inputs.map(input => `${names[input.id]} ${input.cost}個`).join(' ＋ ')} <span class="arrow">→</span> ${names[recipe.id]} 1個</p><small>${inputs.map(input => `${names[input.id]}の在庫 ${count(input.id)} / 必要 ${input.cost}${count(input.id) < input.cost ? '（不足）' : ''}`).join(' · ')} · ${names[recipe.id]}の在庫 ${count(recipe.id)}</small></div><div class="recipe-actions"><button data-action="craft" data-id="${recipe.id}" ${max < 1 ? 'disabled' : ''}>${max < 1 ? `${missing.map(input => names[input.id]).join('・')}が不足` : '1個つくる'}</button>${max > 1 ? `<button class="secondary" data-action="craft-all" data-id="${recipe.id}">まとめて${max}個</button>` : ''}</div></article>`;
   };
-  const materialSections = groups.map(group => `<section class="recipe-section"><h2>${group}</h2><p class="chain">${group === '木のしごと' ? '枝 → 木材 → 板材 → 小箱' : group === '布のしごと' ? 'ツル草 → 植物繊維 → 糸 → 布 → 布袋' : group === '花のしごと' ? '野花 → 乾燥花 → 染料' : group === '土のしごと' ? '粘土 → 素焼き → 小皿・マグカップ・花瓶' : '素材・中間素材・完成品を組み合わせて、暮らしの品へ'}</p><div class="recipe-list">${materialRecipes.filter(recipe => recipe.group === group).map(recipeCard).join('')}</div></section>`).join('');
-  const cookingSection = cookingRecipes.length ? `<div class="craft-category cooking-category"><p class="eyebrow">COOKING</p><h2>料理</h2><p>裏庭の収穫物を使って、素朴なひと皿を作ります。</p></div><section class="recipe-section cooking-recipes"><div class="recipe-list">${cookingRecipes.map(recipeCard).join('')}</div></section>` : '';
+  const fold = (category, recipes, content) => `<details class="craft-fold encyclopedia-fold" data-craft-category="${category}"${openCraftCategories.has(category) ? ' open' : ''}><summary><h2>${category}</h2><small>${recipes.length}件</small></summary><div class="craft-fold-content">${content}</div></details>`;
+  const materialSections = ['加工素材', '完成品'].map(category => {
+    const categoryRecipes = materialRecipes.filter(recipe => craftCategory(recipe) === category);
+    const sections = groups.filter(group => categoryRecipes.some(recipe => recipe.group === group)).map(group => `<section class="recipe-section"><h2>${group}</h2><p class="chain">${group === '木のしごと' ? '枝 → 木材 → 板材 → 小箱' : group === '布のしごと' ? 'ツル草 → 植物繊維 → 糸 → 布 → 布袋' : group === '花のしごと' ? '野花 → 乾燥花 → 染料' : group === '土のしごと' ? '粘土 → 素焼き → 小皿・マグカップ・花瓶' : '素材・中間素材・完成品を組み合わせて、暮らしの品へ'}</p><div class="recipe-list">${categoryRecipes.filter(recipe => recipe.group === group).map(recipeCard).join('')}</div></section>`).join('');
+    return fold(category, categoryRecipes, sections);
+  }).join('');
+  const cookingSection = cookingRecipes.length ? fold('料理', cookingRecipes, `<p class="chain">裏庭の収穫物を使って、素朴なひと皿を作ります。</p><section class="recipe-section cooking-recipes"><div class="recipe-list">${cookingRecipes.map(recipeCard).join('')}</div></section>`) : '';
   return heading('CRAFT / 02', '手仕事の時間', '素材をつないで、ひとつの品物へ。加工はすぐに完了します。') + '<div class="craft-category"><p class="eyebrow">MATERIAL CRAFT</p><h2>素材加工</h2><p>森で集めた素材を、暮らしに使う品へ整えます。</p></div>' + materialSections + cookingSection + `<div class="bottom-note">${link('gather', '素材を集める', 'text-link')}${link('requests', 'できた品物を届ける', 'text-link')}</div>`;
 }
 function craftPage() {
@@ -347,6 +355,8 @@ function revealRecipe() {
   if (!highlightedRecipeId || currentPage !== 'craft') return;
   const recipe = document.querySelector?.(`[data-recipe-id="${highlightedRecipeId}"]`);
   if (!recipe) return;
+  const category = recipe.closest?.('details[data-craft-category]');
+  if (category) { category.open = true; openCraftCategories.add(category.dataset.craftCategory); }
   recipe.focus({ preventScroll: true });
   const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   recipe.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
@@ -356,7 +366,10 @@ function revealRecipe() {
     highlightedRecipeId = null;
   }, 4000);
 }
-function render() {
+function render(preserveCraftFolds = true) {
+  if (currentPage === 'craft' && preserveCraftFolds && document.querySelectorAll) {
+    openCraftCategories = new Set([...document.querySelectorAll('details[data-craft-category][open]')].map(section => section.dataset.craftCategory));
+  }
   const focus = document.activeElement;
   const focusAction = focus?.dataset.action;
   const focusId = focus?.dataset.id;
@@ -372,6 +385,15 @@ function render() {
   }
 }
 document.addEventListener('click', event => {
+  if (currentPage === 'craft' && event.target.closest('a[href="#craft"]')?.getAttribute?.('href') === '#craft') {
+    openCraftCategories.clear();
+    highlightedRecipeId = null;
+    clearTimeout(recipeHighlightTimer);
+    render(false);
+    document.getElementById('main').focus({ preventScroll: true });
+    window.scrollTo(0, 0);
+    return;
+  }
   const button = event.target.closest('button[data-action]');
   if (!button || button.disabled) return;
   const { action, id } = button.dataset;
@@ -538,8 +560,9 @@ document.addEventListener('click', event => {
     if (!request || requestCompleted(request) || !G.recipes.some(r => r.id === request.item)) return;
     recipeDialog.close();
     activeRecipeRequestId = null;
-    highlightedRecipeId = request.item;
-    location.hash = '#craft';
+    pendingRecipeNavigation = request.item;
+    if (location.hash === '#craft') { navigate(); revealRecipe(); }
+    else location.hash = '#craft';
     return;
   }
   let message;
@@ -568,7 +591,15 @@ function navigate() {
   if (storyDialog.open) { storyDialog.close(); activeStoryMilestoneId = null; }
   const hash = location.hash.slice(1);
   currentPage = pages.some(p => p[0] === hash) && (!['backyard', 'hospitality'].includes(hash) || G.postgameUnlocked(state)) ? hash : 'home';
-  render();
+  openCraftCategories.clear();
+  clearTimeout(recipeHighlightTimer);
+  highlightedRecipeId = currentPage === 'craft' ? pendingRecipeNavigation : null;
+  pendingRecipeNavigation = null;
+  if (highlightedRecipeId) {
+    const recipe = G.availableRecipes(state).find(recipe => recipe.id === highlightedRecipeId);
+    if (recipe) openCraftCategories.add(craftCategory(recipe));
+  }
+  render(false);
 }
 window.addEventListener('hashchange', () => {
   navigate();

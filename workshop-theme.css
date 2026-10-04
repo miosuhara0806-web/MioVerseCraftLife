@@ -571,3 +571,10 @@ footer { border-top-style: dashed; color: var(--muted); }
   #meal-dialog { padding: 20px 18px; }
   .meal-dialog-actions { flex-direction: column; }
 }
+
+.craft-fold-content { padding: 18px 16px; }
+.craft-fold-content > .recipe-section:last-child { margin-bottom: 0; }
+@media (max-width: 380px) {
+  .craft-fold > summary { padding: 13px 14px; gap: 8px; }
+  .craft-fold-content { padding: 16px 10px; }
+}
