@@ -284,7 +284,7 @@ function backyardPage() {
   const garden = `<div class="garden-grid">${state.plots.map((plot, index) => {
     const crop = plot && G.crops.find(entry => entry.id === plot.cropId);
     const left = crop ? G.cropDaysLeft(state, index) : null;
-    return `<section class="garden-plot"><p class="eyebrow">畑 ${index + 1}</p>${crop ? `<h2>${crop.name}</h2><p class="garden-status">${left === 0 ? '収穫できます' : `収穫まで あと${left}日`}</p>${left === 0 ? `<button data-action="harvest-crop" data-id="${index}">収穫する <span>＋2</span></button>` : ''}` : `<h2>空いています</h2>${selectedGardenPlot === index ? `<div class="garden-choices"><p>育てる作物を選ぶ</p>${G.crops.map(choice => `<button class="secondary" data-action="plant-crop" data-id="${index}:${choice.id}">${choice.name} <small>${choice.growDays}日</small></button>`).join('')}<button class="secondary" data-action="garden-cancel">やめる</button></div>` : `<button data-action="garden-select" data-id="${index}">植える</button>`}`}</section>`;
+    return `<section class="garden-plot"><p class="eyebrow">畑 ${index + 1}</p>${crop ? `<h2>${crop.name}</h2><p class="garden-status">${left === 0 ? '収穫できます' : `収穫まで あと${left}日`}</p>${left === 0 ? `<button data-action="harvest-crop" data-id="${index}">収穫する <span>＋${crop.quantity || 2}</span></button>` : ''}` : `<h2>空いています</h2>${selectedGardenPlot === index ? `<div class="garden-choices"><p>育てる作物を選ぶ</p>${G.crops.map(choice => `<button class="secondary" data-action="plant-crop" data-id="${index}:${choice.id}">${choice.name} <small>${choice.growDays}日・${choice.quantity || 2}個</small></button>`).join('')}<button class="secondary" data-action="garden-cancel">やめる</button></div>` : `<button data-action="garden-select" data-id="${index}">植える</button>`}`}</section>`;
   }).join('')}</div><p class="muted garden-note">作物はゲーム内の日付が進むと育ちます。種や水やりは必要ありません。</p>`;
   const facilities = `<section class="backyard-facilities" aria-labelledby="backyard-facilities-title"><div class="backyard-facilities-heading"><p class="eyebrow">A QUIET HARVEST</p><h2 id="backyard-facilities-title">庭の小さな恵み</h2><p>日付が進むと、卵・牛乳・きのこを受け取れます。</p></div><div class="facility-grid">${G.currentFacilities(state).map(facility => `<article class="facility-card ${facility.ready ? 'ready' : ''}"><span class="facility-mark" aria-hidden="true">${facility.mark}</span><div><p class="eyebrow">${facility.cycleDays}日ごと</p><h3>${facility.name}</h3><strong>${facility.productName}</strong><p class="facility-status">${facility.ready ? `${facility.productName}を受け取れます` : `受け取りまで あと${facility.daysLeft}日`}</p></div><button data-action="collect-facility" data-id="${facility.id}" ${facility.ready ? '' : 'disabled'}>${facility.ready ? `受け取る　＋${facility.quantity}` : '生産待ち'}</button></article>`).join('')}</div></section>`;
   return heading('BACKYARD / 07', '工房の裏庭', '工房の裏には、まだほとんど手を入れていない小さな庭がある。') + dayStatus() + garden + facilities;
@@ -302,7 +302,7 @@ function encyclopediaPage() {
   const catalog = groups.flatMap(group => group.items);
   const sourceOf = item => {
     const crop = G.crops.find(entry => entry.id === item.id);
-    if (crop) return `裏庭の畑で育てる（${crop.growDays}日・収穫で2個）`;
+    if (crop) return `裏庭の畑で育てる（${crop.growDays}日・収穫で${crop.quantity || 2}個）`;
     const facility = G.backyardFacilities.find(entry => entry.product === item.id);
     if (facility) return `${facility.name}で受け取る（${facility.cycleDays}日ごと・${facility.quantity}個）`;
     if (G.merchantMaterials.some(entry => entry.id === item.id)) return '行商人レガトワとの物々交換';
@@ -597,7 +597,7 @@ document.addEventListener('click', event => {
     const index = Number(id);
     const crop = G.crops.find(entry => entry.id === state.plots[index]?.cropId);
     if (!G.harvestCrop(state, index)) return;
-    save(); render(); notify(`${crop.name}を2個収穫しました。`);
+    save(); render(); notify(`${crop.name}を${crop.quantity || 2}個収穫しました。`);
     return;
   }
   if (action === 'rest') { restDialog.showModal(); return; }

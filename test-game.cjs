@@ -795,11 +795,11 @@ assert.equal(G.harvestCrop(growingReload, 1), true);
 assert.equal(growingReload.inventory.carrot, 2);
 G.rest(growingReload);
 assert.equal(G.harvestCrop(growingReload, 2), true);
-assert.equal(growingReload.inventory.wheat, 2);
+assert.equal(growingReload.inventory.wheat, 3);
 const harvestedReload = G.restore(JSON.parse(JSON.stringify(growingReload)));
 assert.equal(harvestedReload.inventory.potato, 2);
 assert.equal(harvestedReload.inventory.carrot, 2);
-assert.equal(harvestedReload.inventory.wheat, 2);
+assert.equal(harvestedReload.inventory.wheat, 3);
 assert.deepEqual(harvestedReload.plots[0], growingReload.plots[0]);
 assert.equal(harvestedReload.plots[1], null);
 assert.equal(harvestedReload.plots[2], null);
@@ -1121,7 +1121,7 @@ assert.deepEqual(G.backyardMaterials.map(item => [item.id, item.name, item.categ
 assert.deepEqual(G.backyardFacilities.map(facility => [facility.id, facility.name, facility.product, facility.cycleDays, facility.quantity]), [
   ['chickenCoop', '小さな鶏小屋', 'egg', 2, 2],
   ['cowBarn', '小さな牛舎', 'milk', 3, 1],
-  ['mushroomLog', 'きのこ原木', 'mushroom', 3, 2]
+  ['mushroomLog', 'きのこ原木', 'mushroom', 4, 2]
 ]);
 const lockedFacilities = G.fresh();
 assert.deepEqual(G.currentFacilities(lockedFacilities), [], '本編未クリアでは設備を利用不可');
@@ -1131,18 +1131,18 @@ const oldClearFacilities = G.restore({ ...postgameRequestSeed, facilityProductio
 const facilityStartDay = oldClearFacilities.day;
 assert.deepEqual(Object.values(oldClearFacilities.facilityProduction).map(entry => entry.startedDay), [facilityStartDay, facilityStartDay, facilityStartDay], 'クリア済み旧セーブは読込日から初回周期開始');
 assert.deepEqual(G.currentFacilities(oldClearFacilities).map(facility => [facility.id, facility.daysLeft, facility.ready]), [
-  ['chickenCoop', 2, false], ['cowBarn', 3, false], ['mushroomLog', 3, false]
+  ['chickenCoop', 2, false], ['cowBarn', 3, false], ['mushroomLog', 4, false]
 ]);
 const unchangedFacilities = JSON.stringify(oldClearFacilities);
 G.currentFacilities(oldClearFacilities);
 assert.equal(JSON.stringify(oldClearFacilities), unchangedFacilities, 'ゲーム内日付を進めなければ生産は進まない');
 assert.equal(G.collectFacility(oldClearFacilities, 'chickenCoop'), false, '生産待ちは受け取れない');
 G.rest(oldClearFacilities, () => 0.9);
-assert.deepEqual(G.currentFacilities(oldClearFacilities).map(facility => facility.daysLeft), [1, 2, 2]);
+assert.deepEqual(G.currentFacilities(oldClearFacilities).map(facility => facility.daysLeft), [1, 2, 3]);
 const oneDayFacilityReload = G.restore(JSON.parse(JSON.stringify(oldClearFacilities)));
-assert.deepEqual(G.currentFacilities(oneDayFacilityReload).map(facility => facility.daysLeft), [1, 2, 2], 'リロード後も進行途中を保持');
+assert.deepEqual(G.currentFacilities(oneDayFacilityReload).map(facility => facility.daysLeft), [1, 2, 3], 'リロード後も進行途中を保持');
 G.rest(oneDayFacilityReload, () => 0.9);
-assert.deepEqual(G.currentFacilities(oneDayFacilityReload).map(facility => [facility.daysLeft, facility.ready]), [[0, true], [1, false], [1, false]]);
+assert.deepEqual(G.currentFacilities(oneDayFacilityReload).map(facility => [facility.daysLeft, facility.ready]), [[0, true], [1, false], [2, false]]);
 const readyFacilityReload = G.restore(JSON.parse(JSON.stringify(oneDayFacilityReload)));
 assert.equal(G.currentFacilities(readyFacilityReload).find(facility => facility.id === 'chickenCoop').ready, true, '受取可能状態も再読込で保持');
 assert.equal(G.collectFacility(oneDayFacilityReload, 'chickenCoop'), true);
@@ -1150,13 +1150,15 @@ assert.equal(oneDayFacilityReload.inventory.egg, 2, '2日で卵を2個受け取�
 assert.equal(G.facilityDaysLeft(oneDayFacilityReload, 'chickenCoop'), 2, '受取日から次の周期を開始');
 assert.equal(G.collectFacility(oneDayFacilityReload, 'chickenCoop'), false, '同じ周期から二重受取不可');
 G.rest(oneDayFacilityReload, () => 0.9);
-assert.deepEqual(G.currentFacilities(oneDayFacilityReload).map(facility => [facility.daysLeft, facility.ready]), [[1, false], [0, true], [0, true]]);
+assert.deepEqual(G.currentFacilities(oneDayFacilityReload).map(facility => [facility.daysLeft, facility.ready]), [[1, false], [0, true], [1, false]]);
 assert.equal(G.collectFacility(oneDayFacilityReload, 'cowBarn'), true);
+assert.equal(G.collectFacility(oneDayFacilityReload, 'mushroomLog'), false);
+G.rest(oneDayFacilityReload, () => 0.9);
 assert.equal(G.collectFacility(oneDayFacilityReload, 'mushroomLog'), true);
 assert.equal(oneDayFacilityReload.inventory.milk, 1, '3日で牛乳を1個受け取る');
-assert.equal(oneDayFacilityReload.inventory.mushroom, 2, '3日できのこを2個受け取る');
-assert.equal(G.facilityDaysLeft(oneDayFacilityReload, 'cowBarn'), 3);
-assert.equal(G.facilityDaysLeft(oneDayFacilityReload, 'mushroomLog'), 3);
+assert.equal(oneDayFacilityReload.inventory.mushroom, 2, '4日できのこを2個受け取る');
+assert.equal(G.facilityDaysLeft(oneDayFacilityReload, 'cowBarn'), 2);
+assert.equal(G.facilityDaysLeft(oneDayFacilityReload, 'mushroomLog'), 4);
 G.rest(oneDayFacilityReload, () => 0.9);
 G.rest(oneDayFacilityReload, () => 0.9);
 assert.equal(G.collectFacility(oneDayFacilityReload, 'chickenCoop'), true, '受取後2日で卵を再生産');
@@ -1182,8 +1184,8 @@ assert.deepEqual(G.merchantMaterials.map(item => [item.id, item.name, item.categ
   ['fish', '魚', '外来食材']
 ]);
 assert.deepEqual(G.merchantTrades.map(trade => [trade.id, trade.quantity, trade.costs.map(cost => [cost.id, cost.quantity])]), [
-  ['sugar', 2, [['flower', 2]]],
-  ['salt', 2, [['branch', 2]]],
+  ['sugar', 2, [['flower', 3]]],
+  ['salt', 2, [['branch', 3]]],
   ['butter', 1, [['thread', 1]]],
   ['cheese', 1, [['dye', 1]]],
   ['meat', 1, [['vegetableSoup', 1]]],
@@ -1247,7 +1249,7 @@ assert.deepEqual(G.merchantStatus(balancedTradeReload).exchanged, [], '次回来
 assert.equal(G.canTradeMerchant(balancedTradeReload, 'meat'), true);
 assert.equal(G.canTradeMerchant(balancedTradeReload, 'fish'), true);
 
-const merchantCycle = G.restore({ ...postgameRequestSeed, merchantVisit: undefined, inventory: { flower: 4 } });
+const merchantCycle = G.restore({ ...postgameRequestSeed, merchantVisit: undefined, inventory: { flower: 6 } });
 const merchantAnchor = merchantCycle.merchantVisit.anchorDay;
 assert.equal(G.tradeMerchant(merchantCycle, 'sugar'), true);
 G.rest(merchantCycle, () => 0.9);
@@ -1367,7 +1369,7 @@ acquisition.plots[0] = { cropId: 'potato', plantedDay: 1 };
 assert.equal(G.harvestCrop(acquisition, 0), true);
 acquisition.facilityProduction.chickenCoop.startedDay = 1;
 assert.equal(G.collectFacility(acquisition, 'chickenCoop'), true);
-acquisition.inventory.flower = 2;
+acquisition.inventory.flower = 3;
 assert.equal(G.tradeMerchant(acquisition, 'sugar'), true);
 assert.equal(G.craft(acquisition, 'steamedPotato'), true);
 assert.ok(['potato', 'egg', 'sugar', 'steamedPotato'].every(id => acquisition.discovered.includes(id)), '収穫・設備受取・交換・料理の成功時に発見を記録');
@@ -1821,4 +1823,41 @@ for (const invalid of [{ day: 126, resident: 'naka', completed: true }, { day: 1
   assert.deepEqual(G.restore({ ...mealLegacy, dailyMeal: invalid }, () => 0).dailyMeal, { day: 127, resident: 'naka', completed: false });
 }
 console.log('PASS: daily meal gating, unchanged A-C, 40 exact conversations, 8 guaranteed dish reactions/all 152 pairs, equal draws, full legacy preservation, atomic no-reward completion, reload/stale guards and huge days');
+}
+
+{
+  const baseline = G.restore({ ...postgameRequestSeed, day: 150, inventory: Object.fromEntries(Object.keys(G.fresh().inventory).map(id => [id, 25])), plots: [{ cropId: 'wheat', plantedDay: 146 }, { cropId: 'carrot', plantedDay: 148 }, { cropId: 'potato', plantedDay: 148 }], facilityProduction: { chickenCoop: { startedDay: 148 }, cowBarn: { startedDay: 148 }, mushroomLog: { startedDay: 147 } }, merchantVisit: undefined });
+  const legacy = JSON.parse(JSON.stringify(baseline)); delete legacy.facilityProduction.mushroomLog.cycleDays;
+  const restored = G.restore(legacy);
+  const expected = JSON.parse(JSON.stringify(legacy)); expected.facilityProduction.mushroomLog.cycleDays = 3;
+  assert.deepEqual(restored, expected, '150日旧セーブはきのこの周期補完以外の全項目・開始日を維持');
+  assert.equal(G.cropDaysLeft(restored, 0), 0); assert.equal(G.harvestCrop(restored, 0), true);
+  assert.equal(restored.inventory.wheat, 28, '既存の成熟した小麦も3個収穫');
+  assert.equal(G.crops.find(crop => crop.id === 'wheat').growDays, 4);
+  for (const elapsed of [0, 1, 2, 3, 4, 20]) {
+    const old = JSON.parse(JSON.stringify(legacy)); old.facilityProduction.mushroomLog.startedDay = 150 - elapsed;
+    const s = G.restore(old);
+    assert.equal(s.facilityProduction.mushroomLog.startedDay, 150 - elapsed);
+    assert.equal(G.facilityDaysLeft(s, 'mushroomLog'), elapsed >= 3 ? 0 : 4 - elapsed, '旧仕様で成熟済みだけ受取可能を保護');
+    assert.deepEqual(G.restore(JSON.parse(JSON.stringify(s))), s, '再読込で移行を繰り返さない');
+  }
+  assert.equal(G.collectFacility(restored, 'mushroomLog'), true); assert.equal(restored.inventory.mushroom, 27);
+  assert.deepEqual(restored.facilityProduction.mushroomLog, { startedDay: 150, cycleDays: 4 });
+  for (let elapsed = 1; elapsed <= 4; elapsed++) {
+    restored.day = 150 + elapsed;
+    const reloaded = G.restore(JSON.parse(JSON.stringify(restored)));
+    assert.equal(G.facilityDaysLeft(reloaded, 'mushroomLog'), 4 - elapsed);
+    if (elapsed < 4) assert.equal(G.collectFacility(reloaded, 'mushroomLog'), false, '新周期は3日経過でも受け取れない');
+  }
+  for (const [product, input] of [['sugar', 'flower'], ['salt', 'branch']]) {
+    const s = G.restore({ ...baseline, merchantVisit: undefined }); s.inventory[input] = 2;
+    const before = JSON.stringify(s); assert.equal(G.canTradeMerchant(s, product), false); assert.equal(G.tradeMerchant(s, product), false); assert.equal(JSON.stringify(s), before);
+    s.inventory[input] = 3; assert.equal(G.canTradeMerchant(s, product), true); assert.equal(G.tradeMerchant(s, product), true);
+    assert.equal(s.inventory[input], 0); assert.equal(s.inventory[product], 27);
+  }
+  const overflow = G.restore({ ...baseline, inventory: { wheat: Number.MAX_SAFE_INTEGER - 2 } });
+  const overflowBefore = JSON.stringify(overflow); assert.equal(G.harvestCrop(overflow, 0), false); assert.equal(JSON.stringify(overflow), overflowBefore);
+  const huge = G.restore({ ...legacy, day: '9007199254740995', facilityProduction: { ...legacy.facilityProduction, mushroomLog: { startedDay: '9007199254740992' } } });
+  assert.equal(G.facilityDaysLeft(huge, 'mushroomLog'), 0); assert.equal(G.collectFacility(huge, 'mushroomLog'), true); assert.equal(G.facilityDaysLeft(huge, 'mushroomLog'), 4);
+  console.log('PASS: wheat 4d/3, mushroom 4d/2, legacy ready protection without date resets, all 150-day progress/reload, huge days, barter 2 blocked/3 accepted and overflow guard');
 }

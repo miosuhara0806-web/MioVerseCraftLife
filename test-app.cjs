@@ -1076,7 +1076,7 @@ for (let day = 1; day <= 4; day++) {
     assert.equal(app.state().inventory.potato, 2, '連打でも二重収穫なし');
   }
   if (day === 3) { app.click('harvest-crop', '1'); assert.equal(app.state().inventory.carrot, 2); }
-  if (day === 4) { app.click('harvest-crop', '2'); assert.equal(app.state().inventory.wheat, 2); }
+  if (day === 4) { app.click('harvest-crop', '2'); assert.equal(app.state().inventory.wheat, 3); }
 }
 assert.deepEqual(app.state().plots, [null, null, null]);
 assert.ok(app.page('inventory').includes('収穫物'));
@@ -1084,7 +1084,7 @@ for (const name of ['じゃがいも', 'にんじん', '小麦']) assert.ok(app.
 assert.ok(app.page('encyclopedia').includes('57'), 'クリア後の図鑑は既存49品と粘土系5品・新料理3品');
 assert.ok(app.page('requests').includes('日常のお願い'), '日常依頼は継続');
 app = launch();
-assert.equal(app.state().inventory.wheat, 2, '収穫物も再読込で維持');
+assert.equal(app.state().inventory.wheat, 3, '収穫物も再読込で維持');
 assert.equal(app.state().storyProgress.milestone8EventViewed, true);
 console.log('PASS: garden navigation gating, three crop planting, daily growth, exact harvest, inventory and reload');
 
@@ -1479,7 +1479,7 @@ assert.ok(facilityHtml.includes('牛乳'));
 assert.ok(facilityHtml.includes('きのこ'));
 assert.match(facilityHtml, /小さな鶏小屋[\s\S]*受け取りまで あと2日[\s\S]*data-action="collect-facility" data-id="chickenCoop" disabled>生産待ち<\/button>/);
 assert.match(facilityHtml, /小さな牛舎[\s\S]*受け取りまで あと3日/);
-assert.match(facilityHtml, /きのこ原木[\s\S]*受け取りまで あと3日/);
+assert.match(facilityHtml, /きのこ原木[\s\S]*受け取りまで あと4日/);
 const facilityInitialDay = app.state().day;
 assert.deepEqual(Object.values(app.state().facilityProduction).map(entry => entry.startedDay), [facilityInitialDay, facilityInitialDay, facilityInitialDay], '旧セーブは読込日から周期開始');
 const pointsBeforeFacilities = app.state().gratitudePoints;
@@ -1502,8 +1502,8 @@ assert.ok(app.page('backyard').includes('受け取りまで あと2日'), '受�
 app.page('home'); app.click('rest'); app.click('rest-confirm');
 facilityHtml = app.page('backyard');
 assert.match(facilityHtml, /data-action="collect-facility" data-id="cowBarn" >受け取る　＋1<\/button>/);
+app.click('collect-facility', 'cowBarn'); app.page('home'); app.click('rest'); app.click('rest-confirm'); facilityHtml = app.page('backyard');
 assert.match(facilityHtml, /data-action="collect-facility" data-id="mushroomLog" >受け取る　＋2<\/button>/);
-app.click('collect-facility', 'cowBarn');
 app.click('collect-facility', 'mushroomLog');
 assert.equal(app.state().inventory.milk, 1);
 assert.equal(app.state().inventory.mushroom, 2);
@@ -1531,7 +1531,7 @@ assert.equal(app.merchantDialogOpen(), false, '未クリアでは交換画面を
 const merchantUiSave = JSON.parse(JSON.stringify(clearEnding));
 delete merchantUiSave.merchantVisit;
 for (const item of G.merchantMaterials) delete merchantUiSave.inventory[item.id];
-Object.assign(merchantUiSave.inventory, { flower: 4, branch: 0, thread: 0, dye: 0, vegetableSoup: 0, potato: 0, carrot: 0 });
+Object.assign(merchantUiSave.inventory, { flower: 6, branch: 0, thread: 0, dye: 0, vegetableSoup: 0, potato: 0, carrot: 0 });
 saved.set('mioverse-craft-v1', JSON.stringify(merchantUiSave));
 app = launch();
 let merchantHomeHtml = app.page('home');
@@ -1558,7 +1558,7 @@ const shortageMerchantUi = JSON.stringify(app.state());
 app.click('merchant-trade', 'salt');
 assert.equal(JSON.stringify(app.state()), shortageMerchantUi, '材料不足の画面操作では状態を変えない');
 app.click('merchant-trade', 'sugar');
-assert.equal(app.state().inventory.flower, 2);
+assert.equal(app.state().inventory.flower, 3);
 assert.equal(app.state().inventory.sugar, 2);
 assert.ok(app.state().merchantVisit.exchanged.includes('sugar'));
 assert.ok(app.merchantDialogHtml().includes('受け取るもの：<strong>砂糖 ×2</strong>（在庫 2）'), '交換直後に受取品の在庫表示を更新');
@@ -2296,6 +2296,34 @@ assert.equal(app.state().inventory.saltButterBread, 30);
 const after = app.state(); app = launch(); assert.deepEqual(app.state(), after);
 assert.equal((app.page('craft').match(/data-craft-category="[^"]+" open/g) || []).length, 0, '再読み込みも閉じる・保存項目追加なし');
 console.log('PASS: seven production-line folds with dynamic counts/process order, all 41 recipes, targeted category-only opening/highlight, normal reset, unchanged save, single/batch crafting and reload');
+}
+
+{
+  const s = G.restore({ ...memoryFullSave, day: 150, plots: [{ cropId: 'wheat', plantedDay: 146 }, null, null], facilityProduction: { chickenCoop: { startedDay: 150 }, cowBarn: { startedDay: 150 }, mushroomLog: { startedDay: 147 } }, merchantVisit: undefined });
+  delete s.facilityProduction.mushroomLog.cycleDays;
+  s.inventory.branch = 2; s.inventory.flower = 2;
+  saved.set('mioverse-craft-v1', JSON.stringify(s)); app = launch();
+  const expected = JSON.parse(JSON.stringify(s)); expected.facilityProduction.mushroomLog.cycleDays = 3;
+  assert.deepEqual(app.state(), expected, '旧150日セーブの全進捗・日付を維持');
+  let html = app.page('backyard');
+  assert.match(html, /小麦[\s\S]*収穫する <span>＋3<\/span>/);
+  assert.match(html, /4日ごと[\s\S]*きのこ原木[\s\S]*きのこを受け取れます/);
+  const wheatBefore = app.state().inventory.wheat;
+  app.click('harvest-crop', '0'); assert.equal(app.state().inventory.wheat, wheatBefore + 3);
+  assert.ok(app.toastText().includes('小麦を3個収穫しました'));
+  app.click('collect-facility', 'mushroomLog');
+  assert.ok(app.page('backyard').includes('受け取りまで あと4日'));
+  assert.ok(app.page('encyclopedia').includes('4日・収穫で3個'));
+  app.page('home'); app.click('merchant-open');
+  assert.ok(app.merchantDialogHtml().includes('野花 ×3（在庫 2）'));
+  assert.ok(app.merchantDialogHtml().includes('枝 ×3（在庫 2）'));
+  const blocked = app.state(); app.click('merchant-trade', 'sugar'); app.click('merchant-trade', 'salt'); assert.deepEqual(app.state(), blocked);
+  app.click('merchant-close'); const ready = app.state(); ready.inventory.flower = 3; ready.inventory.branch = 3;
+  saved.set('mioverse-craft-v1', JSON.stringify(ready)); app = launch(); app.click('merchant-open');
+  app.click('merchant-trade', 'sugar'); app.click('merchant-trade', 'salt');
+  assert.equal(app.state().inventory.flower, 0); assert.equal(app.state().inventory.branch, 0);
+  const after = app.state(); app = launch(); assert.deepEqual(app.state(), after);
+  console.log('PASS: 150-day legacy UI preservation, wheat +3/encyclopedia, ready mushroom grandfathering/4d restart, barter display and 2/3 stock gates, reload');
 }
 
 (async () => {

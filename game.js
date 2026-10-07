@@ -32,7 +32,7 @@
   const crops = [
     { id: 'potato', name: 'じゃがいも', growDays: 2, mark: '芋' },
     { id: 'carrot', name: 'にんじん', growDays: 3, mark: '人' },
-    { id: 'wheat', name: '小麦', growDays: 4, mark: '麦' }
+    { id: 'wheat', name: '小麦', growDays: 4, quantity: 3, mark: '麦' }
   ];
   const foods = [
     { id: 'steamedPotato', name: 'ふかしじゃがいも', category: '料理', mark: '芋' },
@@ -72,7 +72,7 @@
   const backyardFacilities = [
     { id: 'chickenCoop', name: '小さな鶏小屋', product: 'egg', cycleDays: 2, quantity: 2 },
     { id: 'cowBarn', name: '小さな牛舎', product: 'milk', cycleDays: 3, quantity: 1 },
-    { id: 'mushroomLog', name: 'きのこ原木', product: 'mushroom', cycleDays: 3, quantity: 2 }
+    { id: 'mushroomLog', name: 'きのこ原木', product: 'mushroom', cycleDays: 4, quantity: 2 }
   ];
   // 交換品は既存素材だけで構成する。今後の素材追加時はこの一覧へ追記する。
   const gratitudeExchanges = [
@@ -83,8 +83,8 @@
   ];
   // 行商人の品揃え。外来食材を増やす時は、受取品と交換材料をここへ追加する。
   const merchantTrades = [
-    { id: 'sugar', quantity: 2, costs: [{ id: 'flower', quantity: 2 }] },
-    { id: 'salt', quantity: 2, costs: [{ id: 'branch', quantity: 2 }] },
+    { id: 'sugar', quantity: 2, costs: [{ id: 'flower', quantity: 3 }] },
+    { id: 'salt', quantity: 2, costs: [{ id: 'branch', quantity: 3 }] },
     { id: 'butter', quantity: 1, costs: [{ id: 'thread', quantity: 1 }] },
     { id: 'cheese', quantity: 1, costs: [{ id: 'dye', quantity: 1 }] },
     { id: 'meat', quantity: 1, costs: [{ id: 'vegetableSoup', quantity: 1 }] },
@@ -676,6 +676,13 @@
       const startedDay = state.facilityProduction[facility.id]?.startedDay;
       if (!validDay(startedDay) || BigInt(startedDay) > BigInt(state.day)) {
         state.facilityProduction[facility.id] = { startedDay: state.day };
+        if (facility.id === 'mushroomLog') state.facilityProduction[facility.id].cycleDays = facility.cycleDays;
+        changed = true;
+      }
+      // 旧セーブで3日経過済みのきのこだけ、今回の受け取り可能状態を維持する。
+      // 開始日は動かさず、次回以降を識別できるよう現在の周期を補う。
+      if (facility.id === 'mushroomLog' && ![3, facility.cycleDays].includes(state.facilityProduction[facility.id].cycleDays)) {
+        state.facilityProduction[facility.id].cycleDays = BigInt(state.day) - BigInt(state.facilityProduction[facility.id].startedDay) >= 3n ? 3 : facility.cycleDays;
         changed = true;
       }
     }
@@ -686,7 +693,8 @@
     if (!facility || !postgameUnlocked(state)) return null;
     ensureFacilities(state);
     const elapsed = BigInt(state.day) - BigInt(state.facilityProduction[id].startedDay);
-    const remaining = BigInt(facility.cycleDays) - elapsed;
+    const cycleDays = facility.id === 'mushroomLog' && state.facilityProduction[id].cycleDays === 3 ? 3 : facility.cycleDays;
+    const remaining = BigInt(cycleDays) - elapsed;
     return Number(remaining > 0n ? remaining : 0n);
   }
   function currentFacilities(state) {
@@ -704,6 +712,7 @@
     state.inventory[facility.product] += facility.quantity;
     recordDiscovery(state, facility.product);
     state.facilityProduction[id] = { startedDay: state.day };
+    if (id === 'mushroomLog') state.facilityProduction[id].cycleDays = facility.cycleDays;
     return true;
   }
   const validGratitudePoints = value => Number.isSafeInteger(value) && value >= 0 || typeof value === 'string' && /^(0|[1-9][0-9]*)$/.test(value);
@@ -745,8 +754,9 @@
   function harvestCrop(state, index) {
     if (!postgameUnlocked(state) || !Number.isInteger(index) || index < 0 || index >= 3 || cropDaysLeft(state, index) !== 0) return false;
     const cropId = state.plots[index].cropId;
-    if (!Number.isSafeInteger(state.inventory[cropId]) || state.inventory[cropId] > Number.MAX_SAFE_INTEGER - 2) return false;
-    state.inventory[cropId] += 2;
+    const quantity = crops.find(crop => crop.id === cropId).quantity || 2;
+    if (!Number.isSafeInteger(state.inventory[cropId]) || state.inventory[cropId] > Number.MAX_SAFE_INTEGER - quantity) return false;
+    state.inventory[cropId] += quantity;
     recordDiscovery(state, cropId);
     state.plots[index] = null;
     return true;
@@ -996,7 +1006,12 @@
       state.hospitality.keepsakes = hospitalityEvents.filter(event => state.hospitality.completed.includes(event.id)).map(event => event.keepsake.id);
       for (const facility of backyardFacilities) {
         const startedDay = data.facilityProduction?.[facility.id]?.startedDay;
-        if (validDay(startedDay) && BigInt(startedDay) <= BigInt(state.day)) state.facilityProduction[facility.id] = { startedDay };
+        if (validDay(startedDay) && BigInt(startedDay) <= BigInt(state.day)) {
+          state.facilityProduction[facility.id] = { startedDay };
+          if (facility.id === 'mushroomLog' && [3, facility.cycleDays].includes(data.facilityProduction[facility.id].cycleDays)) {
+            state.facilityProduction[facility.id].cycleDays = data.facilityProduction[facility.id].cycleDays;
+          }
+        }
       }
       ensureFacilities(state);
       if (data.merchantVisit && typeof data.merchantVisit === 'object') {
