@@ -438,13 +438,20 @@ function requestsPage() {
 function renderGratitudeDialog() {
   document.getElementById('gratitude-dialog-content').innerHTML = `<p class="eyebrow">MATERIAL EXCHANGE</p><div class="gratitude-dialog-heading"><h2 id="gratitude-dialog-title" tabindex="-1">素材と交換する</h2><p>お礼のしるし <strong>${G.gratitudePointText(state)}</strong></p></div><div class="gratitude-exchanges">${G.gratitudeExchanges.map(exchange => { const ready = G.canExchangeGratitude(state, exchange.id); return `<article><div><h3>${exchange.name}</h3><p>${exchange.rewards.map(reward => `${names[reward.id]} ×${reward.quantity}`).join('・')}</p></div><div><strong>${exchange.cost} pt</strong><button data-action="gratitude-exchange" data-id="${exchange.id}" ${ready ? '' : 'disabled'}>${ready ? '交換する' : 'お礼のしるしが足りません'}</button></div></article>`; }).join('')}</div>`;
 }
+const merchantRecipeIds = ['thread', 'dye', 'vegetableSoup'];
+function goToCraftRecipe(id) {
+  pendingRecipeNavigation = id;
+  if (location.hash === '#craft') { navigate(); revealRecipe(); }
+  else location.hash = '#craft';
+}
 function renderMerchantDialog() {
   const status = G.merchantStatus(state);
   if (!status?.present) return false;
   document.getElementById('merchant-dialog-content').innerHTML = `<p class="eyebrow">REGATOWA’S BARTER</p><div class="merchant-dialog-heading"><h2 id="merchant-dialog-title" tabindex="-1">レガトワの品物</h2><p>「交換するものある！？　俺はいろいろ持ってきた！」</p></div><div class="merchant-trades">${G.merchantTrades.map(trade => {
     const exchanged = status.exchanged.includes(trade.id);
     const ready = G.canTradeMerchant(state, trade.id);
-    return `<article class="${exchanged ? 'exchanged' : ''}"><div><h3>${names[trade.id]}</h3><p class="merchant-reward">受け取るもの：<strong>${names[trade.id]} ×${trade.quantity}</strong>（在庫 ${count(trade.id)}）</p><p>渡すもの：${trade.costs.map(cost => `${names[cost.id]} ×${cost.quantity}（在庫 ${count(cost.id)}）`).join('・')}</p></div><button data-action="merchant-trade" data-id="${trade.id}" ${ready ? '' : 'disabled'}>${exchanged ? '交換済み' : ready ? '交換する' : '交換材料が足りません'}</button></article>`;
+    const recipeButtons = trade.costs.filter(cost => merchantRecipeIds.includes(cost.id)).map(cost => `<button type="button" class="secondary view-recipe" data-action="merchant-view-recipe" data-id="${cost.id}">作り方を見る</button>`).join('');
+    return `<article class="${exchanged ? 'exchanged' : ''}"><div><h3>${names[trade.id]}</h3><p class="merchant-reward">受け取るもの：<strong>${names[trade.id]} ×${trade.quantity}</strong>（在庫 ${count(trade.id)}）</p><p>渡すもの：${trade.costs.map(cost => `${names[cost.id]} ×${cost.quantity}（在庫 ${count(cost.id)}）`).join('・')}</p>${recipeButtons}</div><button data-action="merchant-trade" data-id="${trade.id}" ${ready ? '' : 'disabled'}>${exchanged ? '交換済み' : ready ? '交換する' : '交換材料が足りません'}</button></article>`;
   }).join('')}</div>`;
   return true;
 }
@@ -546,6 +553,12 @@ document.addEventListener('click', event => {
     merchantDialog.showModal();
     document.getElementById('merchant-dialog-title').focus({ preventScroll: true });
     merchantDialog.scrollTop = 0;
+    return;
+  }
+  if (action === 'merchant-view-recipe') {
+    if (!merchantDialog.open || !G.merchantStatus(state)?.present || !merchantRecipeIds.includes(id)) return;
+    merchantDialog.close();
+    goToCraftRecipe(id);
     return;
   }
   if (action === 'merchant-close') { merchantDialog.close(); return; }
@@ -670,9 +683,7 @@ document.addEventListener('click', event => {
     if (!request || requestCompleted(request) || !G.recipes.some(r => r.id === request.item)) return;
     recipeDialog.close();
     activeRecipeRequestId = null;
-    pendingRecipeNavigation = request.item;
-    if (location.hash === '#craft') { navigate(); revealRecipe(); }
-    else location.hash = '#craft';
+    goToCraftRecipe(request.item);
     return;
   }
   let message;
