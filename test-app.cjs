@@ -1554,6 +1554,21 @@ for (const trade of G.merchantTrades) {
 }
 assert.match(merchantDialogHtml, /data-action="merchant-trade" data-id="sugar" >交換する<\/button>/);
 assert.match(merchantDialogHtml, /data-action="merchant-trade" data-id="salt" disabled>交換材料が足りません<\/button>/);
+assert.equal((merchantDialogHtml.match(/data-action="merchant-view-recipe"/g) || []).length, 3);
+for (const [id, category] of [['thread', '布のしごと'], ['dye', '花のしごと'], ['vegetableSoup', '料理']]) {
+  assert.ok(merchantDialogHtml.includes(`data-action="merchant-view-recipe" data-id="${id}">作り方を見る</button>`));
+  const beforeNavigation = JSON.stringify(app.state());
+  app.click('merchant-view-recipe', id);
+  assert.equal(app.merchantDialogOpen(), false);
+  const craftHtml = app.page('craft');
+  assert.ok(craftHtml.includes(`data-craft-category="${category}" open`));
+  assert.ok(craftHtml.includes(`class="recipe recipe-highlight" data-recipe-id="${id}"`));
+  assert.equal(JSON.stringify(app.state()), beforeNavigation, '移動だけでは在庫・日付・来訪・交換済みを含むセーブ全体を変更しない');
+  app.page('home');
+  app.click('merchant-open');
+}
+app.click('merchant-view-recipe', 'branch');
+assert.equal(app.merchantDialogOpen(), true, '採集素材からの移動を受け付けない');
 const shortageMerchantUi = JSON.stringify(app.state());
 app.click('merchant-trade', 'salt');
 assert.equal(JSON.stringify(app.state()), shortageMerchantUi, '材料不足の画面操作では状態を変えない');
