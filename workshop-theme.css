@@ -573,6 +573,10 @@ footer { border-top-style: dashed; color: var(--muted); }
 }
 
 .craft-fold-content { padding: 18px 16px; }
+.production-controls { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.production-controls small { color: var(--muted); font-size: 12px; }
+.production-controls button[hidden] { display: none; }
+.facility-card > .production-controls { grid-column: 1 / -1; margin-top: 12px; }
 .craft-fold-content > .recipe-section:last-child { margin-bottom: 0; }
 @media (max-width: 380px) {
   .craft-fold > summary { padding: 13px 14px; gap: 8px; }

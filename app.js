@@ -154,7 +154,7 @@ function parseSaveBackup(text) {
   }
   const fresh = G.fresh();
   const invalidShape = Object.entries(fresh).some(([key, example]) => {
-    if (!Object.hasOwn(data, key)) return true;
+    if (!Object.hasOwn(data, key)) return key !== 'productionPauses';
     if (key === 'day' || key === 'gratitudePoints') return false;
     if (example === null) return data[key] !== null && !object(data[key]);
     if (Array.isArray(example)) return !Array.isArray(data[key]);
@@ -201,7 +201,7 @@ function home() {
   const merchant = G.merchantStatus(state);
   const backyardUnlocked = G.postgameUnlocked(state);
   const readyHarvests = backyardUnlocked ? state.plots.flatMap((plot, index) => {
-    if (!plot || G.cropDaysLeft(state, index) !== 0) return [];
+    if (!plot || G.productionPaused(state, `plot-${index}`) || G.cropDaysLeft(state, index) !== 0) return [];
     const crop = G.crops.find(entry => entry.id === plot.cropId);
     return crop ? [crop] : [];
   }) : [];
@@ -281,12 +281,14 @@ function inventoryPage() {
   return heading('STOCK / 03', '工房の棚', `採集素材から料理まで、いま持っているもの。合計 ${total()} 個。`) + ['採集素材', '中間素材', '完成品'].map(category => `<section class="inventory-section"><h2>${category}</h2><div class="inventory-grid">${G.items.filter(i => i.category === category).map(inventoryItem).join('')}</div></section>`).join('') + (G.postgameUnlocked(state) ? `<section class="inventory-section"><h2>収穫物</h2><div class="inventory-grid">${harvests.map(inventoryItem).join('')}</div></section><section class="inventory-section livestock-inventory"><h2>畜産物</h2><div class="inventory-grid">${livestock.map(inventoryItem).join('')}</div></section><section class="inventory-section merchant-inventory"><h2>外来食材</h2><div class="inventory-grid">${G.merchantMaterials.map(inventoryItem).join('')}</div></section><section class="inventory-section cooking-inventory"><h2>料理</h2><div class="inventory-grid">${G.foods.map(inventoryItem).join('')}</div></section>` : '') + `<p class="muted">在庫の上限はありません。加工・納品・料理に使った素材はここから減ります。</p>`;
 }
 function backyardPage() {
+  const pauseControl = (id, paused, ready, reason) => `<div class="production-controls"><button class="secondary" data-action="production-${paused ? 'resume' : 'pause'}" data-id="${id}" ${ready ? 'disabled' : ''}>${paused ? '再開する' : 'お休みする'}</button>${ready ? `<small>${reason}</small>` : ''}</div>`;
   const garden = `<div class="garden-grid">${state.plots.map((plot, index) => {
     const crop = plot && G.crops.find(entry => entry.id === plot.cropId);
     const left = crop ? G.cropDaysLeft(state, index) : null;
-    return `<section class="garden-plot"><p class="eyebrow">畑 ${index + 1}</p>${crop ? `<h2>${crop.name}</h2><p class="garden-status">${left === 0 ? '収穫できます' : `収穫まで あと${left}日`}</p>${left === 0 ? `<button data-action="harvest-crop" data-id="${index}">収穫する <span>＋${crop.quantity || 2}</span></button>` : ''}` : `<h2>空いています</h2>${selectedGardenPlot === index ? `<div class="garden-choices"><p>育てる作物を選ぶ</p>${G.crops.map(choice => `<button class="secondary" data-action="plant-crop" data-id="${index}:${choice.id}">${choice.name} <small>${choice.growDays}日・${choice.quantity || 2}個</small></button>`).join('')}<button class="secondary" data-action="garden-cancel">やめる</button></div>` : `<button data-action="garden-select" data-id="${index}">植える</button>`}`}</section>`;
+    const paused = G.productionPaused(state, `plot-${index}`);
+    return `<section class="garden-plot"><p class="eyebrow">畑 ${index + 1}</p>${crop ? `<h2>${crop.name}</h2><p class="garden-status">${paused ? 'お休み中' : left === 0 ? '収穫できます' : `収穫まで あと${left}日`}</p>${!paused && left === 0 ? `<button data-action="harvest-crop" data-id="${index}">収穫する <span>＋${crop.quantity || 2}</span></button>` : ''}` : `<h2>空いています</h2>${paused ? '<p class="garden-status">お休み中</p>' : selectedGardenPlot === index ? `<div class="garden-choices"><p>育てる作物を選ぶ</p>${G.crops.map(choice => `<button class="secondary" data-action="plant-crop" data-id="${index}:${choice.id}">${choice.name} <small>${choice.growDays}日・${choice.quantity || 2}個</small></button>`).join('')}<button class="secondary" data-action="garden-cancel">やめる</button></div>` : `<button data-action="garden-select" data-id="${index}">植える</button>`}`}${pauseControl(`plot-${index}`, paused, !paused && left === 0, '先に収穫してください')}</section>`;
   }).join('')}</div><p class="muted garden-note">作物はゲーム内の日付が進むと育ちます。種や水やりは必要ありません。</p>`;
-  const facilities = `<section class="backyard-facilities" aria-labelledby="backyard-facilities-title"><div class="backyard-facilities-heading"><p class="eyebrow">A QUIET HARVEST</p><h2 id="backyard-facilities-title">庭の小さな恵み</h2><p>日付が進むと、卵・牛乳・きのこを受け取れます。</p></div><div class="facility-grid">${G.currentFacilities(state).map(facility => `<article class="facility-card ${facility.ready ? 'ready' : ''}"><span class="facility-mark" aria-hidden="true">${facility.mark}</span><div><p class="eyebrow">${facility.cycleDays}日ごと</p><h3>${facility.name}</h3><strong>${facility.productName}</strong><p class="facility-status">${facility.ready ? `${facility.productName}を受け取れます` : `受け取りまで あと${facility.daysLeft}日`}</p></div><button data-action="collect-facility" data-id="${facility.id}" ${facility.ready ? '' : 'disabled'}>${facility.ready ? `受け取る　＋${facility.quantity}` : '生産待ち'}</button></article>`).join('')}</div></section>`;
+  const facilities = `<section class="backyard-facilities" aria-labelledby="backyard-facilities-title"><div class="backyard-facilities-heading"><p class="eyebrow">A QUIET HARVEST</p><h2 id="backyard-facilities-title">庭の小さな恵み</h2><p>日付が進むと、卵・牛乳・きのこを受け取れます。</p></div><div class="facility-grid">${G.currentFacilities(state).map(facility => `<article class="facility-card ${facility.ready ? 'ready' : ''}"><span class="facility-mark" aria-hidden="true">${facility.mark}</span><div><p class="eyebrow">${facility.cycleDays}日ごと</p><h3>${facility.name}</h3><strong>${facility.productName}</strong><p class="facility-status">${facility.paused ? 'お休み中' : facility.ready ? `${facility.productName}を受け取れます` : `受け取りまで あと${facility.daysLeft}日`}</p></div><div class="production-controls"><button${facility.paused ? ' hidden' : ''} data-action="collect-facility" data-id="${facility.id}" ${facility.ready ? '' : 'disabled'}>${facility.ready ? `受け取る　＋${facility.quantity}` : '生産待ち'}</button>${pauseControl(facility.id, facility.paused, facility.ready, '先に受け取ってください')}</div></article>`).join('')}</div></section>`;
   return heading('BACKYARD / 07', '工房の裏庭', '工房の裏には、まだほとんど手を入れていない小さな庭がある。') + dayStatus() + garden + facilities;
 }
 function encyclopediaPage() {
@@ -591,9 +593,15 @@ document.addEventListener('click', event => {
     save(); render(); notify(`${facility.productName}を${facility.quantity}個受け取りました。`);
     return;
   }
+  if (action === 'production-pause' || action === 'production-resume') {
+    if (!G.setProductionPaused(state, id, action === 'production-pause')) return;
+    if (id?.startsWith('plot-')) selectedGardenPlot = null;
+    save(); render();
+    return;
+  }
   if (action === 'garden-select') {
     const index = Number(id);
-    if (!G.postgameUnlocked(state) || !Number.isInteger(index) || state.plots[index] !== null) return;
+    if (!G.postgameUnlocked(state) || !Number.isInteger(index) || G.productionPaused(state, `plot-${index}`) || state.plots[index] !== null) return;
     selectedGardenPlot = index;
     render();
     return;

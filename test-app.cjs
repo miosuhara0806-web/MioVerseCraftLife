@@ -2341,8 +2341,28 @@ console.log('PASS: seven production-line folds with dynamic counts/process order
   console.log('PASS: 150-day legacy UI preservation, wheat +3/encyclopedia, ready mushroom grandfathering/4d restart, barter display and 2/3 stock gates, reload');
 }
 
+{
+  const seed = G.restore({ ...memoryFullSave, day: 150, plots: [{ cropId: 'wheat', plantedDay: 150 }, null, null], facilityProduction: { chickenCoop: { startedDay: 150 }, cowBarn: { startedDay: 150 }, mushroomLog: { startedDay: 150, cycleDays: 4 } } });
+  saved.set('mioverse-craft-v1', JSON.stringify(seed)); app = launch();
+  app.page('backyard'); app.click('production-pause', 'chickenCoop'); app.click('production-pause', 'mushroomLog');
+  assert.match(app.page('backyard'), /お休み中[\s\S]*data-action="production-resume" data-id="chickenCoop"/);
+  for (let n = 0; n < 4; n++) { app.page('home'); app.click('rest'); app.click('rest-confirm'); }
+  assert.equal(G.facilityDaysLeft(app.state(), 'chickenCoop'), 2); assert.equal(G.facilityDaysLeft(app.state(), 'mushroomLog'), 4);
+  assert.equal(G.cropDaysLeft(app.state(), 0), 0); assert.ok(app.page('home').includes('harvest-notice'), '稼働中の畑は通知される');
+  app.page('backyard'); app.click('production-pause', 'plot-0'); assert.equal(G.productionPaused(app.state(), 'plot-0'), false);
+  assert.ok(app.page('backyard').includes('先に収穫してください'));
+  app.click('harvest-crop', '0'); app.click('collect-facility', 'cowBarn');
+  assert.ok(!app.page('home').includes('harvest-notice'), '休止中の設備は誤通知しない');
+  const paused = app.state(); app = launch(); assert.deepEqual(app.state(), paused);
+  app.page('backyard'); app.click('production-resume', 'chickenCoop');
+  assert.equal(G.facilityDaysLeft(app.state(), 'chickenCoop'), 2);
+  assert.equal(G.productionPaused(app.state(), 'mushroomLog'), true, '片方だけ再開');
+  console.log('PASS: pause/resume controls, active crop notice, ready guard/reason, no paused notifications, saved independent states');
+}
+
 (async () => {
-  const seed = G.restore({ ...memoryFullSave, day: 127, inventory: Object.fromEntries(Object.keys(G.fresh().inventory).map(id => [id, 23])), dailyMeal: { day: 127, resident: 'ritsu', completed: true } });
+  const seed = G.restore({ ...memoryFullSave, day: 127, plots: [{ cropId: 'wheat', plantedDay: 126 }, null, null], facilityProduction: { chickenCoop: { startedDay: 126 }, cowBarn: { startedDay: 127 }, mushroomLog: { startedDay: 127, cycleDays: 4 } }, inventory: Object.fromEntries(Object.keys(G.fresh().inventory).map(id => [id, 23])), dailyMeal: { day: 127, resident: 'ritsu', completed: true } });
+  G.setProductionPaused(seed, 'chickenCoop', true); G.setProductionPaused(seed, 'plot-0', true);
   saved.set('mioverse-craft-v1', JSON.stringify(seed));
   let backupApp = launch();
   const original = backupApp.state();
@@ -2371,6 +2391,7 @@ console.log('PASS: seven production-line folds with dynamic counts/process order
     assert.equal(saved.get('mioverse-craft-v1'), originalText, '不正ファイルは現在セーブを一切変えない');
   }
   for (const key of Object.keys(original)) {
+    if (key === 'productionPauses') continue; // 導入前のバックアップにも対応する。
     const truncated = { ...original }; delete truncated[key];
     await backupApp.selectBackup(JSON.stringify({ ...envelope, save: truncated }));
     assert.equal(backupApp.backupDialogOpen(), false, `欠落した${key}を拒否`);
@@ -2410,5 +2431,8 @@ console.log('PASS: seven production-line folds with dynamic counts/process order
   await backupApp.selectBackup(JSON.stringify(huge)); backupApp.click('backup-confirm');
   assert.equal(backupApp.state().day, huge.save.day);
   assert.deepEqual(backupApp.state().dailyMeal, huge.save.dailyMeal);
+  const legacyBackup = JSON.parse(exported); delete legacyBackup.save.productionPauses;
+  await backupApp.selectBackup(JSON.stringify(legacyBackup)); assert.equal(backupApp.backupDialogOpen(), true);
+  backupApp.click('backup-confirm'); assert.deepEqual(backupApp.state().productionPauses, {}, '休止導入前のバックアップは全枠生産中');
   console.log('PASS: complete JSON export/date filename, file selection, validation/cancel/Escape, atomic restore failures, every progress field, duplicate guard, huge days, reload and unchanged autosave');
 })().catch(error => { console.error(error); process.exitCode = 1; });

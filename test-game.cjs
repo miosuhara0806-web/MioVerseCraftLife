@@ -1861,3 +1861,43 @@ console.log('PASS: daily meal gating, unchanged A-C, 40 exact conversations, 8 g
   assert.equal(G.facilityDaysLeft(huge, 'mushroomLog'), 0); assert.equal(G.collectFacility(huge, 'mushroomLog'), true); assert.equal(G.facilityDaysLeft(huge, 'mushroomLog'), 4);
   console.log('PASS: wheat 4d/3, mushroom 4d/2, legacy ready protection without date resets, all 150-day progress/reload, huge days, barter 2 blocked/3 accepted and overflow guard');
 }
+
+{
+  const seed = G.restore({ ...postgameRequestSeed, day: 150, plots: [{ cropId: 'wheat', plantedDay: 149 }, { cropId: 'carrot', plantedDay: 150 }, { cropId: 'potato', plantedDay: 150 }], facilityProduction: { chickenCoop: { startedDay: 150 }, cowBarn: { startedDay: 150 }, mushroomLog: { startedDay: 150, cycleDays: 4 } } });
+  const legacy = JSON.parse(JSON.stringify(seed)); delete legacy.productionPauses;
+  assert.deepEqual(G.restore(legacy), seed, '旧セーブは全枠生産中。追加項目以外は維持');
+  const eggOnly = G.restore(seed); const before = JSON.parse(JSON.stringify(eggOnly));
+  assert.equal(G.setProductionPaused(eggOnly, 'chickenCoop', true), true);
+  assert.deepEqual(eggOnly, { ...before, productionPauses: { chickenCoop: 150 } }, '切替だけでは在庫・日付・進捗を変更しない');
+  for (let n = 0; n < 8; n++) G.rest(eggOnly, () => 0);
+  assert.equal(G.facilityDaysLeft(eggOnly, 'chickenCoop'), 2);
+  assert.equal(G.facilityDaysLeft(eggOnly, 'mushroomLog'), 0);
+  assert.equal(G.cropDaysLeft(eggOnly, 0), 0);
+  assert.equal(G.collectFacility(eggOnly, 'chickenCoop'), false);
+  assert.equal(G.collectFacility(eggOnly, 'mushroomLog'), true);
+  assert.equal(G.harvestCrop(eggOnly, 0), true);
+  assert.equal(G.setProductionPaused(eggOnly, 'cowBarn', true), false, '未受取では休止不可');
+  assert.equal(G.setProductionPaused(eggOnly, 'plot-1', true), false, '未収穫では休止不可');
+  const both = G.restore(seed); G.rest(both, () => 0);
+  for (const id of ['chickenCoop', 'mushroomLog', 'plot-0']) assert.equal(G.setProductionPaused(both, id, true), true);
+  const inventory = JSON.parse(JSON.stringify(both.inventory));
+  for (let n = 0; n < 12; n++) G.rest(both, () => 0);
+  assert.equal(G.facilityDaysLeft(both, 'chickenCoop'), 1); assert.equal(G.facilityDaysLeft(both, 'mushroomLog'), 3);
+  assert.equal(G.cropDaysLeft(both, 0), 2); assert.equal(G.cropDaysLeft(both, 1), 0);
+  assert.deepEqual(both.inventory, inventory, '休止期間の収穫物を加算しない');
+  assert.deepEqual(G.restore(JSON.parse(JSON.stringify(both))), both, '休止時点と全進捗を保存・再読込');
+  for (const id of ['chickenCoop', 'mushroomLog', 'plot-0']) assert.equal(G.setProductionPaused(both, id, false), true);
+  assert.equal(G.facilityDaysLeft(both, 'chickenCoop'), 1); assert.equal(G.facilityDaysLeft(both, 'mushroomLog'), 3); assert.equal(G.cropDaysLeft(both, 0), 2);
+  G.rest(both, () => 0); assert.equal(G.collectFacility(both, 'chickenCoop'), true); assert.equal(G.collectFacility(both, 'chickenCoop'), false);
+  G.rest(both, () => 0); assert.equal(G.harvestCrop(both, 0), true); assert.equal(G.setProductionPaused(both, 'plot-0', true), true);
+  assert.equal(G.plantCrop(both, 0, 'wheat'), false, '空の休止枠は植えられない');
+  assert.equal(G.setProductionPaused(both, 'plot-0', false), true); assert.equal(G.plantCrop(both, 0, 'wheat'), true);
+  G.rest(both, () => 0); assert.equal(G.collectFacility(both, 'mushroomLog'), true);
+  assert.equal(both.inventory.mushroom, inventory.mushroom + 2, '再開後も1周期分のみ');
+  assert.equal(G.setProductionPaused(G.fresh(), 'plot-0', true), false);
+  assert.equal(G.setProductionPaused(both, 'unknown', true), false);
+  const huge = G.restore({ ...seed, day: '9007199254740993', plots: [null, null, null], facilityProduction: { chickenCoop: { startedDay: '9007199254740992' }, cowBarn: { startedDay: '9007199254740993' }, mushroomLog: { startedDay: '9007199254740993', cycleDays: 4 } } });
+  G.setProductionPaused(huge, 'chickenCoop', true); for (let n = 0; n < 3; n++) G.rest(huge, () => 0);
+  assert.equal(G.facilityDaysLeft(huge, 'chickenCoop'), 1); G.setProductionPaused(huge, 'chickenCoop', false); G.rest(huge, () => 0); assert.equal(G.collectFacility(huge, 'chickenCoop'), true);
+  console.log('PASS: independent plot/facility pauses, egg-only and egg+mushrooms, frozen progress, ready guards, empty plots, exact resume, reload/legacy and huge days');
+}
