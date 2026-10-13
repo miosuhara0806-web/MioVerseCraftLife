@@ -1642,23 +1642,41 @@ for (const trade of G.merchantTrades) {
 }
 console.log('PASS: all six merchant reward stocks, zero stock and existing cost-stock labels');
 
+for (const inventory of [{ egg: 2, mushroom: 0 }, { egg: 1, mushroom: 1 }, { egg: 0, mushroom: 0 }]) {
+  const shortFishSave = JSON.parse(JSON.stringify(clearEnding));
+  delete shortFishSave.merchantVisit;
+  Object.assign(shortFishSave.inventory, { potato: 2, carrot: 1, fish: 0 }, inventory);
+  saved.set('mioverse-craft-v1', JSON.stringify(shortFishSave));
+  app = launch();
+  app.click('merchant-open');
+  assert.ok(app.merchantDialogHtml().includes(`渡すもの：卵 ×2（在庫 ${inventory.egg}）・きのこ ×1（在庫 ${inventory.mushroom}）`));
+  assert.match(app.merchantDialogHtml(), /data-action="merchant-trade" data-id="fish" disabled>交換材料が足りません<\/button>/);
+  const beforeShortFish = JSON.stringify(app.state());
+  app.click('merchant-trade', 'fish');
+  assert.equal(JSON.stringify(app.state()), beforeShortFish, '魚の新材料不足時は旧材料があっても何も消費しない');
+}
+
 const balancedMerchantUiSave = JSON.parse(JSON.stringify(clearEnding));
 delete balancedMerchantUiSave.merchantVisit;
-Object.assign(balancedMerchantUiSave.inventory, { vegetableSoup: 1, potato: 2, carrot: 1, meat: 0, fish: 0 });
+Object.assign(balancedMerchantUiSave.inventory, { vegetableSoup: 1, egg: 2, mushroom: 1, potato: 2, carrot: 1, meat: 0, fish: 0 });
 saved.set('mioverse-craft-v1', JSON.stringify(balancedMerchantUiSave));
 app = launch();
 app.click('merchant-open');
 merchantDialogHtml = app.merchantDialogHtml();
 assert.ok(merchantDialogHtml.includes('渡すもの：野菜スープ ×1（在庫 1）'));
-assert.ok(merchantDialogHtml.includes('渡すもの：じゃがいも ×2（在庫 2）・にんじん ×1（在庫 1）'));
+assert.ok(merchantDialogHtml.includes('渡すもの：卵 ×2（在庫 2）・きのこ ×1（在庫 1）'));
 assert.match(merchantDialogHtml, /data-action="merchant-trade" data-id="meat" >交換する<\/button>/);
 assert.match(merchantDialogHtml, /data-action="merchant-trade" data-id="fish" >交換する<\/button>/);
 app.click('merchant-trade', 'meat');
 assert.equal(app.state().inventory.vegetableSoup, 0);
 assert.equal(app.state().inventory.meat, 1);
 app.click('merchant-trade', 'fish');
-assert.equal(app.state().inventory.potato, 0);
-assert.equal(app.state().inventory.carrot, 0);
+assert.equal(app.state().inventory.egg, 0);
+assert.equal(app.state().inventory.mushroom, 0);
+assert.equal(app.state().inventory.potato, 2, '魚の交換で旧材料のじゃがいもを消費しない');
+assert.equal(app.state().inventory.carrot, 1, '魚の交換で旧材料のにんじんを消費しない');
+assert.ok(app.merchantDialogHtml().includes('渡すもの：卵 ×2（在庫 0）・きのこ ×1（在庫 0）'));
+assert.ok(app.merchantDialogHtml().includes('受け取るもの：<strong>魚 ×1</strong>（在庫 1）'));
 assert.equal(app.state().inventory.fish, 1);
 assert.deepEqual(app.state().merchantVisit.exchanged.sort(), ['fish', 'meat']);
 app = launch();

@@ -88,7 +88,7 @@
     { id: 'butter', quantity: 1, costs: [{ id: 'thread', quantity: 1 }] },
     { id: 'cheese', quantity: 1, costs: [{ id: 'dye', quantity: 1 }] },
     { id: 'meat', quantity: 1, costs: [{ id: 'vegetableSoup', quantity: 1 }] },
-    { id: 'fish', quantity: 1, costs: [{ id: 'potato', quantity: 2 }, { id: 'carrot', quantity: 1 }] }
+    { id: 'fish', quantity: 1, costs: [{ id: 'egg', quantity: 2 }, { id: 'mushroom', quantity: 1 }] }
   ];
   const recipes = [
     { id: 'wood', input: 'branch', cost: 2, group: '木のしごと' },
