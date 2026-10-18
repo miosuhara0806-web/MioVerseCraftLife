@@ -2262,6 +2262,33 @@ assert.ok(app.page('requests').includes('🧪碧博士'), '依頼・住人記録
 assert.ok(app.page('memories').includes('🧪碧博士'), '思い出の住人表示');
 assert.ok(app.page('hospitality').includes('🧪碧博士'), 'もてなし参加住人の表示');
 console.log('PASS: all 8 dedicated reaction UI flows, exact labels/text, cancel/no rewards, atomic single consumption, daily/reload guards and doctor display names');
+{
+  saved.set('mioverse-craft-v1', JSON.stringify({ ...mealUiBefore, inventory: { ...mealUiBefore.inventory, egg: 2 } })); const mealCraftApp = launch();
+  const before = mealCraftApp.state();
+  mealCraftApp.page('home'); mealCraftApp.click('meal-open');
+  const selection = mealCraftApp.mealDialogHtml();
+  assert.ok(selection.includes('料理を作りに行く'));
+  assert.ok(selection.indexOf('data-action="meal-select"') < selection.indexOf('data-action="meal-go-craft"'));
+  assert.ok(selection.indexOf('data-action="meal-go-craft"') < selection.indexOf('data-action="meal-cancel"'));
+  mealCraftApp.click('meal-go-craft'); assert.equal(mealCraftApp.mealDialogOpen(), false);
+  const craft = mealCraftApp.page('craft');
+  assert.ok(craft.includes('data-craft-category="料理" open'));
+  assert.equal((craft.match(/data-craft-category="[^"]+" open/g) || []).length, 1);
+  assert.deepEqual(mealCraftApp.state(), before, '移動だけでは住人・日付・在庫・全セーブ項目を変更しない');
+  mealCraftApp.click('craft', 'boiledEgg');
+  assert.equal(mealCraftApp.state().inventory.boiledEgg, before.inventory.boiledEgg + 1);
+  mealCraftApp.page('home'); mealCraftApp.click('meal-open');
+  assert.ok(mealCraftApp.mealDialogHtml().includes(G.mealGuests[before.dailyMeal.resident].name));
+  assert.deepEqual(mealCraftApp.state().dailyMeal, before.dailyMeal);
+  mealCraftApp.click('meal-select', 'boiledEgg'); const afterCooking = mealCraftApp.state();
+  mealCraftApp.click('meal-go-craft'); assert.equal(mealCraftApp.mealDialogOpen(), true, '会話中は新導線を実行しない'); assert.deepEqual(mealCraftApp.state(), afterCooking);
+  mealCraftApp.click('meal-next'); assert.deepEqual(mealCraftApp.state(), afterCooking);
+  mealCraftApp.click('meal-next'); assert.equal(mealCraftApp.state().inventory.boiledEgg, before.inventory.boiledEgg);
+  assert.equal(mealCraftApp.state().dailyMeal.completed, true); assert.equal(mealCraftApp.state().day, before.day);
+  const allBefore = mealCraftApp.state(); mealCraftApp.click('meal-go-craft'); assert.deepEqual(mealCraftApp.state(), allBefore);
+  assert.equal((mealCraftApp.page('craft').match(/data-craft-category="[^"]+" open/g) || []).length, 0, '通常ナビは従来どおり全て閉じる');
+  console.log('PASS: meal-to-cooking button placement, target fold, no-save navigation, same-day return/cook/serve, dialogue/closed guards, normal navigation reset');
+}
 
 {
 const foldTargets = [G.dailyRequestPool.find(request => request.item === 'thread'), G.dailyRequestPool.find(request => request.item === 'vase'), G.cookingDailyRequestPool.find(request => request.item === 'rusticPudding')];

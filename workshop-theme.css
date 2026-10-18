@@ -566,6 +566,7 @@ footer { border-top-style: dashed; color: var(--muted); }
 .meal-dish { color: var(--muted); font-size: 12px; }
 .meal-dialog-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
 .meal-dialog-actions button { flex: 1; font-size: 12px; }
+.meal-selection-actions { flex-direction: column; }
 @media (max-width: 480px) {
   .daily-meal-card { flex-direction: column; align-items: stretch; padding: 18px 16px; }
   #meal-dialog { padding: 20px 18px; }

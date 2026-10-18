@@ -225,7 +225,7 @@ function dailyMealCard() {
 function openMealSelection() {
   if (!G.postgameUnlocked(state) || !state.dailyMeal || state.dailyMeal.completed || !G.mealFoods(state).length || mealDialog.open) return;
   pendingMeal = null;
-  document.getElementById('meal-dialog-content').innerHTML = `<h2 id="meal-dialog-title" tabindex="-1">今日のまかない</h2><p>今日のお客さん：${G.mealGuests[state.dailyMeal.resident].name}</p><div class="meal-food-list">${G.mealFoods(state).map(food => `<button class="secondary" data-action="meal-select" data-id="${food.id}"><span>${food.name}</span><small>在庫 ${count(food.id)}個</small></button>`).join('')}</div><div class="meal-dialog-actions"><button class="secondary" data-action="meal-cancel">キャンセル</button></div>`;
+  document.getElementById('meal-dialog-content').innerHTML = `<h2 id="meal-dialog-title" tabindex="-1">今日のまかない</h2><p>今日のお客さん：${G.mealGuests[state.dailyMeal.resident].name}</p><div class="meal-food-list">${G.mealFoods(state).map(food => `<button class="secondary" data-action="meal-select" data-id="${food.id}"><span>${food.name}</span><small>在庫 ${count(food.id)}個</small></button>`).join('')}</div><div class="meal-dialog-actions meal-selection-actions"><button data-action="meal-go-craft">料理を作りに行く</button><button class="secondary" data-action="meal-cancel">キャンセル</button></div>`;
   mealDialog.showModal();
   document.getElementById('meal-dialog-title').focus({ preventScroll: true });
   mealDialog.scrollTop = 0;
@@ -517,6 +517,14 @@ document.addEventListener('click', event => {
   if (action === 'backup-cancel') { pendingBackup = null; backupDialog.close(); return; }
   if (action === 'backup-confirm') { restoreSaveBackup(); return; }
   if (action === 'meal-open') { openMealSelection(); return; }
+  if (action === 'meal-go-craft') {
+    if (!mealDialog.open || pendingMeal || !G.postgameUnlocked(state) || !state.dailyMeal || state.dailyMeal.completed) return;
+    const recipe = G.availableRecipes(state).find(recipe => recipe.kind === 'cooking');
+    if (!recipe) return;
+    mealDialog.close();
+    goToCraftRecipe(recipe.id);
+    return;
+  }
   if (action === 'meal-cancel') { pendingMeal = null; mealDialog.close(); return; }
   if (action === 'meal-select') {
     if (!mealDialog.open || pendingMeal || !G.mealFoods(state).some(food => food.id === id)) return;
